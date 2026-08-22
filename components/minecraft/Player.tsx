@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import * as RAPIER from "@dimforge/rapier3d-compat";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useKeyboardControls } from "@react-three/drei";
 import {
@@ -62,12 +62,23 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
   const headBase = useRef(0);
   const headWasTracked = useRef(false);
   // Fist-orbit state.
-  const { scene } = useThree();
+  const { scene, camera } = useThree();
   const orbitWas = useRef(false);
   const orbitTarget = useRef(new THREE.Vector3());
   const orbitRadius = useRef(0);
   const orbitAz = useRef(0);
   const orbitEl = useRef(0);
+
+  // SceneCanvas is shared with the Rhino viewer, so its camera is authored for
+  // an orbit view — positioned at [32, 24, 32] looking at the origin, which
+  // bakes in a ~30° downward pitch. The frame loop below only ever writes camera
+  // *position* (rotation is PointerLockControls' and the gesture paths' job), so
+  // that tilt survives into first person and aims the spawn view at the player's
+  // feet: anything at eye height sits at or above the top of the frame until the
+  // mouse moves. Level it once on mount; the controls take over from there.
+  useEffect(() => {
+    camera.rotation.set(0, 0, 0);
+  }, [camera]);
   useFrame((state) => {
     const { forward, backward, left, right, jump } = get();
     const velocity = ref.current.linvel();
