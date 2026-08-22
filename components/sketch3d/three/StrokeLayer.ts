@@ -1,8 +1,7 @@
 /** Ring: three. Imports three — never React, never @react-three/*. */
 import * as THREE from "three";
-import type { Line2 } from "three-stdlib";
 import type { SketchState, StrokeStore } from "../core/strokeStore";
-import { buildStrokeLine } from "./strokeGeometry";
+import { buildStrokeMesh } from "./strokeGeometry";
 
 /**
  * Mirrors the stroke store into meshes.
@@ -11,24 +10,15 @@ import { buildStrokeLine } from "./strokeGeometry";
  * three.js app adds it with scene.add(). Same class, no wrapper on either side.
  */
 export class StrokeLayer extends THREE.Object3D {
-  private readonly committed = new Map<string, Line2>();
-  private live: Line2 | null = null;
+  private readonly committed = new Map<string, THREE.Mesh>();
+  private live: THREE.Mesh | null = null;
   private readonly unsubscribe: () => void;
 
-  constructor(
-    private readonly store: StrokeStore,
-    private readonly resolution: THREE.Vector2,
-  ) {
+  constructor(private readonly store: StrokeStore) {
     super();
     this.name = "StrokeLayer";
     this.sync(store.getState());
     this.unsubscribe = store.subscribe((state) => this.sync(state));
-  }
-
-  setResolution(width: number, height: number): void {
-    this.resolution.set(width, height);
-    for (const line of this.committed.values()) line.material.resolution.set(width, height);
-    this.live?.material.resolution.set(width, height);
   }
 
   private sync(state: SketchState): void {
@@ -38,16 +28,16 @@ export class StrokeLayer extends THREE.Object3D {
       seen.add(stroke.id);
       // Committed strokes are inert — build once, never rebuild.
       if (!this.committed.has(stroke.id)) {
-        const line = buildStrokeLine(stroke, this.resolution);
-        this.committed.set(stroke.id, line);
-        this.add(line);
+        const mesh = buildStrokeMesh(stroke);
+        this.committed.set(stroke.id, mesh);
+        this.add(mesh);
       }
     }
 
-    for (const [id, line] of this.committed) {
+    for (const [id, mesh] of this.committed) {
       if (seen.has(id)) continue;
-      this.remove(line);
-      this.disposeLine(line);
+      this.remove(mesh);
+      this.disposeMesh(mesh);
       this.committed.delete(id);
     }
 
@@ -57,25 +47,25 @@ export class StrokeLayer extends THREE.Object3D {
   private syncLive(state: SketchState): void {
     if (this.live) {
       this.remove(this.live);
-      this.disposeLine(this.live);
+      this.disposeMesh(this.live);
       this.live = null;
     }
     if (!state.active || state.active.points.length === 0) return;
 
-    this.live = buildStrokeLine(state.active, this.resolution);
+    this.live = buildStrokeMesh(state.active);
     this.add(this.live);
   }
 
-  private disposeLine(line: Line2): void {
-    line.geometry.dispose();
-    line.material.dispose();
+  private disposeMesh(mesh: THREE.Mesh): void {
+    mesh.geometry.dispose();
+    (mesh.material as THREE.Material).dispose();
   }
 
   dispose(): void {
     this.unsubscribe();
-    for (const line of this.committed.values()) this.disposeLine(line);
+    for (const mesh of this.committed.values()) this.disposeMesh(mesh);
     this.committed.clear();
-    if (this.live) this.disposeLine(this.live);
+    if (this.live) this.disposeMesh(this.live);
     this.live = null;
     this.clear();
   }

@@ -1,50 +1,63 @@
 /** Ring: three. Imports three — never React, never @react-three/*. */
 import * as THREE from "three";
-import { Line2, LineGeometry, LineMaterial } from "three-stdlib";
 import type { Stroke } from "../core/types";
+import { createStrokeMaterial } from "./StrokeMaterial";
 
-/**
- * A single point cannot be a fat line, so a click without movement becomes a very
- * short segment — it reads as a dot and avoids the NaN tangents a zero-length
- * segment would produce.
- */
+/** A click without movement becomes a short segment so it reads as a dot. */
 const DOT_LENGTH = 0.01;
 
-export function strokePositions(stroke: Stroke): number[] {
-  if (stroke.points.length === 0) return [];
+function samplesOf(stroke: Stroke): { points: [number, number, number][]; widths: number[] } {
   if (stroke.points.length === 1) {
     const [x, y, z] = stroke.points[0];
-    return [x, y, z, x + DOT_LENGTH, y, z];
+    return { points: [[x, y, z], [x + DOT_LENGTH, y, z]], widths: [stroke.widths[0], stroke.widths[0]] };
   }
-  return stroke.points.flat();
+  return { points: stroke.points, widths: stroke.widths };
 }
 
-/**
- * Phase 1 geometry: uniform width per stroke.
- *
- * Line2 cannot vary width along a line, so `stroke.widths` is averaged here.
- * Task 7 replaces this file's output with a per-vertex ribbon; nothing outside
- * this module needs to know which is in use.
- */
-export function buildStrokeLine(stroke: Stroke, resolution: THREE.Vector2): Line2 {
-  const geometry = new LineGeometry();
-  geometry.setPositions(strokePositions(stroke));
+export function buildStrokeMesh(stroke: Stroke): THREE.Mesh {
+  const { points, widths } = samplesOf(stroke);
+  const count = points.length;
 
-  const averageWidth =
-    stroke.widths.length > 0
-      ? stroke.widths.reduce((sum, w) => sum + w, 0) / stroke.widths.length
-      : 0.05;
+  const position = new Float32Array(count * 2 * 3);
+  const next = new Float32Array(count * 2 * 3);
+  const side = new Float32Array(count * 2);
+  const width = new Float32Array(count * 2);
+  const indices: number[] = [];
 
-  const material = new LineMaterial({
-    color: new THREE.Color(stroke.color).getHex(),
-    linewidth: averageWidth,
-    worldUnits: true,
-    // Set even in worldUnits mode — LineMaterial reads it for its shader uniforms.
-    resolution: resolution.clone(),
-  });
+  for (let i = 0; i < count; i++) {
+    const point = points[i];
+    // The last sample has no successor, so extrapolate one from its predecessor —
+    // otherwise the final segment's tangent is zero-length and the ribbon pinches shut.
+    const previous = points[Math.max(i - 1, 0)];
+    const neighbour: [number, number, number] =
+      i < count - 1
+        ? points[i + 1]
+        : [point[0] * 2 - previous[0], point[1] * 2 - previous[1], point[2] * 2 - previous[2]];
 
-  const line = new Line2(geometry, material);
-  line.computeLineDistances();
-  line.name = stroke.id;
-  return line;
+    for (let s = 0; s < 2; s++) {
+      const vertex = i * 2 + s;
+      position.set(point, vertex * 3);
+      next.set(neighbour, vertex * 3);
+      side[vertex] = s === 0 ? -1 : 1;
+      width[vertex] = widths[i];
+    }
+
+    if (i < count - 1) {
+      const a = i * 2;
+      indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(position, 3));
+  geometry.setAttribute("next", new THREE.BufferAttribute(next, 3));
+  geometry.setAttribute("side", new THREE.BufferAttribute(side, 1));
+  geometry.setAttribute("width", new THREE.BufferAttribute(width, 1));
+  geometry.setIndex(indices);
+  geometry.computeBoundingSphere();
+
+  const mesh = new THREE.Mesh(geometry, createStrokeMaterial(stroke.color));
+  mesh.frustumCulled = true;
+  mesh.name = stroke.id;
+  return mesh;
 }
