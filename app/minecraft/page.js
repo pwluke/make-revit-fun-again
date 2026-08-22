@@ -2,6 +2,7 @@ import Link from "next/link";
 import App from "@/components/minecraft/App";
 import GestureTracker from "@/components/gesture/GestureTracker";
 import TreasureHud from "@/components/world/TreasureHud";
+import FloodHud from "@/components/world/FloodHud";
 
 // Deliberately no `flex-1` on <main>: it sets `flex-basis: 0%`, which resolves
 // against the body's auto height and leaves <main>'s height *indefinite*. The
@@ -32,6 +33,7 @@ export default function MinecraftGame() {
       </p>
       <GestureTracker />
       <TreasureHud />
+      <FloodHud />
     </main>
   );
 }

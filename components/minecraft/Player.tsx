@@ -12,6 +12,7 @@ import {
 import Axe from "./Axe";
 import { useGestureStore } from "../gesture/store";
 import { hitBlockCenter } from "./GestureBuilder";
+import { useFloodStore } from "../world/floodStore";
 
 type Controls = "forward" | "backward" | "left" | "right" | "jump";
 
@@ -24,6 +25,8 @@ const SPEED = 5;
 // scene's -30 gravity, so a single jump clears a one-block step — without
 // it the stairs and roofs in the world are unreachable.
 const JUMP_SPEED = 9;
+/** Spawn drop height, shared by the initial <RigidBody position> and respawns. */
+const SPAWN_HEIGHT = 10;
 const direction = new THREE.Vector3();
 const frontVector = new THREE.Vector3();
 const sideVector = new THREE.Vector3();
@@ -69,6 +72,15 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
   const orbitAz = useRef(0);
   const orbitEl = useRef(0);
 
+  // Restarting the flood drops the player back at spawn. The body is owned
+  // here, so the flood store just bumps a token rather than reaching into it.
+  const respawnToken = useFloodStore((s) => s.respawnToken);
+  useEffect(() => {
+    // Token 0 is the initial mount, where <RigidBody position> already applies.
+    if (respawnToken === 0 || !ref.current) return;
+    ref.current.setTranslation({ x: 0, y: SPAWN_HEIGHT, z: 0 }, true);
+    ref.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
+  }, [respawnToken]);
   // SceneCanvas is shared with the Rhino viewer, so its camera is authored for
   // an orbit view — positioned at [32, 24, 32] looking at the origin, which
   // bakes in a ~30° downward pitch. The frame loop below only ever writes camera
@@ -219,7 +231,7 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
         colliders={false}
         mass={1}
         type="dynamic"
-        position={[0, 10, 0]}
+        position={[0, SPAWN_HEIGHT, 0]}
         enabledRotations={[false, false, false]}
       >
         <CapsuleCollider args={[0.75, 0.5]} />
