@@ -21,6 +21,7 @@ export class SketchEngine {
   private lastTime = 0;
   private smoothedSpeed = 0;
   private baseWidth: number = WIDTHS[1];
+  private paused = false;
 
   constructor(
     private readonly store: StrokeStore,
@@ -36,6 +37,7 @@ export class SketchEngine {
     this.baseWidth = WIDTHS[this.store.getState().widthIndex];
     this.lastTime = now;
     this.smoothedSpeed = 0;
+    this.paused = false;
 
     this.store.getState().beginStroke(this.plane);
 
@@ -57,6 +59,7 @@ export class SketchEngine {
     // Turned away from the plane: pause sampling, keep the stroke open. Not an error.
     if (!candidate) {
       this.lastTime = now;
+      this.paused = true;
       return;
     }
 
@@ -65,10 +68,20 @@ export class SketchEngine {
       return;
     }
 
-    const elapsedSeconds = Math.max(now - this.lastTime, 1) / 1000;
-    const travelled = this.lastPoint ? distance(this.lastPoint, candidate) : 0;
-    const speed = travelled / elapsedSeconds;
-    this.smoothedSpeed = this.smoothedSpeed + (speed - this.smoothedSpeed) * SPEED_SMOOTHING;
+    if (this.paused) {
+      // The gap between lastPoint/lastTime and now spans however long the pause
+      // lasted, not a single frame — computing speed from it would divide the
+      // full paused-distance by a tiny elapsed time and spike the taper to its
+      // thinnest width. Instead, carry the pre-pause smoothed speed forward
+      // unchanged for this one resuming sample; normal frame-to-frame smoothing
+      // resumes from the next sample on.
+      this.paused = false;
+    } else {
+      const elapsedSeconds = Math.max(now - this.lastTime, 1) / 1000;
+      const travelled = this.lastPoint ? distance(this.lastPoint, candidate) : 0;
+      const speed = travelled / elapsedSeconds;
+      this.smoothedSpeed = this.smoothedSpeed + (speed - this.smoothedSpeed) * SPEED_SMOOTHING;
+    }
 
     this.store.getState().appendPoint(candidate, widthAt(this.baseWidth, this.smoothedSpeed));
     this.lastPoint = candidate;

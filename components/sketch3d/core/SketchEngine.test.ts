@@ -72,6 +72,29 @@ describe("the parallel guard", () => {
     engine.update(at(1), 200);
     expect(store.getState().active!.points).toHaveLength(2);
   });
+
+  it("does not spike the taper width across a long pause", () => {
+    engine.pointerDown(origin, 0);
+    engine.update(at(0.5), 500); // 1 m/s — establishes a slow pre-pause smoothed speed
+    const preWidth = store.getState().active!.widths.at(-1)!;
+
+    // Turn away for many frames. No points are recorded while paused.
+    for (let i = 1; i <= 300; i++) {
+      engine.update({ position: [0, 0, 0], forward: [1, 0, 0] }, 500 + i * 16);
+    }
+    expect(store.getState().active!.points).toHaveLength(2);
+
+    // Turn back one frame later, having moved 1m across the ~4.8s pause. If the
+    // engine measured that whole distance over a single frame's elapsed time, it
+    // would compute a bogus ~60+ m/s spike and pin the width to the taper minimum.
+    engine.update(at(1.5), 500 + 300 * 16 + 16);
+    const resumedWidth = store.getState().active!.widths.at(-1)!;
+
+    // The resumed sample should carry the pre-pause smoothed speed forward, not
+    // a spike — so its width matches the pre-pause width rather than collapsing
+    // toward MIN_WIDTH_SCALE.
+    expect(resumedWidth).toBeCloseTo(preWidth, 10);
+  });
 });
 
 describe("taper", () => {
