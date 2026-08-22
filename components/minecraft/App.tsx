@@ -7,10 +7,13 @@ import { SceneCanvas } from "@/components/canvas/SceneCanvas";
 import { Ground } from "./Ground";
 import { Player } from "./Player";
 import { Cubes } from "./Cube";
+import { GestureBuilder } from "./GestureBuilder";
+import { House } from "../world/House";
+import { Stars } from "../world/Stars";
 
 // The original was made by Maksim Ivanow: https://www.youtube.com/watch?v=Lc2JvBXMesY&t=124s
 // This example needs pointer-lock, that works only if you open it in a new window
-// Controls: WASD + left click
+// Controls: WASD + left click, or the camera gestures behind the Hands button
 
 export const minecraftKeyMap = [
   { name: "forward", keys: ["ArrowUp", "w", "W"] },
@@ -34,8 +37,12 @@ export function MinecraftScene() {
       <Physics gravity={[0, -30, 0]}>
         <Ground />
         <Player />
+        <House />
         <Cubes />
       </Physics>
+      {/* Outside <Physics>: stars are pickups, and the builder only raycasts. */}
+      <Stars />
+      <GestureBuilder />
       <PointerLockControls />
     </>
   );
