@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import * as RAPIER from "@dimforge/rapier3d-compat";
-import { useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useEffect, useRef } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useKeyboardControls } from "@react-three/drei";
 import {
   CapsuleCollider,
@@ -28,6 +28,18 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
   const ref = useRef<RapierRigidBody>(null!);
   const rapier = useRapier();
   const [, get] = useKeyboardControls<Controls>();
+  const camera = useThree((state) => state.camera);
+
+  // SceneCanvas is shared with the Rhino viewer, so its camera is authored for
+  // an orbit view — positioned at [32, 24, 32] looking at the origin, which
+  // bakes in a ~30° downward pitch. The frame loop below only ever writes camera
+  // *position*, so that tilt survives into first person and aims the view at the
+  // player's feet: anything at eye height sits at or above the top of the frame
+  // until the mouse is moved. Level it once on mount; PointerLockControls takes
+  // over from whatever rotation it finds.
+  useEffect(() => {
+    camera.rotation.set(0, 0, 0);
+  }, [camera]);
   useFrame((state) => {
     const { forward, backward, left, right, jump } = get();
     const velocity = ref.current.linvel();

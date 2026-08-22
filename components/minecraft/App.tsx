@@ -7,6 +7,7 @@ import { SceneCanvas } from "@/components/canvas/SceneCanvas";
 import { Ground } from "./Ground";
 import { Player } from "./Player";
 import { Cubes } from "./Cube";
+import { ScoreHud, Stars } from "./Stars";
 
 // The original was made by Maksim Ivanow: https://www.youtube.com/watch?v=Lc2JvBXMesY&t=124s
 // This example needs pointer-lock, that works only if you open it in a new window
@@ -36,6 +37,9 @@ export function MinecraftScene() {
         <Player />
         <Cubes />
       </Physics>
+      {/* Outside <Physics>: stars are collected by a distance check against the
+          player, so they need no rigid body of their own. */}
+      <Stars />
       <PointerLockControls />
     </>
   );
@@ -51,6 +55,7 @@ export default function App() {
       <SceneCanvas>
         <MinecraftScene />
       </SceneCanvas>
+      <ScoreHud />
     </MinecraftControls>
   );
 }
