@@ -37,7 +37,9 @@ type CubeStore = {
   removeCube: (x: number, y: number, z: number) => void;
 };
 
-const useCubeStore = create<CubeStore>((set) => ({
+// Exported so gesture-driven building (GestureBuilder) can queue cubes
+// without going through a pointer event.
+export const useCubeStore = create<CubeStore>((set) => ({
   added: [[0, 0.5, -10]],
   removed: new Set<string>(),
   addCube: (x, y, z) =>

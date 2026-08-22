@@ -6,7 +6,6 @@ import {
   MinecraftControls,
   MinecraftScene,
 } from "@/components/minecraft/App";
-import { ScoreHud } from "@/components/minecraft/Stars";
 import { RhinoScene } from "@/components/rhino/RhinoScene";
 import { db } from "@/lib/db";
 
@@ -54,7 +53,6 @@ export function World() {
         </p>
       ) : (
         <>
-          <ScoreHud />
           <div
             aria-hidden
             className="pointer-events-none absolute top-1/2 left-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white"
