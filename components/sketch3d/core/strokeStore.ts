@@ -71,8 +71,9 @@ export function createStrokeStore(): StrokeStore {
     commitStroke: () =>
       set((state) => {
         const { active } = state;
+        if (!active) return state;
         // A stroke that never received a point is not a stroke.
-        if (!active || active.points.length === 0) return { active: null };
+        if (active.points.length === 0) return { active: null };
         const strokes = [...state.strokes, active];
         return {
           active: null,
@@ -80,21 +81,27 @@ export function createStrokeStore(): StrokeStore {
         };
       }),
 
-    cancelStroke: () => set({ active: null }),
+    cancelStroke: () => set((state) => (state.active ? { active: null } : state)),
 
     // Undo means "take back what I just did" — mid-stroke, that is the stroke in progress.
     undo: () =>
-      set((state) =>
-        state.active ? { active: null } : { strokes: state.strokes.slice(0, -1) },
-      ),
+      set((state) => {
+        if (state.active) return { active: null };
+        if (state.strokes.length === 0) return state;
+        return { strokes: state.strokes.slice(0, -1) };
+      }),
 
-    clear: () => set({ strokes: [], active: null }),
+    clear: () =>
+      set((state) => (state.strokes.length === 0 && state.active === null ? state : { strokes: [], active: null })),
 
     setColorIndex: (index) =>
       set((state) => (index >= 0 && index < PALETTE.length ? { colorIndex: index } : state)),
 
     cycleWidth: (delta) =>
-      set((state) => ({ widthIndex: clamp(state.widthIndex + delta, 0, WIDTHS.length - 1) })),
+      set((state) => {
+        const widthIndex = clamp(state.widthIndex + delta, 0, WIDTHS.length - 1);
+        return widthIndex === state.widthIndex ? state : { widthIndex };
+      }),
 
     toggleDrawMode: () => set((state) => ({ drawMode: !state.drawMode, active: null })),
   }));

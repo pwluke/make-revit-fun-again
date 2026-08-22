@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Plane } from "./types";
 import { MAX_STROKES, PALETTE, WIDTHS, createStrokeStore, type StrokeStore } from "./strokeStore";
 
@@ -129,6 +129,54 @@ describe("clear", () => {
     store.getState().beginStroke(plane);
     store.getState().clear();
     expect(store.getState().strokes).toHaveLength(0);
+    expect(store.getState().active).toBeNull();
+  });
+});
+
+describe("idempotent no-ops do not notify subscribers", () => {
+  it("undo on an empty store does not notify", () => {
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.getState().undo();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("cancelStroke with no active stroke does not notify", () => {
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.getState().cancelStroke();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("clear on an empty store does not notify", () => {
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.getState().clear();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("cycleWidth(-1) when widthIndex is already 0 does not notify", () => {
+    store.getState().cycleWidth(-5);
+    expect(store.getState().widthIndex).toBe(0);
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.getState().cycleWidth(-1);
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("commitStroke with no active stroke does not notify", () => {
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.getState().commitStroke();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("positive control: cancelStroke DOES notify when it actually clears an active stroke", () => {
+    store.getState().beginStroke(plane);
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.getState().cancelStroke();
+    expect(listener).toHaveBeenCalledTimes(1);
     expect(store.getState().active).toBeNull();
   });
 });
