@@ -42,9 +42,9 @@ export function MinecraftScene() {
         <House />
         <Cubes />
       </Physics>
-      {/* Outside <Physics>: stars are pickups, the builder only raycasts, and
-          the flood is visual — you swim through it, the breath timer is what
-          actually threatens you. */}
+      {/* Outside <Physics>: stars and powerups are pickups, the builder only
+          raycasts, and the flood is visual — you swim through it, the breath
+          timer is what actually threatens you. */}
       <Stars />
       <Powerups />
       <Flood />
