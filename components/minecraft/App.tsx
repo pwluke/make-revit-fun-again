@@ -6,7 +6,7 @@ import { Physics } from "@react-three/rapier";
 import { SceneCanvas } from "@/components/canvas/SceneCanvas";
 import { Ground } from "./Ground";
 import { Player } from "./Player";
-import { Cube, Cubes } from "./Cube";
+import { Cubes } from "./Cube";
 
 // The original was made by Maksim Ivanow: https://www.youtube.com/watch?v=Lc2JvBXMesY&t=124s
 // This example needs pointer-lock, that works only if you open it in a new window
@@ -34,7 +34,6 @@ export function MinecraftScene() {
       <Physics gravity={[0, -30, 0]}>
         <Ground />
         <Player />
-        <Cube position={[0, 0.5, -10]} />
         <Cubes />
       </Physics>
       <PointerLockControls />
