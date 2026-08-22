@@ -60,7 +60,9 @@ export function SketchToWorld() {
     // would spawn the model at wherever the kid wandered off to later.
     const spawn = bridge.getSpawnTransform();
     const id = crypto.randomUUID();
-    const prompt = buildPrompt(userText);
+    // Mode-aware: sprite mode steers SDXL, mesh mode steers Hunyuan. They are
+    // different models and do not necessarily want the same style string.
+    const prompt = buildPrompt(userText, mode);
 
     creationStore.getState().startCreation({ id, userText, prompt, mode, spawn });
 

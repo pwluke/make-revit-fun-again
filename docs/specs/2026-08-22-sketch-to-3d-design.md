@@ -398,18 +398,45 @@ Still open:
    or accepted-and-silently-ignored. The third is the dangerous one — compare triangle counts rather
    than trusting a 200 response. The design deliberately does not depend on it.
    *Spike command:* `node spike.mjs cat.png "a cat" --lowpoly`
-2. **How much does the style suffix actually contribute?** Never run against a control. This is the
-   **highest-leverage unvalidated assumption in the project** — the suffix is where the entire art
-   direction lives. Clean test: two `sketch-to-3d` runs on identical input at `face_count: 40000`,
-   full suffix vs bare prompt, compare silhouette and material. ~$1.05.
-   A cheaper proxy (~$0.06) is running the control through the SDXL stage only, but that is weak
-   evidence: it shows what the suffix does to a 2D render, not to Hunyuan's geometry.
-   *Spike command:* `node spike.mjs cat.png "a cat" --raw`
+2. **Is `STYLE_SUFFIX_SPRITE` right for SDXL?** Untested. Sprite mode never reaches Hunyuan — the
+   suffix steers **SDXL**, a different model with different prompt sensitivities. The constant is
+   currently a copy of the mesh suffix so behaviour starts predictable, *not* because a shared
+   string has been shown to work. ~$0.06 through the SDXL stage alone.
 3. **Colour palette vs pure black strokes.** Kids expect colour, but this is a sketch model and bold
    dark line art is its trained-on input. Ship saturated dark-value colours, no pastels, and A/B it.
 4. **Does bounding-box normalisation help or hurt reconstruction?** The overlay now scales the
    drawing's bbox to fill the 1024² export. Untested against the model — every generation so far
    used the older fixed-square framing.
+
+### CLOSED — the style suffix earns its keep, at a cost
+
+Validated against a bare-prompt control (n=1 per arm, identical sketch, `face_count: 40000`,
+`enable_pbr: false`, only the prompt differed).
+
+| | suffix ON | bare prompt |
+|---|---|---|
+| Colour | flat matte, single tone | cream belly, red neckerchief, saturated |
+| Surface | matte | glossier, specular |
+| Detail | simplified, soft rounded forms | eyes, whiskers, fur markings |
+| Reads as | **toy figure** | character illustration |
+| Geometry | 40,000 tris, 13.1 MB | 40,000 tris, 12.8 MB |
+
+**File metrics are useless here** — zero triangle difference, 0.3 MB apart. The entire effect is
+form and material. Compare renders, not bytes.
+
+On the n=1 weakness: `seed` is `null`, so a reroll cannot be excluded outright. But the observed
+difference lies along **all four axes the suffix names** — *soft matte colors* → matte, *smooth
+rounded forms* → simplified, *clean silhouette* → fiddly markings dropped. A reroll varies in
+random directions, not the specified ones.
+
+**The cost, to be decided rather than inherited:** the bare-prompt version is arguably the *more
+charming single object* — more personality, more colour. The suffix buys **set coherence** at the
+price of **individual appeal**. Right for a booth filling with many creations; a real loss for one
+hero object shown to a judge. One constant, changeable in seconds.
+
+**Methodology trap — do not repeat:** the two arms were first run *concurrently* to control for
+queue depth, and it backfired (200.5s vs 102.8s), almost certainly concurrent submits serialising
+on the same GPU pool. Those timings are artifacts; discard them. **Run arms sequentially.**
 
 ---
 
