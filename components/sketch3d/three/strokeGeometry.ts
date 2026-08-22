@@ -14,7 +14,7 @@ function samplesOf(stroke: Stroke): { points: [number, number, number][]; widths
   return { points: stroke.points, widths: stroke.widths };
 }
 
-export function buildStrokeMesh(stroke: Stroke): THREE.Mesh {
+export function buildStrokeGeometry(stroke: Stroke): THREE.BufferGeometry {
   const { points, widths } = samplesOf(stroke);
   const count = points.length;
 
@@ -56,7 +56,11 @@ export function buildStrokeMesh(stroke: Stroke): THREE.Mesh {
   geometry.setIndex(indices);
   geometry.computeBoundingSphere();
 
-  const mesh = new THREE.Mesh(geometry, createStrokeMaterial(stroke.color));
+  return geometry;
+}
+
+export function buildStrokeMesh(stroke: Stroke): THREE.Mesh {
+  const mesh = new THREE.Mesh(buildStrokeGeometry(stroke), createStrokeMaterial(stroke.color));
   mesh.frustumCulled = true;
   mesh.name = stroke.id;
   return mesh;

@@ -43,6 +43,11 @@ const fragmentShader = /* glsl */ `
   uniform vec3 uColor;
   void main() {
     gl_FragColor = vec4(uColor, 1.0);
+    // three's built-in shaders get <colorspace_fragment> appended automatically;
+    // a custom ShaderMaterial does not, so without this the linear-space uColor
+    // (three.js ColorManagement converts the sRGB hex on construction) is written
+    // straight to the output buffer and renders too dark/shifted.
+    #include <colorspace_fragment>
   }
 `;
 

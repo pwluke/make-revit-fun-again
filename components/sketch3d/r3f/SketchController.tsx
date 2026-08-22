@@ -23,6 +23,10 @@ export function SketchController() {
     const onPointerDown = (event: PointerEvent) => {
       if (event.button !== 0) return;
       if (!sketchStore.getState().drawMode) return;
+      // Re-acquiring pointer lock (e.g. clicking to resume after Escape) also fires
+      // pointerdown. Without this guard that click plants a stray dot against a
+      // stationary camera before the lock — and mouse-look — has actually resumed.
+      if (document.pointerLockElement !== domElement) return;
       drawing.current = true;
       engine.pointerDown(pose(), performance.now());
     };
