@@ -7,6 +7,8 @@ import { SceneCanvas } from "@/components/canvas/SceneCanvas";
 import { Ground } from "./Ground";
 import { Player } from "./Player";
 import { Creations } from "@/components/sketch-to-3d/r3f/Creations";
+import { SketchController } from "@/components/sketch3d/r3f/SketchController";
+import { Strokes } from "@/components/sketch3d/r3f/Strokes";
 
 // The original was made by Maksim Ivanow: https://www.youtube.com/watch?v=Lc2JvBXMesY&t=124s
 // This example needs pointer-lock, that works only if you open it in a new window
@@ -52,6 +54,14 @@ export function MinecraftScene() {
             that the DOM-side overlay calls back through. */}
         <Creations />
       </Physics>
+      {/* Third creation mode: freehand 3D lines (press B). Deliberately OUTSIDE
+          <Physics> — strokes carry no colliders and do not belong in the physics
+          world. SketchController is headless (it only reads the camera and binds
+          pointer events); Strokes mounts the stroke meshes. The DOM half of this
+          feature, <PaletteHUD />, is a sibling of the canvas in
+          app/minecraft/page.js — it cannot live here, inside <Canvas>. */}
+      <SketchController />
+      <Strokes />
       {/* Both props here are load-bearing, for different reasons.
 
           `selector`: without it drei attaches a document-level `click` listener

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { ModeStrip } from "@/components/ModeStrip";
 import { creationStore } from "./core/creationStore";
 import { generate } from "./core/falClient";
 import { generateMock, generateSpriteMock, USE_MOCK } from "./core/mockGenerator";
@@ -99,11 +100,12 @@ export function SketchToWorld() {
 
   return (
     <>
-      {!open && (
-        <p className="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 rounded-full bg-black/40 px-4 py-1.5 text-xs font-semibold text-white/90">
-          Press E to draw
-        </p>
-      )}
+      {/* Three creation modes now share this world, so the hint lists all of
+          them rather than just this one. E opens the overlay below (which picks
+          between a 3D model and a 2.5D sprite); B is the separate freehand
+          3D-line feature in components/sketch3d, which draws in the world and
+          never opens an overlay. Hidden while the overlay is open, as before. */}
+      {!open && <ModeStrip />}
       <SketchOverlay open={open} onCancel={handleCancel} onSubmit={handleSubmit} />
     </>
   );

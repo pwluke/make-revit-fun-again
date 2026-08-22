@@ -1,6 +1,7 @@
 import Link from "next/link";
 import App from "@/components/minecraft/App";
 import { SketchToWorld } from "@/components/sketch-to-3d/SketchToWorld";
+import { PaletteHUD } from "@/components/sketch3d/ui/PaletteHUD";
 
 // Deliberately no `flex-1` on <main>: it sets `flex-basis: 0%`, which resolves
 // against the body's auto height and leaves <main>'s height *indefinite*. The
@@ -19,6 +20,10 @@ export default function MinecraftGame() {
       {/* DOM-side half of the sketch feature: draw overlay + mode toggle. Must be
           outside the R3F <Canvas>, which is why it lives here rather than in App. */}
       <SketchToWorld />
+      {/* DOM half of the 3D-lines feature (press B): colour/width palette and all
+          of its key bindings. Renders nothing until draw mode is on. Same reason
+          as SketchToWorld — it is DOM, so it cannot live inside the R3F Canvas. */}
+      <PaletteHUD />
       {/* Crosshair — PointerLockControls hides the cursor, so the scene needs
           its own aiming reticle. */}
       <div
@@ -33,9 +38,12 @@ export default function MinecraftGame() {
       >
         ← All games
       </Link>
+      {/* No longer mentions placing blocks: dirt voxels are disabled in
+          MinecraftScene, so that instruction described something the player
+          cannot do. The creation modes are advertised by <ModeStrip /> at the
+          top instead. */}
       <p className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-white/80">
-        Click to look around · WASD to move · Space to jump · Click a block to
-        place another
+        Click to look around · WASD to move · Space to jump
       </p>
     </main>
   );

@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "check:portability": "node scripts/check-portability.mjs"
+    "test:watch": "vitest",
+    "check:portability": "node scripts/check-portability.mjs",
+    "check:layering": "node scripts/check-layering.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
