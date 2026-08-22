@@ -11,18 +11,28 @@ import { useTexture } from "@react-three/drei";
 import { CuboidCollider, RigidBody } from "@react-three/rapier";
 import * as THREE from "three";
 import { create } from "zustand";
-import { occupiedPointCoords, useGridPoints } from "@/lib/use-grid-points";
+import {
+  useGridSourceStore,
+  useOccupiedGridCubes,
+} from "@/lib/use-grid-points";
 
 // Served from `public/dirt.jpg` — see the note in Axe.tsx.
 const dirtImg = "/dirt.jpg";
 
 type CubeCoords = [x: number, y: number, z: number];
 
+type RenderedCube = {
+  position: CubeCoords;
+  size: number;
+  color?: [number, number, number];
+};
+
 // How far the player can reach to break or place, in world units. Also caps the
 // per-frame raycast, so a block across the map can't be edited by aiming at it.
 const REACH = 8;
 
 const dummy = new THREE.Object3D();
+const tint = new THREE.Color();
 // Pointer lock freezes the mouse, so every pick is from the screen centre —
 // i.e. the crosshair the page draws over the canvas.
 const CROSSHAIR = new THREE.Vector2(0, 0);
@@ -35,6 +45,7 @@ type CubeStore = {
   removed: ReadonlySet<string>;
   addCube: (x: number, y: number, z: number) => void;
   removeCube: (x: number, y: number, z: number) => void;
+  resetCubes: () => void;
 };
 
 const useCubeStore = create<CubeStore>((set) => ({
@@ -64,31 +75,43 @@ const useCubeStore = create<CubeStore>((set) => ({
         removed: new Set(state.removed).add(key),
       };
     }),
+  resetCubes: () =>
+    set({ added: [[0, 0.5, -10]], removed: new Set<string>() }),
 }));
 
 export const Cubes = () => {
   const added = useCubeStore((state) => state.added);
   const removed = useCubeStore((state) => state.removed);
-  const { data } = useGridPoints();
+  const resetCubes = useCubeStore((state) => state.resetCubes);
+  const source = useGridSourceStore((state) => state.source);
+  const seeded = useOccupiedGridCubes();
+
+  useEffect(() => {
+    resetCubes();
+  }, [source, resetCubes]);
 
   const cubes = useMemo(() => {
     const seen = new Set<string>();
-    const out: CubeCoords[] = [];
-    const push = (coords: CubeCoords) => {
+    const out: RenderedCube[] = [];
+    const push = (
+      coords: CubeCoords,
+      size: number,
+      color?: [number, number, number],
+    ) => {
       const key = keyOf(...coords);
       if (removed.has(key) || seen.has(key)) return;
       seen.add(key);
-      out.push(coords);
+      out.push({ position: coords, size, color });
     };
-    for (const point of occupiedPointCoords(data?.points)) push(point.position);
-    for (const coords of added) push(coords);
+    for (const cube of seeded) push(cube.position, cube.size, cube.color);
+    for (const coords of added) push(coords, 1);
     return out;
-  }, [data?.points, added, removed]);
+  }, [seeded, added, removed]);
 
-  return <InstancedCubes cubes={cubes} />;
+  return <InstancedCubes key={source} cubes={cubes} />;
 };
 
-function InstancedCubes({ cubes }: { cubes: CubeCoords[] }) {
+function InstancedCubes({ cubes }: { cubes: RenderedCube[] }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const cubesRef = useRef(cubes);
   cubesRef.current = cubes;
@@ -108,13 +131,19 @@ function InstancedCubes({ cubes }: { cubes: CubeCoords[] }) {
   useLayoutEffect(() => {
     const mesh = meshRef.current;
     if (!mesh) return;
+    dummy.scale.set(1, 1, 1);
     for (let i = 0; i < cubes.length; i++) {
-      dummy.position.set(cubes[i][0], cubes[i][1], cubes[i][2]);
+      const { position, size, color } = cubes[i];
+      dummy.position.set(position[0], position[1], position[2]);
+      dummy.scale.setScalar(size);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
+      tint.setRGB(color?.[0] ?? 1, color?.[1] ?? 1, color?.[2] ?? 1);
+      mesh.setColorAt(i, tint);
     }
     mesh.count = cubes.length;
     mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     // InstancedMesh.raycast rejects against the instance bounding sphere first,
     // so it has to be refreshed or newly-placed cubes become unpickable.
     mesh.computeBoundingSphere();
@@ -161,18 +190,20 @@ function InstancedCubes({ cubes }: { cubes: CubeCoords[] }) {
       if (!document.pointerLockElement) return;
       const current = hit.current;
       if (!current) return;
-      const coords = cubesRef.current[current.index];
-      if (!coords) return;
+      const cube = cubesRef.current[current.index];
+      if (!cube) return;
+      const [cx, cy, cz] = cube.position;
       if (e.button === 0) {
-        removeCube(...coords);
+        removeCube(cx, cy, cz);
       } else if (e.button === 2) {
-        // Instances are translation-only, so the local face normal is already
-        // the world-space unit axis pointing out of the face that was hit.
+        // Scale is uniform, so the local face normal is still the world-space
+        // unit axis. Step by this cube's edge so a size-2 voxel places flush.
         const { x, y, z } = current.normal;
+        const step = cube.size;
         addCube(
-          coords[0] + Math.round(x),
-          coords[1] + Math.round(y),
-          coords[2] + Math.round(z),
+          cx + Math.round(x) * step,
+          cy + Math.round(y) * step,
+          cz + Math.round(z) * step,
         );
       }
     };
@@ -189,7 +220,7 @@ function InstancedCubes({ cubes }: { cubes: CubeCoords[] }) {
     };
   }, [addCube, removeCube]);
 
-  const hoverPos = hovered != null ? cubes[hovered] : undefined;
+  const hoverCube = hovered != null ? cubes[hovered] : undefined;
 
   if (cubes.length === 0) return null;
 
@@ -207,8 +238,12 @@ function InstancedCubes({ cubes }: { cubes: CubeCoords[] }) {
         <meshStandardMaterial map={texture} />
       </instancedMesh>
       <NearbyColliders cubes={cubes} />
-      {hoverPos && (
-        <mesh position={hoverPos} scale={1.02} raycast={() => {}}>
+      {hoverCube && (
+        <mesh
+          position={hoverCube.position}
+          scale={hoverCube.size * 1.02}
+          raycast={() => {}}
+        >
           <boxGeometry />
           <meshBasicMaterial
             color="hotpink"
@@ -230,27 +265,28 @@ const COLLIDER_RADIUS = 10; // blocks; ignore anything further out
 const MAX_COLLIDERS = 512; // hard cap, so a dense grid can't blow the budget
 const REBUILD_DISTANCE = 2; // player units of travel before reselecting
 
-function NearbyColliders({ cubes }: { cubes: CubeCoords[] }) {
-  const [nearby, setNearby] = useState<CubeCoords[]>([]);
+function NearbyColliders({ cubes }: { cubes: RenderedCube[] }) {
+  const [nearby, setNearby] = useState<RenderedCube[]>([]);
   // Sentinel: infinitely far from anywhere, so the first frame always builds.
   const builtAt = useRef(new THREE.Vector3(Infinity, Infinity, Infinity));
 
   const rebuild = useCallback(
     (origin: THREE.Vector3) => {
       const radiusSq = COLLIDER_RADIUS * COLLIDER_RADIUS;
-      const inRange: { coords: CubeCoords; distanceSq: number }[] = [];
-      for (const coords of cubes) {
-        const dx = coords[0] - origin.x;
-        const dy = coords[1] - origin.y;
-        const dz = coords[2] - origin.z;
+      const inRange: { cube: RenderedCube; distanceSq: number }[] = [];
+      for (const cube of cubes) {
+        const [x, y, z] = cube.position;
+        const dx = x - origin.x;
+        const dy = y - origin.y;
+        const dz = z - origin.z;
         const distanceSq = dx * dx + dy * dy + dz * dz;
-        if (distanceSq <= radiusSq) inRange.push({ coords, distanceSq });
+        if (distanceSq <= radiusSq) inRange.push({ cube, distanceSq });
       }
       // Nearest-first, so the cap trims the blocks least able to be reached
       // before the next rebuild.
       inRange.sort((a, b) => a.distanceSq - b.distanceSq);
 
-      const next = inRange.slice(0, MAX_COLLIDERS).map(({ coords }) => coords);
+      const next = inRange.slice(0, MAX_COLLIDERS).map(({ cube }) => cube);
       setNearby(next);
       builtAt.current.copy(origin);
     },
@@ -282,13 +318,16 @@ function NearbyColliders({ cubes }: { cubes: CubeCoords[] }) {
       {/* Keyed by coordinate: crossing a rebuild boundary changes only the
           blocks at the edge of the shell, so React keeps the colliders in the
           middle mounted instead of tearing down all of them. */}
-      {nearby.map((coords) => (
-        <CuboidCollider
-          key={keyOf(...coords)}
-          args={[0.5, 0.5, 0.5]}
-          position={coords}
-        />
-      ))}
+      {nearby.map((cube) => {
+        const half = cube.size / 2;
+        return (
+          <CuboidCollider
+            key={keyOf(...cube.position)}
+            args={[half, half, half]}
+            position={cube.position}
+          />
+        );
+      })}
     </RigidBody>
   );
 }

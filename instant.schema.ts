@@ -43,6 +43,18 @@ const _schema = i.schema({
       sourceGuid: i.string().optional().indexed(),
       updatedAt: i.number().optional().indexed(),
     }),
+    // Revit-style voxels: same XYZ seed as `points`, plus RGBA and an edge length.
+    voxels: i.entity({
+      x: i.number().indexed(),
+      y: i.number().indexed(),
+      z: i.number().indexed(),
+      r: i.number().optional(),
+      g: i.number().optional(),
+      b: i.number().optional(),
+      a: i.number().optional(),
+      size: i.number().optional(),
+      updatedAt: i.number().optional().indexed(),
+    }),
   },
   links: {
     $streams$files: {
