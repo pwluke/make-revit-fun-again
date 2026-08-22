@@ -3,6 +3,7 @@
 import { type ReactNode } from "react";
 import { Sky, PointerLockControls, KeyboardControls } from "@react-three/drei";
 import { Physics } from "@react-three/rapier";
+import { SceneCanvas } from "@/components/canvas/SceneCanvas";
 import { Ground } from "./Ground";
 import { Player } from "./Player";
 import { Cube, Cubes } from "./Cube";
@@ -48,7 +49,9 @@ export function MinecraftControls({ children }: { children: ReactNode }) {
 export default function App() {
   return (
     <MinecraftControls>
-      <MinecraftScene />
+      <SceneCanvas>
+        <MinecraftScene />
+      </SceneCanvas>
     </MinecraftControls>
   );
 }
