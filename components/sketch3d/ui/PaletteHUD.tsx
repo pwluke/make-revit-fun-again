@@ -11,7 +11,16 @@ export function PaletteHUD() {
   const widthIndex = useStore(sketchStore, (state) => state.widthIndex);
   const strokeCount = useStore(sketchStore, (state) => state.strokes.length);
   const [confirmingClear, setConfirmingClear] = useState(false);
+  const confirmingClearRef = useRef(false);
   const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keep a ref in sync with the state so the (mount-only) key handler below
+  // always sees the latest value without needing to be recreated on every
+  // change — recreating it on every confirmingClear change would tear down
+  // and cancel the very timeout that change just scheduled.
+  useEffect(() => {
+    confirmingClearRef.current = confirmingClear;
+  }, [confirmingClear]);
 
   useEffect(() => {
     const { setColorIndex, cycleWidth, toggleDrawMode, undo, clear } = sketchStore.getState();
@@ -35,12 +44,18 @@ export function PaletteHUD() {
         cycleWidth(1);
       } else if (event.code === "KeyC") {
         // Two-press confirm — kids will hit this by accident.
-        if (confirmingClear) {
+        if (confirmingClearRef.current) {
           clear();
+          confirmingClearRef.current = false;
           setConfirmingClear(false);
+          if (clearTimer.current) clearTimeout(clearTimer.current);
         } else {
+          confirmingClearRef.current = true;
           setConfirmingClear(true);
-          clearTimer.current = setTimeout(() => setConfirmingClear(false), 2000);
+          clearTimer.current = setTimeout(() => {
+            confirmingClearRef.current = false;
+            setConfirmingClear(false);
+          }, 2000);
         }
       } else if (event.code.startsWith("Digit")) {
         const index = Number(event.code.slice(5)) - 1;
@@ -60,7 +75,7 @@ export function PaletteHUD() {
       window.removeEventListener("wheel", onWheel);
       if (clearTimer.current) clearTimeout(clearTimer.current);
     };
-  }, [confirmingClear]);
+  }, []);
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-6 flex flex-col items-center gap-2 font-sans select-none">
