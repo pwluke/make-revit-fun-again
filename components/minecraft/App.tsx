@@ -7,6 +7,9 @@ import { Physics } from "@react-three/rapier";
 import { Ground } from "./Ground";
 import { Player } from "./Player";
 import { Cube, Cubes } from "./Cube";
+import { GestureBuilder } from "./GestureBuilder";
+import { House } from "../world/House";
+import { Stars } from "../world/Stars";
 
 // The original was made by Maksim Ivanow: https://www.youtube.com/watch?v=Lc2JvBXMesY&t=124s
 // This example needs pointer-lock, that works only if you open it in a new window
@@ -40,9 +43,12 @@ export default function App() {
           <Physics gravity={[0, -30, 0]}>
             <Ground />
             <Player />
+            <House />
             <Cube position={[0, 0.5, -10]} />
             <Cubes />
           </Physics>
+          <Stars />
+          <GestureBuilder />
         </Suspense>
         <PointerLockControls />
       </Canvas>

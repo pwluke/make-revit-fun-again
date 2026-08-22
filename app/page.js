@@ -1,4 +1,6 @@
 import App from "@/components/minecraft/App";
+import GestureTracker from "@/components/gesture/GestureTracker";
+import TreasureHud from "@/components/world/TreasureHud";
 
 // Deliberately no `flex-1` on <main>: it sets `flex-basis: 0%`, which resolves
 // against the body's auto height and leaves <main>'s height *indefinite*. The
@@ -16,8 +18,10 @@ export default function Home() {
       />
       <p className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-white/80">
         Click to look around · WASD to move · Space to jump · Click a block to
-        place another
+        place another · or press Hands and build with gestures
       </p>
+      <GestureTracker />
+      <TreasureHud />
     </main>
   );
 }

@@ -22,7 +22,7 @@ type CubeStore = {
   addCube: (x: number, y: number, z: number) => void;
 };
 
-const useCubeStore = create<CubeStore>((set) => ({
+export const useCubeStore = create<CubeStore>((set) => ({
   cubes: [],
   addCube: (x, y, z) =>
     set((state) => ({ cubes: [...state.cubes, [x, y, z]] })),
