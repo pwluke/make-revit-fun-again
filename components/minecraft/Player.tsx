@@ -12,6 +12,7 @@ import {
 import Axe from "./Axe";
 import { useGestureStore } from "../gesture/store";
 import { hitBlockCenter } from "./GestureBuilder";
+import { powerupState } from "../world/powerupStore";
 
 type Controls = "forward" | "backward" | "left" | "right" | "jump";
 
@@ -178,7 +179,10 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     direction
       .subVectors(frontVector, sideVector)
       .normalize()
-      .multiplyScalar(SPEED)
+      // Read straight off the mutable powerup state rather than subscribing:
+      // this runs every frame, and a store subscription would re-render Player
+      // on every tick of the boost timer.
+      .multiplyScalar(SPEED * powerupState.multiplier)
       .applyEuler(state.camera.rotation);
     if (!orbiting)
       ref.current.setLinvel(

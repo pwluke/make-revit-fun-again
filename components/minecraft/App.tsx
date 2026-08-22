@@ -10,6 +10,7 @@ import { Cubes } from "./Cube";
 import { GestureBuilder } from "./GestureBuilder";
 import { House } from "../world/House";
 import { Stars } from "../world/Stars";
+import { Powerups } from "../world/Powerups";
 
 // The original was made by Maksim Ivanow: https://www.youtube.com/watch?v=Lc2JvBXMesY&t=124s
 // This example needs pointer-lock, that works only if you open it in a new window
@@ -42,6 +43,7 @@ export function MinecraftScene() {
       </Physics>
       {/* Outside <Physics>: stars are pickups, and the builder only raycasts. */}
       <Stars />
+      <Powerups />
       <GestureBuilder />
       <PointerLockControls />
     </>
