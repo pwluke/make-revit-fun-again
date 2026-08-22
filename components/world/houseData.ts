@@ -139,9 +139,26 @@ export function houseVoxels(): Record<HouseMaterial, [number, number, number][]>
   return out;
 }
 
+export type StarSpot = {
+  id: string;
+  hint: string;
+  pos: [number, number, number];
+  /** Whether the star carries its own point light. On by default — the house
+   *  stars sit indoors and in shadow, where the glow is what makes them
+   *  findable. Off for stars out in open daylight: every lit star is another
+   *  light in the forward-rendering loop, and the cost is measurable (14 lit
+   *  stars cost ~13fps against 8). */
+  glow?: boolean;
+};
+
+/** The house's footprint (the stone plinth), as inclusive block indices.
+ *  Procedural placement uses it to avoid dropping stars inside a wall — the
+ *  house is authored geometry, so it isn't in the streamed grid to collide with. */
+export const HOUSE_FOOTPRINT = { x0: -8, x1: 7, z0: -27, z1: -18 };
+
 /** Treasure-hunt star placements, ordered easiest to hardest. Each one is
  *  somewhere the player has to use a different gesture to reach. */
-export const STAR_SPOTS: { id: string; hint: string; pos: [number, number, number] }[] = [
+export const STAR_SPOTS: StarSpot[] = [
   { id: "lawn", hint: "On the front lawn", pos: [0, 1.2, -14] },
   { id: "living", hint: "Inside, past the front door", pos: [-3, 1.8, -22] },
   { id: "upstairs", hint: "Up the indoor stairs", pos: [-2, 5.8, -22] },
