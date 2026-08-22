@@ -94,8 +94,6 @@
   const toast = $("#toast");
   const toastTitle = $(".toast strong");
   const toastMessage = $(".toast small");
-  const companionEmoji = $("#companionEmoji");
-  const companionName = $("#companionName");
   const nextDescription = $("#nextDescription");
   const explodeRange = $("#explodeRange");
   const orbitHint = $("#orbitHint");
@@ -236,9 +234,6 @@
     guideName.textContent = `${config.guideName} says`;
     guideText.textContent = config.guide;
     missionTitle.textContent = config.mission;
-    companionEmoji.textContent = config.companion;
-    companionName.textContent = config.guideName;
-
     const currentIndex = MODE_ORDER.indexOf(mode);
     const nextMode = MODE_ORDER[(currentIndex + 1) % MODE_ORDER.length];
     nextDescription.textContent = config.next;
@@ -585,34 +580,33 @@
   $(".chevron").addEventListener("click", () => showToast("Riverside School", "This prototype is ready for another live model stream."));
   $(".avatar").addEventListener("click", () => showToast("Hi, Amira!", "Your creative adventures and stars live here."));
 
-  // Pixel hand and mode-specific companion follow the pointer with a soft delay.
+  // Keep the custom pixel hand under the pointer while the anchored guide
+  // character follows it with only their eyes, head, and torso.
   const pixelCursor = $("#pixelCursor");
-  const cursorCompanion = $("#cursorCompanion");
-  const target = { x: -100, y: -100 };
-  const follower = { x: -100, y: -100 };
+  const guideCharacter = $(".guide-character");
 
   window.addEventListener("pointermove", (event) => {
-    target.x = event.clientX;
-    target.y = event.clientY;
     pixelCursor.style.transform = `translate3d(${event.clientX - 5}px,${event.clientY - 2}px,0)`;
     pixelCursor.classList.add("visible");
-    cursorCompanion.classList.add("visible");
+
+    if (guideCharacter) {
+      const bounds = guideCharacter.getBoundingClientRect();
+      const offsetX = event.clientX - (bounds.left + bounds.width / 2);
+      const offsetY = event.clientY - (bounds.top + bounds.height / 2);
+      const distance = Math.max(1, Math.hypot(offsetX, offsetY));
+      const strength = Math.min(1, distance / 180);
+      guideCharacter.style.setProperty("--look-x", `${(offsetX / distance) * strength}`);
+      guideCharacter.style.setProperty("--look-y", `${(offsetY / distance) * strength}`);
+    }
   });
 
   window.addEventListener("pointerdown", () => pixelCursor.classList.add("pressed"));
   window.addEventListener("pointerup", () => pixelCursor.classList.remove("pressed"));
   document.documentElement.addEventListener("mouseleave", () => {
     pixelCursor.classList.remove("visible");
-    cursorCompanion.classList.remove("visible");
+    guideCharacter?.style.setProperty("--look-x", "0");
+    guideCharacter?.style.setProperty("--look-y", "0");
   });
-
-  function animateCompanion() {
-    follower.x += (target.x - follower.x) * 0.11;
-    follower.y += (target.y - follower.y) * 0.11;
-    cursorCompanion.style.transform = `translate3d(${follower.x + 27}px,${follower.y + 28}px,0)`;
-    requestAnimationFrame(animateCompanion);
-  }
-  requestAnimationFrame(animateCompanion);
 
   // Lightweight stream adapter contract for Rhino/Revit prototype integrations.
   function setConnection(status, message) {
