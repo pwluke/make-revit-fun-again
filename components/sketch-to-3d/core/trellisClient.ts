@@ -6,9 +6,14 @@
  *
  * Measured 2026-08-22 (scripts/bench-trellis.mjs), compute not wall-clock:
  *
- *   stage 1  fast-sdxl-controlnet-canny   6.5s
+ *   stage 1  fast-sdxl-controlnet-canny   2.3s  (at 10 steps, tuned down from 35)
  *   stage 2  trellis                     16.3s
- *   total                               ~23s   0.4 MB   3,864 triangles   ~$0.02
+ *   total                               ~19s   0.4 MB   ~4,000 triangles   ~$0.02
+ *
+ * Stage 2 is a floor, not a budget: a sampler-step sweep moved it only between
+ * 15.1s and 18.2s, and 4 steps came out SLOWER than 6 — i.e. inside the noise.
+ * TRELLIS's time is dominated by fixed mesh extraction and texturing work that no
+ * step count touches, so there is nothing further to win there. Don't go looking.
  *
  * against hunyuan3d-v3/sketch-to-3d at 105.2s, 13.6 MB, 39,318 triangles, $0.525.
  * Same deliverable — a walkable GLB — for 6.5x the speed and 26x less money.
@@ -36,11 +41,20 @@ fal.config({ proxyUrl: "/api/fal/proxy" });
  * base-colour PNG, so texture — not geometry — was always the payload problem.
  */
 const TRELLIS_INPUT = {
-  // A STRING, not a number: @fal-ai/client declares this as "512" | "1024" | "2048".
-  // scripts/bench-trellis.mjs passes the number 512 and the endpoint honoured it
-  // (1.1 MB texture at 1024 vs 0.3 MB at 512), so the API coerces — but the typed
-  // client does not, and matching the declared type is the safer of the two.
-  texture_size: "512",
+  /**
+   * A NUMBER, and the cast below is load-bearing. `@fal-ai/client` declares
+   * `texture_size` as `"512" | "1024" | "2048"` — strings. **That declaration is
+   * wrong.** Sending the string is rejected by the API with:
+   *
+   *   {"type":"literal_error","loc":["body","texture_size"],
+   *    "msg":"Input should be 512, 1024 or 2048","input":"512"}
+   *
+   * Verified 2026-08-22 by an isolation probe: number + no steps → OK, string +
+   * no steps → 422, number + sampler steps → OK. So the generated types cannot be
+   * trusted here and TypeScript would happily enforce the broken form. Do not
+   * "fix" this cast to satisfy the type checker — that is exactly how it broke.
+   */
+  texture_size: 512 as unknown as "512",
   mesh_simplify: 0.98,
 } as const;
 
@@ -73,6 +87,18 @@ export const generateFast: Generate = async (
     input: {
       prompt,
       control_image_url: sketchUrl,
+      // 10, down from the endpoint's default of 35. This is the ONLY step count in
+      // the pipeline worth tuning — see the sweep in scripts/bench-trellis-steps.mjs:
+      //   bridge  35 → 6.3s   20 → 3.8s   10 → 2.3s   6 → 1.7s
+      //   trellis 12 → 18.2s   8 → 16.8s   6 → 15.1s  4 → 16.2s
+      // Canny ControlNet takes its structure from the edge map rather than from
+      // denoising, so 10 steps is visually indistinguishable from 35 here.
+      //
+      // DO NOT GO LOWER. At 6 steps the endpoint returns a fully BLACK image — and
+      // returns it with a 200, so nothing downstream notices; TRELLIS then happily
+      // reconstructs garbage from it. The only outward tell was file size, 34 KB
+      // against ~610 KB for a real render.
+      num_inference_steps: 10,
     },
     logs: true,
     onQueueUpdate: (update) => {

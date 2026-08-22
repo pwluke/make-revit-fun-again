@@ -45,3 +45,4 @@ next-env.d.ts
 
 # Generated local exploration viewers
 trellis-comparison.html
+trellis-speed-sweep.html
