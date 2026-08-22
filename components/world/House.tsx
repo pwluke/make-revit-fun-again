@@ -7,15 +7,18 @@ import {
   houseVoxels,
   type HouseMaterial,
 } from "./houseData";
+import { useTreasureStore } from "./store";
 
 const dummy = new THREE.Object3D();
 
 function VoxelBatch({
   positions,
   mat,
+  xray,
 }: {
   positions: [number, number, number][];
   mat: HouseMaterial;
+  xray: boolean;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null!);
   useLayoutEffect(() => {
@@ -28,12 +31,14 @@ function VoxelBatch({
     ref.current.computeBoundingSphere();
   }, [positions]);
 
-  const transparent = mat === "glass";
+  // X-Ray Eyes (a star ability): every opaque material fades so the rooms,
+  // stairs and connections behind the walls become readable.
+  const transparent = mat === "glass" || xray;
   return (
     <instancedMesh
       ref={ref}
       args={[undefined, undefined, positions.length]}
-      castShadow={!transparent}
+      castShadow={mat !== "glass" && !xray}
       receiveShadow
       // Voxels are placed edge to edge; a hair of inset keeps the seams
       // from z-fighting on shallow viewing angles.
@@ -43,9 +48,10 @@ function VoxelBatch({
       <meshStandardMaterial
         color={HOUSE_COLORS[mat]}
         transparent={transparent}
-        opacity={transparent ? 0.42 : 1}
-        roughness={transparent ? 0.1 : mat === "panel" ? 0.7 : 0.9}
-        metalness={transparent ? 0.1 : 0}
+        opacity={mat === "glass" ? 0.42 : xray ? 0.22 : 1}
+        depthWrite={!transparent}
+        roughness={mat === "glass" ? 0.1 : mat === "panel" ? 0.7 : 0.9}
+        metalness={mat === "glass" ? 0.1 : 0}
       />
     </instancedMesh>
   );
@@ -58,12 +64,13 @@ function VoxelBatch({
  */
 export function House() {
   const voxels = useMemo(() => houseVoxels(), []);
+  const xray = useTreasureStore((s) => s.xrayOn);
   return (
     <>
       {(Object.keys(voxels) as HouseMaterial[])
         .filter((mat) => voxels[mat].length > 0)
         .map((mat) => (
-          <VoxelBatch key={mat} mat={mat} positions={voxels[mat]} />
+          <VoxelBatch key={mat} mat={mat} positions={voxels[mat]} xray={xray} />
         ))}
       <RigidBody type="fixed" colliders={false}>
         {HOUSE_BRICKS.map((brick, i) => (

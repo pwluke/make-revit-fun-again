@@ -140,16 +140,19 @@ export function houseVoxels(): Record<HouseMaterial, [number, number, number][]>
 }
 
 /** Treasure-hunt star placements, ordered easiest to hardest. Each one is
- *  somewhere the player has to use a different gesture to reach. */
+ *  somewhere the player has to use a different gesture to reach, and each
+ *  hint is an architectural clue — it names windows, stairs, walls and
+ *  rooms rather than pointing, so finding a star means reading the
+ *  building. */
 export const STAR_SPOTS: { id: string; hint: string; pos: [number, number, number] }[] = [
-  { id: "lawn", hint: "On the front lawn", pos: [0, 1.2, -14] },
-  { id: "living", hint: "Inside, past the front door", pos: [-3, 1.8, -22] },
-  { id: "upstairs", hint: "Up the indoor stairs", pos: [-2, 5.8, -22] },
-  { id: "balcony", hint: "Out on the balcony", pos: [4, 5.8, -22.5] },
-  { id: "roof", hint: "On the roof terrace", pos: [-4, 9.8, -22] },
-  { id: "backyard", hint: "Behind the house", pos: [-9, 1.2, -28] },
-  { id: "sideyard", hint: "Round the side of the wing", pos: [7, 1.8, -26.5] },
-  { id: "field", hint: "Far out in the field", pos: [14, 1.2, -6] },
+  { id: "lawn", hint: "On the lawn, facing the front door", pos: [0, 1.2, -14] },
+  { id: "living", hint: "In the room with the big picture window", pos: [-3, 1.8, -22] },
+  { id: "upstairs", hint: "At the top of the indoor stair", pos: [-2, 5.8, -22] },
+  { id: "balcony", hint: "On the balcony above the glass wing", pos: [4, 5.8, -22.5] },
+  { id: "roof", hint: "On the roof terrace — take the outdoor stair", pos: [-4, 9.8, -22] },
+  { id: "backyard", hint: "Behind the house, against the back wall", pos: [-9, 1.2, -28] },
+  { id: "sideyard", hint: "In the narrow gap beside the wing", pos: [7, 1.8, -26.5] },
+  { id: "field", hint: "Far out in the field, away from every wall", pos: [14, 1.2, -6] },
 ];
 
 /** How close the player has to get to pick a star up. */

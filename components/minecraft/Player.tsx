@@ -12,6 +12,7 @@ import {
 import Axe from "./Axe";
 import { useGestureStore } from "../gesture/store";
 import { hitBlockCenter } from "./GestureBuilder";
+import { useTreasureStore } from "../world/store";
 
 type Controls = "forward" | "backward" | "left" | "right" | "jump";
 
@@ -24,6 +25,17 @@ const SPEED = 5;
 // scene's -30 gravity, so a single jump clears a one-block step — without
 // it the stairs and roofs in the world are unreachable.
 const JUMP_SPEED = 9;
+
+// Star abilities (see world/store.ts). Each changes how the same building
+// can be experienced, so the world keeps opening up as stars are found.
+const BUNNY_SPEED_FACTOR = 1.5;
+const GLIDE_FALL_SPEED = 3; // m/s terminal fall while gliding
+// Mouse mode: capsule [halfHeight, radius] and the matching grounded-ray
+// threshold (capsule bottom is halfHeight + radius below the center).
+const BODY_NORMAL: [number, number] = [0.75, 0.5];
+const BODY_TINY: [number, number] = [0.3, 0.22];
+const GROUNDED_NORMAL = 1.75;
+const GROUNDED_TINY = 0.9;
 const direction = new THREE.Vector3();
 const frontVector = new THREE.Vector3();
 const sideVector = new THREE.Vector3();
@@ -68,6 +80,10 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
   // Base yaw the bounded head-look offset is applied on top of.
   const headBase = useRef(0);
   const headWasTracked = useRef(false);
+  // Star abilities. `tiny` drives the collider size, so it must re-render.
+  const tiny = useTreasureStore((s) => s.tinyOn);
+  const airJumpUsed = useRef(false);
+  const prevJumpKey = useRef(false);
   // Fist-orbit state.
   const { scene } = useThree();
   const orbitWas = useRef(false);
@@ -190,22 +206,13 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     const gestureBack = gestureOn && gesture.move < 0;
     frontVector.set(0, 0, +(backward || gestureBack) - +(forward || gestureForward));
     sideVector.set(+left - +right, 0, 0);
-    // Walk along the camera heading on the ground plane only. Applying the
-    // full camera rotation tilts the vector into the floor and slows the
-    // walk whenever the player looks down — which collect-and-explore play
-    // does constantly.
-    moveEuler.setFromQuaternion(state.camera.quaternion);
-    direction
-      .subVectors(frontVector, sideVector)
-      .normalize()
-      .multiplyScalar(SPEED)
-      .applyAxisAngle(UP, moveEuler.y);
-    if (!orbiting)
-      ref.current.setLinvel(
-        { x: direction.x, y: velocity.y, z: direction.z },
-        true,
-      );
-    // jumping
+    // star abilities
+    const treasure = useTreasureStore.getState();
+    const hasBunny = treasure.found.includes("lawn");
+    const hasFrog = treasure.found.includes("living");
+    const hasButterfly = treasure.found.includes("balcony");
+    const walkSpeed = SPEED * (hasBunny ? BUNNY_SPEED_FACTOR : 1);
+    // grounded probe (before movement, so glide and air-jump can use it)
     const world = rapier.world;
     const ray = world.castRay(
       new RAPIER.Ray(ref.current.translation(), { x: 0, y: -1, z: 0 }),
@@ -216,10 +223,53 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
       undefined,
       ref.current,
     );
-    const grounded = ray && ray.collider && Math.abs(ray.timeOfImpact) <= 1.75;
+    const grounded =
+      ray &&
+      ray.collider &&
+      Math.abs(ray.timeOfImpact) <= (tiny ? GROUNDED_TINY : GROUNDED_NORMAL);
+    if (grounded) airJumpUsed.current = false;
     const gestureJump = gesture.consumeJump();
-    if (!orbiting && (jump || gestureJump) && grounded)
+    // The keyboard reports jump as a held state; the mid-air jump must
+    // fire on the press, not every frame the key stays down.
+    const jumpPressed = (jump && !prevJumpKey.current) || gestureJump;
+    prevJumpKey.current = jump;
+    // Walk along the camera heading on the ground plane only. Applying the
+    // full camera rotation tilts the vector into the floor and slows the
+    // walk whenever the player looks down — which collect-and-explore play
+    // does constantly.
+    moveEuler.setFromQuaternion(state.camera.quaternion);
+    direction
+      .subVectors(frontVector, sideVector)
+      .normalize()
+      .multiplyScalar(walkSpeed)
+      .applyAxisAngle(UP, moveEuler.y);
+    let verticalVelocity = velocity.y;
+    // Butterfly Glide: hold jump (or keep the thumb up) while falling to
+    // drift down slowly — from the roof, that is a flight across the yard.
+    if (
+      hasButterfly &&
+      !grounded &&
+      verticalVelocity < -GLIDE_FALL_SPEED &&
+      (jump || gesture.jumpHeld)
+    ) {
+      verticalVelocity = -GLIDE_FALL_SPEED;
+    }
+    if (!orbiting)
+      ref.current.setLinvel(
+        { x: direction.x, y: verticalVelocity, z: direction.z },
+        true,
+      );
+    // jumping
+    if (!orbiting && (jump || gestureJump) && grounded) {
       ref.current.setLinvel({ x: 0, y: JUMP_SPEED, z: 0 }, true);
+    } else if (!orbiting && hasFrog && jumpPressed && !grounded && !airJumpUsed.current) {
+      // Frog Jump: one extra jump in mid-air, keeping momentum.
+      airJumpUsed.current = true;
+      ref.current.setLinvel(
+        { x: velocity.x, y: JUMP_SPEED, z: velocity.z },
+        true,
+      );
+    }
   });
   return (
     <>
@@ -231,7 +281,7 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
         position={[0, 10, 0]}
         enabledRotations={[false, false, false]}
       >
-        <CapsuleCollider args={[0.75, 0.5]} />
+        <CapsuleCollider args={tiny ? BODY_TINY : BODY_NORMAL} />
       </RigidBody>
       <group
         ref={axe}

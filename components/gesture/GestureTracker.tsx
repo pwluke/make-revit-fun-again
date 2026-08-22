@@ -271,6 +271,7 @@ export default function GestureTracker() {
         headYaw: smoothHead.yaw,
         headPitch: smoothHead.pitch,
         move,
+        jumpHeld: sawThumb,
         orbiting,
       });
       drawOverlay(frameLabel);

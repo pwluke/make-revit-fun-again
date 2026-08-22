@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import { STAR_SPOTS } from "./houseData";
-import { useTreasureStore } from "./store";
+import { STAR_ABILITIES, useTreasureStore } from "./store";
 
 function StarPip({ filled }: { filled: boolean }) {
   return (
@@ -16,14 +17,34 @@ function StarPip({ filled }: { filled: boolean }) {
   );
 }
 
-/** Treasure-hunt scoreboard: how many stars are found, and a nudge toward
- *  the next one so a child is never stuck wandering. */
+/** Treasure-hunt scoreboard: stars found, a nudge toward the next one, and
+ *  the abilities the found stars have unlocked. */
 export default function TreasureHud() {
   const found = useTreasureStore((s) => s.found);
   const total = useTreasureStore((s) => s.total);
+  const tinyOn = useTreasureStore((s) => s.tinyOn);
+  const xrayOn = useTreasureStore((s) => s.xrayOn);
+  const toggleTiny = useTreasureStore((s) => s.toggleTiny);
+  const toggleXray = useTreasureStore((s) => s.toggleXray);
   const restart = useTreasureStore((s) => s.restart);
   const complete = found.length === total;
   const next = STAR_SPOTS.find((spot) => !found.includes(spot.id));
+
+  // Hotkeys for the toggle abilities, so they work under pointer lock too.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      const store = useTreasureStore.getState();
+      if (key === "t") store.toggleTiny();
+      if (key === "x") store.toggleXray();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const unlocked = STAR_SPOTS.filter(
+    (spot) => found.includes(spot.id) && STAR_ABILITIES[spot.id],
+  );
 
   return (
     // Sits below the "All games" link, which owns the top-left corner.
@@ -45,6 +66,49 @@ export default function TreasureHud() {
           </p>
         ) : null}
       </div>
+
+      {/* Unlocked abilities. Toggles are buttons (and hotkeys); passives
+          just show that the power is on. */}
+      {unlocked.length > 0 ? (
+        <div className="pointer-events-auto flex flex-col gap-1 rounded-2xl bg-white/90 px-2 py-1.5 shadow-lg ring-1 ring-slate-900/10">
+          {unlocked.map((spot) => {
+            const ability = STAR_ABILITIES[spot.id]!;
+            const isToggle = ability.kind === "toggle";
+            const on =
+              spot.id === "upstairs" ? tinyOn : spot.id === "roof" ? xrayOn : true;
+            const onClick =
+              spot.id === "upstairs"
+                ? toggleTiny
+                : spot.id === "roof"
+                  ? toggleXray
+                  : undefined;
+            return (
+              <button
+                key={spot.id}
+                onClick={onClick}
+                disabled={!isToggle}
+                title={ability.blurb}
+                className={
+                  "flex items-center gap-2 rounded-xl px-2 py-1 text-left text-xs font-bold transition-colors " +
+                  (isToggle
+                    ? on
+                      ? "bg-amber-300 text-slate-900"
+                      : "bg-slate-100 text-slate-500 hover:bg-amber-100"
+                    : "text-slate-600")
+                }
+              >
+                <span className="text-base leading-none">{ability.emoji}</span>
+                <span>{ability.title}</span>
+                {isToggle ? (
+                  <kbd className="ml-auto rounded bg-slate-900/10 px-1.5 py-0.5 text-[10px] font-black uppercase">
+                    {ability.hotkey}
+                  </kbd>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
 
       {complete ? (
         <div className="pointer-events-auto flex items-center gap-3 rounded-2xl bg-amber-300 px-3 py-2 shadow-lg ring-1 ring-amber-500/30">

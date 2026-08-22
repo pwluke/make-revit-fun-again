@@ -27,6 +27,8 @@ type GestureState = {
   headPitch: number;
   /** Walk direction: 1 forward (palm), -1 backward (back of hand), 0 idle */
   move: number;
+  /** Thumb-up currently held — lets an airborne player glide */
+  jumpHeld: boolean;
   /** A fist is held: the camera orbits the grabbed target */
   orbiting: boolean;
   /** Accumulated fist travel while orbiting, consumed by the game loop */
@@ -43,6 +45,7 @@ type GestureState = {
     headYaw: number;
     headPitch: number;
     move: number;
+    jumpHeld: boolean;
     orbiting: boolean;
   }) => void;
   addOrbit: (dx: number, dy: number) => void;
@@ -63,14 +66,15 @@ export const useGestureStore = create<GestureState>((set, get) => ({
   headYaw: 0,
   headPitch: 0,
   move: 0,
+  jumpHeld: false,
   orbiting: false,
   orbitDelta: { x: 0, y: 0 },
   jumpQueued: false,
   buildQueued: false,
   setActive: (active) => set({ active }),
   setStatus: (status) => set({ status }),
-  setFrame: ({ faceTracking, handTracking, label, headYaw, headPitch, move, orbiting }) =>
-    set({ faceTracking, handTracking, label, headYaw, headPitch, move, orbiting }),
+  setFrame: ({ faceTracking, handTracking, label, headYaw, headPitch, move, jumpHeld, orbiting }) =>
+    set({ faceTracking, handTracking, label, headYaw, headPitch, move, jumpHeld, orbiting }),
   addOrbit: (dx, dy) =>
     set((s) => ({ orbitDelta: { x: s.orbitDelta.x + dx, y: s.orbitDelta.y + dy } })),
   queueJump: () => set({ jumpQueued: true }),
@@ -99,6 +103,7 @@ export const useGestureStore = create<GestureState>((set, get) => ({
       headYaw: 0,
       headPitch: 0,
       move: 0,
+      jumpHeld: false,
       orbiting: false,
       orbitDelta: { x: 0, y: 0 },
       jumpQueued: false,
