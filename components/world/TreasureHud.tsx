@@ -26,7 +26,8 @@ export default function TreasureHud() {
   const next = STAR_SPOTS.find((spot) => !found.includes(spot.id));
 
   return (
-    <div className="pointer-events-none absolute top-4 left-4 z-10 flex flex-col items-start gap-2">
+    // Sits below the "All games" link, which owns the top-left corner.
+    <div className="pointer-events-none absolute top-16 left-4 z-10 flex flex-col items-start gap-2">
       <div className="rounded-2xl bg-white/90 px-3 py-2 shadow-lg ring-1 ring-slate-900/10">
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold text-slate-700">
