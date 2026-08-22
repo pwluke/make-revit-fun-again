@@ -10,6 +10,7 @@ import { Cubes } from "./Cube";
 import { GestureBuilder } from "./GestureBuilder";
 import { House } from "../world/House";
 import { Stars } from "../world/Stars";
+import { Flood } from "../world/Flood";
 
 // The original was made by Maksim Ivanow: https://www.youtube.com/watch?v=Lc2JvBXMesY&t=124s
 // This example needs pointer-lock, that works only if you open it in a new window
@@ -40,8 +41,11 @@ export function MinecraftScene() {
         <House />
         <Cubes />
       </Physics>
-      {/* Outside <Physics>: stars are pickups, and the builder only raycasts. */}
+      {/* Outside <Physics>: stars are pickups, the builder only raycasts, and
+          the flood is visual — you swim through it, the breath timer is what
+          actually threatens you. */}
       <Stars />
+      <Flood />
       <GestureBuilder />
       <PointerLockControls />
     </>
