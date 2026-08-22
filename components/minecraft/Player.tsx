@@ -29,6 +29,16 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
   const rapier = useRapier();
   const [, get] = useKeyboardControls<Controls>();
   useFrame((state) => {
+    // Both refs are declared `null!`, which lies to TypeScript — they are genuinely
+    // null until rapier's WASM finishes initialising and the RigidBody mounts, and
+    // useFrame starts running before that. Skipping those first frames is not
+    // cosmetic: R3F's rAF callback has no try/catch and reschedules itself at the
+    // END of the loop, so ONE throw here permanently kills the render loop. The
+    // symptom is a scene frozen on its first frame with a visible cursor and no
+    // camera rotation, which reads as "pointer lock is broken" and sends you
+    // looking in entirely the wrong place.
+    if (!ref.current || !axe.current) return;
+
     const { forward, backward, left, right, jump } = get();
     const velocity = ref.current.linvel();
     const speed = Math.hypot(velocity.x, velocity.y, velocity.z);
