@@ -1,14 +1,34 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { type ThreeEvent } from "@react-three/fiber";
-import { useTexture } from "@react-three/drei";
 import * as THREE from "three";
 import { create } from "zustand";
-import { occupiedPointCoords, useGridPoints } from "@/lib/use-grid-points";
-
-// Served from `public/dirt.jpg` — see the note in Axe.tsx.
-const dirtImg = "/dirt.jpg";
 
 type CubeCoords = [x: number, y: number, z: number];
+
+type Point = {
+  x: number;
+  y: number;
+  z: number;
+};
+
+type PointSet = {
+  url: string;
+  color: string;
+};
+
+const POINT_SCALE = 1 / 50;
+
+// Add future point files and their colors here. Each set is fetched in parallel
+// and rendered with its own InstancedMesh.
+const POINT_SETS: PointSet[] = [
+  { url: "/points1.json", color: "#66CC99" },
+];
 
 const FACE_DIRS: CubeCoords[] = [
   [1, 0, 0],
@@ -34,33 +54,85 @@ const useCubeStore = create<CubeStore>((set) => ({
 
 export const Cubes = () => {
   const localCubes = useCubeStore((state) => state.cubes);
-  const { data } = useGridPoints();
-  const cubes = useMemo(() => {
-    const seeded = occupiedPointCoords(data?.points);
-    if (seeded.length === 0) return localCubes;
-    const positions: CubeCoords[] = new Array(seeded.length + localCubes.length);
-    for (let i = 0; i < seeded.length; i++) positions[i] = seeded[i].position;
-    for (let i = 0; i < localCubes.length; i++) {
-      positions[seeded.length + i] = localCubes[i];
-    }
-    return positions;
-  }, [data?.points, localCubes]);
 
-  return <InstancedCubes cubes={cubes} />;
+  return (
+    <>
+      {POINT_SETS.map((pointSet) => (
+        <PointSetCubes key={pointSet.url} pointSet={pointSet} />
+      ))}
+      <InstancedCubes cubes={localCubes} color="#66CC99" />
+    </>
+  );
 };
 
-function InstancedCubes({ cubes }: { cubes: CubeCoords[] }) {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const cubesRef = useRef(cubes);
-  cubesRef.current = cubes;
+function PointSetCubes({ pointSet }: { pointSet: PointSet }) {
+  const [cubes, setCubes] = useState<CubeCoords[]>([]);
 
-  const texture = useTexture(dirtImg);
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadPoints() {
+      try {
+        const response = await fetch(pointSet.url, { signal: controller.signal });
+        if (!response.ok) {
+          throw new Error(
+            `Failed to load ${pointSet.url}: ${response.status} ${response.statusText}`,
+          );
+        }
+
+        const points: unknown = await response.json();
+        if (!Array.isArray(points)) {
+          throw new Error(`${pointSet.url} must contain an array of points`);
+        }
+
+        const positions: CubeCoords[] = [];
+        for (const point of points) {
+          if (!isPoint(point)) continue;
+          positions.push([
+            point.x * POINT_SCALE,
+            point.y * POINT_SCALE,
+            point.z * POINT_SCALE,
+          ]);
+        }
+        setCubes(positions);
+      } catch (error) {
+        if (!controller.signal.aborted) console.error(error);
+      }
+    }
+
+    void loadPoints();
+    return () => controller.abort();
+  }, [pointSet.url]);
+
+  return <InstancedCubes cubes={cubes} color={pointSet.color} />;
+}
+
+function isPoint(value: unknown): value is Point {
+  if (typeof value !== "object" || value === null) return false;
+  const point = value as Partial<Point>;
+  return (
+    typeof point.x === "number" &&
+    Number.isFinite(point.x) &&
+    typeof point.y === "number" &&
+    Number.isFinite(point.y) &&
+    typeof point.z === "number" &&
+    Number.isFinite(point.z)
+  );
+}
+
+function InstancedCubes({
+  cubes,
+  color,
+}: {
+  cubes: CubeCoords[];
+  color: string;
+}) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+
   const addCube = useCubeStore((state) => state.addCube);
   const [hovered, setHovered] = useState<number | null>(null);
 
-  const capRef = useRef(Math.max(cubes.length, 1));
-  if (cubes.length > capRef.current) capRef.current = cubes.length;
-  const capacity = capRef.current;
+  const capacity = Math.max(cubes.length, 1);
 
   useLayoutEffect(() => {
     const mesh = meshRef.current;
@@ -90,12 +162,12 @@ function InstancedCubes({ cubes }: { cubes: CubeCoords[] }) {
       e.stopPropagation();
       const id = e.instanceId;
       if (id == null || e.faceIndex == null) return;
-      const coords = cubesRef.current[id];
+      const coords = cubes[id];
       if (!coords) return;
       const [dx, dy, dz] = FACE_DIRS[Math.floor(e.faceIndex / 2)] ?? FACE_DIRS[0];
       addCube(coords[0] + dx, coords[1] + dy, coords[2] + dz);
     },
-    [addCube],
+    [addCube, cubes],
   );
 
   const hoverPos = hovered != null ? cubes[hovered] : undefined;
@@ -116,7 +188,7 @@ function InstancedCubes({ cubes }: { cubes: CubeCoords[] }) {
         onClick={onClick}
       >
         <boxGeometry />
-        <meshStandardMaterial map={texture} />
+        <meshStandardMaterial color={color} />
       </instancedMesh>
       {hoverPos && (
         <mesh position={hoverPos} scale={1.02} raycast={() => {}}>
