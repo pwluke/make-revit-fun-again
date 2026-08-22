@@ -7,6 +7,7 @@ import { Physics } from "@react-three/rapier";
 import { Ground } from "./Ground";
 import { Player } from "./Player";
 import { Cube, Cubes } from "./Cube";
+import { Creations } from "@/components/sketch-to-3d/r3f/Creations";
 
 // The original was made by Maksim Ivanow: https://www.youtube.com/watch?v=Lc2JvBXMesY&t=124s
 // This example needs pointer-lock, that works only if you open it in a new window
@@ -42,9 +43,17 @@ export default function App() {
             <Player />
             <Cube position={[0, 0.5, -10]} />
             <Cubes />
+            <Creations />
           </Physics>
         </Suspense>
-        <PointerLockControls />
+        {/* Without `selector`, drei attaches a document-level `click` listener
+            that re-locks the pointer on ANY click anywhere on the page (see
+            node_modules/@react-three/drei/core/PointerLockControls.js:60-63).
+            That would re-lock on clicks inside the sketch overlay (colour
+            swatches, the canvas, "Make it real") and yank focus/hide the
+            cursor mid-draw. Scoping to #game-surface (set on the wrapper div
+            in app/page.js) restricts re-locking to clicks on the game itself. */}
+        <PointerLockControls makeDefault selector="#game-surface" />
       </Canvas>
     </KeyboardControls>
   );
