@@ -31,6 +31,10 @@ const PINCH_CLOSE = 0.3;
 const PINCH_OPEN = 0.45;
 // Minimum gap between one-shot actions (jump/build).
 const ACTION_COOLDOWN_MS = 250;
+// How long the face must stay lost before "straight ahead" recalibrates.
+// Brief dropouts (a hand crossing the face, a sharp turn) keep the old
+// calibration so steering resumes exactly where it left off.
+const NEUTRAL_RESET_MS = 2000;
 const MIN_SCORE = 0.55;
 
 // MediaPipe hand skeleton (21 landmarks).
@@ -97,6 +101,7 @@ export default function GestureTracker() {
     const headEuler = new THREE.Euler(0, 0, 0, "YXZ");
     let neutralYaw: number | null = null;
     let neutralPitch = 0;
+    let faceLostAt: number | null = null;
     const smoothHead = { yaw: 0, pitch: 0 };
     let nose: Landmark | null = null;
     // hands (cached between hand ticks so held poses do not flicker)
@@ -325,6 +330,7 @@ export default function GestureTracker() {
           const angles = headAngles(fr.facialTransformationMatrixes?.[0]?.data);
           nose = fr.faceLandmarks?.[0]?.[1] ?? null;
           if (angles) {
+            faceLostAt = null;
             if (neutralYaw === null) {
               // First sight of the face defines "straight ahead".
               neutralYaw = angles.yaw;
@@ -338,11 +344,18 @@ export default function GestureTracker() {
             smoothHead.yaw += (relYaw - smoothHead.yaw) * 0.35;
             smoothHead.pitch += (relPitch - smoothHead.pitch) * 0.35;
           } else {
-            // Face lost: stop steering and recalibrate neutral on return,
-            // since the user probably moved.
-            neutralYaw = null;
-            smoothHead.yaw = 0;
-            smoothHead.pitch = 0;
+            // Face lost. Dropping the calibration on every one-frame flicker
+            // (a hand crossing the face, a sharp turn) made steering die
+            // mid-walk and then recalibrate "straight ahead" to a turned
+            // head. Steering pauses immediately either way (faceTracking
+            // goes false), but the neutral pose survives short losses —
+            // only a long loss means the player actually moved.
+            if (faceLostAt === null) faceLostAt = now;
+            if (now - faceLostAt > NEUTRAL_RESET_MS) {
+              neutralYaw = null;
+              smoothHead.yaw = 0;
+              smoothHead.pitch = 0;
+            }
           }
 
           // Hands: every other tick.

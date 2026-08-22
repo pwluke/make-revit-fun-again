@@ -39,6 +39,13 @@ const HEAD_SYNC_RANGE = 0.35; // rad of head yaw (~20 deg) mapped directly
 const HEAD_YAW_GAIN = 3.5; // camera rad per head rad inside the sync range
 const HEAD_PITCH_GAIN = 2.4;
 const HEAD_MAX_PITCH = Math.PI / 2 - 0.25;
+// While a walk gesture is held, held head yaw ALSO steers the heading like
+// a wheel, so the path curves and full turns are possible. Standing play
+// keeps the bounded look only — an idle glance still never spins the view.
+const WALK_STEER_RATE = 3; // rad/s of heading per rad of held head yaw
+// Walking moves along the camera heading on the ground plane.
+const moveEuler = new THREE.Euler(0, 0, 0, "YXZ");
+const UP = new THREE.Vector3(0, 1, 0);
 
 // Fist orbit: grab whatever the crosshair points at and drag the fist to
 // swing the camera around it at a fixed distance.
@@ -68,7 +75,7 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
   const orbitRadius = useRef(0);
   const orbitAz = useRef(0);
   const orbitEl = useRef(0);
-  useFrame((state) => {
+  useFrame((state, delta) => {
     const { forward, backward, left, right, jump } = get();
     const velocity = ref.current.linvel();
     const speed = Math.hypot(velocity.x, velocity.y, velocity.z);
@@ -145,6 +152,14 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
         gestureEuler.setFromQuaternion(state.camera.quaternion);
         headBase.current = gestureEuler.y - yawOffset;
       }
+      if (gesture.move !== 0) {
+        // Steering-wheel turn, only while walking: hold the head a little
+        // left and the walk curves left-forward.
+        headBase.current +=
+          THREE.MathUtils.clamp(gesture.headYaw, -HEAD_SYNC_RANGE, HEAD_SYNC_RANGE) *
+          WALK_STEER_RATE *
+          delta;
+      }
       gestureEuler.set(
         THREE.MathUtils.clamp(
           gesture.headPitch * HEAD_PITCH_GAIN,
@@ -175,11 +190,16 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     const gestureBack = gestureOn && gesture.move < 0;
     frontVector.set(0, 0, +(backward || gestureBack) - +(forward || gestureForward));
     sideVector.set(+left - +right, 0, 0);
+    // Walk along the camera heading on the ground plane only. Applying the
+    // full camera rotation tilts the vector into the floor and slows the
+    // walk whenever the player looks down — which collect-and-explore play
+    // does constantly.
+    moveEuler.setFromQuaternion(state.camera.quaternion);
     direction
       .subVectors(frontVector, sideVector)
       .normalize()
       .multiplyScalar(SPEED)
-      .applyEuler(state.camera.rotation);
+      .applyAxisAngle(UP, moveEuler.y);
     if (!orbiting)
       ref.current.setLinvel(
         { x: direction.x, y: velocity.y, z: direction.z },
