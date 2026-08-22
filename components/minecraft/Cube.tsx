@@ -7,6 +7,7 @@ import {
   type RigidBodyProps,
 } from "@react-three/rapier";
 import { create } from "zustand";
+import { sketchStore } from "../sketch3d/core/strokeStore";
 
 // Served from `public/dirt.jpg` — see the note in Axe.tsx.
 const dirtImg = "/dirt.jpg";
@@ -44,6 +45,8 @@ export function Cube(props: RigidBodyProps) {
   }, []);
   const onOut = useCallback(() => set(null), []);
   const onClick = useCallback((e: ThreeEvent<MouseEvent>) => {
+    // Draw mode owns the left mouse button (see docs/specs/2026-08-22-sketch-3d-design.md §6.1).
+    if (sketchStore.getState().drawMode) return;
     e.stopPropagation();
     const { x, y, z } = ref.current.translation();
     const dir: CubeCoords[] = [

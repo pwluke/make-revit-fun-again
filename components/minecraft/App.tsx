@@ -7,6 +7,8 @@ import { Physics } from "@react-three/rapier";
 import { Ground } from "./Ground";
 import { Player } from "./Player";
 import { Cube, Cubes } from "./Cube";
+import { SketchController } from "../sketch3d/r3f/SketchController";
+import { Strokes } from "../sketch3d/r3f/Strokes";
 
 // The original was made by Maksim Ivanow: https://www.youtube.com/watch?v=Lc2JvBXMesY&t=124s
 // This example needs pointer-lock, that works only if you open it in a new window
@@ -44,6 +46,8 @@ export default function App() {
             <Cubes />
           </Physics>
         </Suspense>
+        <SketchController />
+        <Strokes />
         <PointerLockControls />
       </Canvas>
     </KeyboardControls>
