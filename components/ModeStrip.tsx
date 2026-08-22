@@ -17,7 +17,7 @@ export function ModeStrip() {
 
   return (
     <div className="pointer-events-none absolute top-4 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1.5 font-sans select-none">
-      <Row hotkey="E" label="Draw a picture → 3D model or 2.5D sprite" active={false} />
+      <Row hotkey="E" label="Draw a picture → quick sprite, fast 3D, or detailed 3D" active={false} />
       <Row hotkey="B" label="Draw lines in 3D" active={drawMode} />
     </div>
   );

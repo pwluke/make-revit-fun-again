@@ -69,6 +69,12 @@ Existing app (already working, do not break):
   mesh, not the conditioning. The split's only real effect is a second draw from fal's queue-wait
   distribution (0.1s–77.5s observed); one sampled run lost 66s purely to a cold queue on
   `image-to-3d`.
+
+  **REVERSED for a different second stage — see §14.** The measurement above is sound but its
+  conclusion was scoped too widely. "The cost is in the mesh, not the conditioning" is true, and
+  that is precisely why the bridge stage is worth paying for once the *mesh* stage is something
+  cheaper than Hunyuan. Against `fal-ai/trellis` the same split is **22.7s**, not 104.9s. The
+  bridge was never the problem; pairing it with Hunyuan was.
 - **Standalone `/draw` route with an isolated viewer.** The original design, written before the repo
   was seen. Ignores what makes the project interesting.
 - **Rewriting the scene in vanilla three.js.** Would mean rebuilding the render loop, controls and
@@ -456,3 +462,61 @@ on the same GPU pool. Those timings are artifacts; discard them. **Run arms sequ
 10. *Stretch:* VLM auto-caption (prompt tier 2).
 
 Steps 2–6 are independent of the existing scene and can proceed in parallel with other work.
+
+---
+
+## 14. Fast 3D mode — TRELLIS (added 2026-08-22)
+
+A third generation mode, `"fast"`, alongside `"mesh"` and `"sprite"`. Same deliverable as
+`"mesh"` — a walkable GLB — via a different, much cheaper route.
+
+```
+sketch ──► fal-ai/fast-sdxl-controlnet-canny ──► fal-ai/trellis ──► GLB
+             6.5s  (bridge)                       16.3s  (mesh)
+```
+
+**Measured** (`scripts/bench-trellis.mjs`, compute not wall-clock, n=1 per arm):
+
+| | `mesh` (Hunyuan @40k) | `fast` (TRELLIS, shipped settings) |
+|---|---|---|
+| Compute | 105.2s | **22.7s** (6.5s bridge + 16.3s mesh) |
+| GLB size | 13.6 MB | **0.4 MB** |
+| Texture share | 93% (one 12.6 MB PNG) | 76% of a 0.4 MB payload |
+| Triangles | 39,318 (40,000 is the floor) | **3,864** |
+| Cost | $0.525 | ~$0.02 + bridge |
+
+**Shipped settings:** `texture_size: "512"`, `mesh_simplify: 0.98`.
+
+Three things this settles that the vendor docs do not state:
+
+1. **TRELLIS publishes no latency figure anywhere.** 16.3s is measured, not documented.
+2. **`mesh_simplify` direction.** fal documents it only as "Mesh simplification factor".
+   Higher means FEWER triangles: 0.95 → 9,192, 0.98 → 3,864. Do not raise it to "improve quality".
+3. **`texture_size` is the parameter that mattered.** Hunyuan's sketch endpoint has no equivalent,
+   and at `face_count: 40000` texture was 93% of the payload — so `face_count`, the knob that
+   exists and costs $0.15 extra, was only ever addressing the other 7%.
+
+Note `texture_size` is a **string** in `@fal-ai/client`'s types (`"512" | "1024" | "2048"`). The
+bench script passes the number and the endpoint honoured it, so the API coerces; the typed client
+does not.
+
+### Why it is a separate mode and not a replacement
+
+TRELLIS cannot read line art; it needs the bridge stage. On the spike's sketch the bridge was
+excellent — pose, scarf, whiskers, paw pads and expression all survived, gaining colour and
+shading. **But that sketch was clean, confident line art, not a child's drawing.** ControlNet
+canny had strong unambiguous edges to lock onto; a wobbly figure with gaps and overlapping
+strokes is a materially harder input, and that is the case that actually matters at a booth.
+Keeping `"mesh"` preserves both a fallback and an on-the-day A/B.
+
+**The open question this mode carries:** re-run `scripts/bench-trellis.mjs` with `SKETCH_URL`
+pointed at two or three genuine children's drawings before trusting it as the default. ~$0.06
+per run, and `IMAGE_URL` skips stages already paid for.
+
+### Prompt
+
+`STYLE_SUFFIX_FAST` steers the **SDXL bridge, not TRELLIS** — TRELLIS accepts no prompt. It asks
+for *photorealistic product photo, plain background, soft studio lighting*, deliberately unlike
+the mesh suffix's flat matte toy language: the bridge's job is to supply the tonal and depth cues
+reconstruction needs, which a matte toy render withholds. It is the only validated suffix in
+`prompt.ts`. A test pins it as distinct from the mesh one.

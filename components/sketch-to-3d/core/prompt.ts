@@ -34,13 +34,40 @@ export const STYLE_SUFFIX_MESH =
 export const STYLE_SUFFIX_SPRITE = STYLE_SUFFIX_MESH;
 
 /**
+ * Fast mode's prompt never reaches TRELLIS — **TRELLIS takes no prompt at all**. This
+ * string steers only the SDXL ControlNet bridge that turns the line art into something
+ * TRELLIS can read, so it is aimed at an image model, not a 3D one.
+ *
+ * VALIDATED, and it is the only suffix in this file that is. This exact string produced
+ * the bridge image in the 2026-08-22 spike (scripts/bench-trellis.mjs): the cat kept its
+ * pose, scarf, whiskers, paw pads and expression, and gained colour and shading. That
+ * result is the whole reason fast mode was judged viable.
+ *
+ * Note it asks for *photorealistic product photo* rather than the toy-figure language the
+ * mesh suffix uses. That is deliberate — the bridge's job is to give TRELLIS the tonal
+ * and depth cues it needs to reconstruct geometry, and a flat matte toy render withholds
+ * exactly those cues. Style the SOURCE for reconstruction here, not the final look.
+ */
+export const STYLE_SUFFIX_FAST =
+  "photorealistic product photo, plain background, soft studio lighting";
+
+/**
  * Combines what the user typed with the house style for the mode being generated.
  *
  * Empty input still yields a usable prompt rather than a leading comma — the API requires
  * a non-empty `prompt`, and a malformed one wastes a paid generation.
  */
+const SUFFIX_BY_MODE: Record<CreationMode, string> = {
+  sprite: STYLE_SUFFIX_SPRITE,
+  mesh: STYLE_SUFFIX_MESH,
+  fast: STYLE_SUFFIX_FAST,
+};
+
 export function buildPrompt(userText: string, mode: CreationMode): string {
-  const suffix = mode === "sprite" ? STYLE_SUFFIX_SPRITE : STYLE_SUFFIX_MESH;
+  // A Record keyed on CreationMode rather than a ternary chain: adding a fourth
+  // mode is then a compile error here until its suffix is chosen deliberately,
+  // instead of silently inheriting the mesh one.
+  const suffix = SUFFIX_BY_MODE[mode];
   const trimmed = userText.trim();
   return trimmed.length > 0 ? `${trimmed}, ${suffix}` : suffix;
 }

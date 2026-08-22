@@ -4,17 +4,32 @@ import { useCallback, useEffect, useState } from "react";
 import { ModeStrip } from "@/components/ModeStrip";
 import { creationStore } from "./core/creationStore";
 import { generate } from "./core/falClient";
-import { generateMock, generateSpriteMock, USE_MOCK } from "./core/mockGenerator";
+import {
+  generateFastMock,
+  generateMock,
+  generateSpriteMock,
+  USE_MOCK,
+} from "./core/mockGenerator";
 import { buildPrompt } from "./core/prompt";
 import { generateSprite } from "./core/spriteClient";
+import { generateFast } from "./core/trellisClient";
 import type { CreationMode, Generate, Progress } from "./core/types";
 import { onSceneInputUnlocked } from "./r3f/useR3FSceneBridge";
 import { SketchOverlay } from "./ui/SketchOverlay";
 
 /** Resolves which generator to call, keyed on BOTH mode and mock-vs-real. */
+const GENERATORS: Record<CreationMode, { real: Generate; mock: Generate }> = {
+  sprite: { real: generateSprite, mock: generateSpriteMock },
+  mesh: { real: generate, mock: generateMock },
+  fast: { real: generateFast, mock: generateFastMock },
+};
+
 function resolveGenerateFn(mode: CreationMode): Generate {
-  if (mode === "sprite") return USE_MOCK ? generateSpriteMock : generateSprite;
-  return USE_MOCK ? generateMock : generate;
+  // Keyed on CreationMode so a new mode is a compile error here rather than
+  // silently falling through to the mesh generator, which would spend $0.525
+  // and 105s on a path that asked for neither.
+  const pair = GENERATORS[mode];
+  return USE_MOCK ? pair.mock : pair.real;
 }
 
 /**

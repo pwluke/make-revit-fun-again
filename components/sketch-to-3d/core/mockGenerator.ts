@@ -37,6 +37,34 @@ export const generateMock: Generate = async (
   return { mode: "mesh", glbUrl: "/axe.glb" };
 };
 
+const MOCK_FAST_MESSAGES: Array<{ message: string; pct: number }> = [
+  { message: "Colouring it in…", pct: 0.1 },
+  { message: "Building it in 3D…", pct: 0.35 },
+];
+
+/**
+ * Fast mode's offline stand-in. Delays are shorter than generateMock's because
+ * the real thing is ~23s against ~105s — a mock that takes as long as the slow
+ * path would misrepresent the one property this mode exists for.
+ */
+export const generateFastMock: Generate = async (
+  png: Blob,
+  prompt: string,
+  onProgress: (progress: Progress) => void,
+) => {
+  onProgress({ phase: "uploading" });
+  await delay(300);
+
+  for (const { message, pct } of MOCK_FAST_MESSAGES) {
+    onProgress({ phase: "generating", message, pct });
+    await delay(500);
+  }
+
+  // Same reasoning as generateMock: reuse an asset already in public/ rather
+  // than committing a binary purely for the offline path.
+  return { mode: "fast", glbUrl: "/axe.glb" };
+};
+
 const MOCK_SPRITE_MESSAGES: Array<{ message: string; pct: number }> = [
   { message: "Drawing your picture…", pct: 0.15 },
   { message: "Cutting it out…", pct: 0.8 },

@@ -19,8 +19,14 @@ export type SpawnTransform = {
  *
  * "sprite": 2.5D billboard, ~10s, ~$0.05 — fast, for a booth queue.
  * "mesh": full 3D model, ~117s, ~$0.525 — the real thing, walk around it.
+ * "fast": full 3D model via TRELLIS, ~23s, ~$0.02 — measured 2026-08-22, see
+ *   scripts/bench-trellis.mjs. Same deliverable as "mesh" (a walkable GLB) at
+ *   6.5x the speed, 26x less cost and a 23x smaller payload. It is a separate
+ *   mode rather than a replacement because TRELLIS cannot read line art: it
+ *   needs a ControlNet bridge stage, and that stage's fidelity on genuinely
+ *   wobbly children's drawings is still unproven (n=1, on clean line art).
  */
-export type CreationMode = "sprite" | "mesh";
+export type CreationMode = "sprite" | "mesh" | "fast";
 
 /**
  * What a generator actually produced. A discriminated union rather than two optional
@@ -29,6 +35,7 @@ export type CreationMode = "sprite" | "mesh";
  */
 export type GenerationResult =
   | { mode: "mesh"; glbUrl: string }
+  | { mode: "fast"; glbUrl: string }
   | { mode: "sprite"; spriteUrl: string };
 
 /** The one interface every generator implements. Adding a third is one more impl. */

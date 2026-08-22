@@ -21,6 +21,20 @@ const PALETTE = [
   { hex: "#a04000", name: "brown" },
 ] as const;
 
+/**
+ * Ordered fastest to slowest, because for a queue of children the wait is the
+ * thing they actually feel. Times are measured compute (see
+ * docs/specs/2026-08-22-sketch-to-3d-design.md), rounded up and stated in the
+ * label so the choice is honest rather than a guess about what "quick" means.
+ */
+const MODE_CHOICES: ReadonlyArray<{ mode: CreationMode; label: string }> = [
+  { mode: "sprite", label: "⚡ Quick (10s)" },
+  { mode: "fast", label: "🚀 Fast 3D (25s)" },
+  // "Detailed 3D (2 min)" wrapped to two lines at 1400px, leaving this button
+  // taller than its neighbours. The word "3D" is redundant next to Fast 3D.
+  { mode: "mesh", label: "🧊 Detailed (2 min)" },
+];
+
 const EXPORT_SIZE = 1024;
 const MAX_DPR = 2;
 
@@ -358,34 +372,24 @@ export function SketchOverlay({ open, onCancel, onSubmit }: SketchOverlayProps) 
         <div
           role="radiogroup"
           aria-label="Generation speed"
-          className="pointer-events-auto flex w-full max-w-sm items-center justify-center gap-2 rounded-2xl bg-black/60 p-2 backdrop-blur-sm"
+          className="pointer-events-auto flex w-full max-w-lg items-center justify-center gap-2 rounded-2xl bg-black/60 p-2 backdrop-blur-sm"
         >
-          <button
-            type="button"
-            role="radio"
-            aria-checked={mode === "sprite"}
-            onClick={() => setMode("sprite")}
-            className="flex-1 rounded-full px-4 py-2 text-sm font-semibold transition-colors"
-            style={{
-              backgroundColor: mode === "sprite" ? "#0ea5e9" : "transparent",
-              color: mode === "sprite" ? "#ffffff" : "#cbd5e1",
-            }}
-          >
-            ⚡ Quick (10s)
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={mode === "mesh"}
-            onClick={() => setMode("mesh")}
-            className="flex-1 rounded-full px-4 py-2 text-sm font-semibold transition-colors"
-            style={{
-              backgroundColor: mode === "mesh" ? "#0ea5e9" : "transparent",
-              color: mode === "mesh" ? "#ffffff" : "#cbd5e1",
-            }}
-          >
-            🧊 Real 3D (2 min)
-          </button>
+          {MODE_CHOICES.map((choice) => (
+            <button
+              key={choice.mode}
+              type="button"
+              role="radio"
+              aria-checked={mode === choice.mode}
+              onClick={() => setMode(choice.mode)}
+              className="flex-1 rounded-full px-3 py-2 text-sm font-semibold whitespace-nowrap transition-colors"
+              style={{
+                backgroundColor: mode === choice.mode ? "#0ea5e9" : "transparent",
+                color: mode === choice.mode ? "#ffffff" : "#cbd5e1",
+              }}
+            >
+              {choice.label}
+            </button>
+          ))}
         </div>
 
         <div className="pointer-events-auto flex w-full items-center justify-center gap-4 pt-1">
