@@ -1,8 +1,9 @@
 #! python3
 """
 InstantDB Admin HTTP API - Rhino Selection Streamer
-A Rhino Python 3 script that meshes the current selection and pushes it to
-InstantDB over the Admin HTTP API, for a react-three-fiber app to render.
+A Rhino Python 3 script that streams the current selection to InstantDB:
+meshes (breps, meshes, ...) and points (point objects, point clouds) for
+the react-three-fiber app to render / seed cubes.
 """
 
 import base64
@@ -23,6 +24,9 @@ from System.IO import StreamReader
 from System.Text import Encoding
 
 SYNC_INTERVAL = 0.35  # min seconds between auto-sync pushes while idle-polling
+
+DEFAULT_APP_ID = "c9e94b2b-b3d9-45bd-957b-cebbedfbd732"
+DEFAULT_ADMIN_TOKEN = "4db681d1-497b-413a-bf94-e0e240b01f2e"
 
 # ============================================================================
 # InstantDB Admin HTTP API Client
@@ -96,35 +100,47 @@ class InstantDBClient:
         return self._make_request("POST", "/admin/transact", data)
 
     # ========================================================================
-    # Mesh streaming helpers
+    # Mesh / point streaming helpers
     # ========================================================================
 
+    def get_namespace(self, namespace):
+        """Get every row in a namespace"""
+        result = self.query({namespace: {}})
+        return result.get(namespace, [])
+
     def get_meshes(self):
-        """Get all streamed mesh rows"""
-        result = self.query({"meshes": {}})
-        return result.get("meshes", [])
+        return self.get_namespace("meshes")
 
-    def push_meshes(self, ops):
-        """Apply a batch of ("update", row_id, payload) / ("delete", row_id, None) ops"""
+    def get_points(self):
+        return self.get_namespace("points")
+
+    def push_ops(self, ops):
+        """Apply ("update"|"delete", namespace, row_id, payload|None) ops"""
         steps = []
-        for kind, row_id, payload in ops:
+        for kind, namespace, row_id, payload in ops:
             if kind == "update":
-                steps.append(["update", "meshes", row_id, payload])
+                steps.append(["update", namespace, row_id, payload])
             else:
-                steps.append(["delete", "meshes", row_id])
+                steps.append(["delete", namespace, row_id])
         for i in range(0, len(steps), 100):
             self.transact(steps[i:i + 100])
 
-    def delete_mesh(self, row_id):
-        """Delete a single mesh row"""
-        return self.transact([["delete", "meshes", row_id]])
+    def delete_rows(self, rows):
+        """Delete [{namespace, id}, ...]"""
+        if not rows:
+            return
+        self.push_ops([("delete", row["namespace"], row["id"], None) for row in rows])
 
-    def clear_meshes(self):
-        """Delete every streamed mesh row"""
-        rows = self.get_meshes()
-        steps = [["delete", "meshes", row["id"]] for row in rows]
+    def clear_namespace(self, namespace):
+        rows = self.get_namespace(namespace)
+        steps = [["delete", namespace, row["id"]] for row in rows]
         for i in range(0, len(steps), 100):
             self.transact(steps[i:i + 100])
+
+    def clear_stream(self):
+        """Delete every streamed mesh and point row"""
+        self.clear_namespace("meshes")
+        self.clear_namespace("points")
 
     # ========================================================================
     # User Management Methods
@@ -318,6 +334,26 @@ def mesh_data_for(rhino_object):
     }
 
 
+def point_data_for(rhino_object):
+    """List of three.js (x, y, z) tuples from a Point or PointCloud, else None."""
+    geom = rhino_object.Geometry
+    if isinstance(geom, Rhino.Geometry.Point):
+        p = geom.Location
+        return [_to_three(p.X, p.Y, p.Z)]
+
+    if isinstance(geom, Rhino.Geometry.PointCloud):
+        pts = []
+        for p in geom.GetPoints():
+            pts.append(_to_three(p.X, p.Y, p.Z))
+        return pts or None
+
+    return None
+
+
+def _point_signature(pts):
+    return tuple((round(p[0], 5), round(p[1], 5), round(p[2], 5)) for p in pts)
+
+
 # ============================================================================
 # Login Dialog
 # ============================================================================
@@ -356,6 +392,7 @@ class LoginDialog(forms.Dialog):
         layout.AddRow(app_id_label)
         self.app_id_input = forms.TextBox()
         self.app_id_input.PlaceholderText = "Enter your InstantDB App ID"
+        self.app_id_input.Text = DEFAULT_APP_ID
         layout.AddRow(self.app_id_input)
 
         # Admin Token
@@ -363,6 +400,7 @@ class LoginDialog(forms.Dialog):
         token_label.Text = "Admin Token:"
         layout.AddRow(token_label)
         self.token_input = forms.PasswordBox()
+        self.token_input.Text = DEFAULT_ADMIN_TOKEN
         layout.AddRow(self.token_input)
 
         layout.AddRow(None)  # Spacer
@@ -405,7 +443,7 @@ class LoginDialog(forms.Dialog):
 # ============================================================================
 
 class StreamApp(forms.Form):
-    """Streams the current Rhino selection to InstantDB as meshes"""
+    """Streams the current Rhino selection to InstantDB as meshes and points"""
 
     def __init__(self):
         # Deliberately takes no extra arguments - passing args through a
@@ -419,12 +457,13 @@ class StreamApp(forms.Form):
         resolves its native handler before __init__ runs, so extra
         constructor args cause "expected IHandler, got instance" errors."""
         self.client = client
-        self.streamed = {}       # rhino guid (str) -> {"row_id", "name", "signature"}
+        # rhino guid -> {kind, name, signature, rows: [{namespace, id}]}
+        self.streamed = {}
         self.auto_sync = False
         self.dirty = True
         self.last_sync = 0.0
 
-        self.Title = "Rhino Mesh Stream"
+        self.Title = "Rhino Stream"
         self.ClientSize = drawing.Size(480, 520)
         self.Padding = drawing.Padding(20)
         self.MinimumSize = drawing.Size(380, 400)
@@ -452,7 +491,7 @@ class StreamApp(forms.Form):
         main_layout.AddRow(None)  # Spacer
 
         info_label = forms.Label()
-        info_label.Text = "Select objects in Rhino, then push them or turn on auto-sync."
+        info_label.Text = "Select meshes or points in Rhino, then push them or turn on auto-sync."
         main_layout.AddRow(info_label)
         main_layout.AddRow(None)  # Spacer
 
@@ -499,6 +538,10 @@ class StreamApp(forms.Form):
     # Sync
     # ========================================================================
 
+    def _drop_entry(self, entry, ops):
+        for row in entry.get("rows", []):
+            ops.append(("delete", row["namespace"], row["id"], None))
+
     def _sync_now(self):
         doc = Rhino.RhinoDoc.ActiveDoc
         if doc is None:
@@ -512,40 +555,81 @@ class StreamApp(forms.Form):
         # Drop rows for anything that's no longer selected.
         for guid_str in list(self.streamed.keys()):
             if guid_str not in selected_guids:
-                entry = self.streamed.pop(guid_str)
-                ops.append(("delete", entry["row_id"], None))
+                self._drop_entry(self.streamed.pop(guid_str), ops)
 
         # Push (or refresh) whatever's currently selected.
         for obj in selected:
             guid_str = str(obj.Id)
+            existing = self.streamed.get(guid_str)
+            layer = doc.Layers[obj.Attributes.LayerIndex].FullPath
+            color = _object_color_hex(obj, doc)
+            name = obj.Name or ""
+            updated_at = time.time() * 1000
+
+            pts = point_data_for(obj)
+            if pts is not None:
+                kind = "points"
+                signature = _point_signature(pts)
+                if existing and existing["kind"] == kind and existing["signature"] == signature:
+                    continue
+                if existing:
+                    self._drop_entry(existing, ops)
+
+                rows = []
+                for x, y, z in pts:
+                    row_id = str(uuid.uuid4())
+                    rows.append({"namespace": "points", "id": row_id})
+                    ops.append(("update", "points", row_id, {
+                        "x": x,
+                        "y": y,
+                        "z": z,
+                        "occupied": True,
+                        "color": color,
+                        "layer": layer,
+                        "sourceGuid": guid_str,
+                        "updatedAt": updated_at,
+                    }))
+
+                self.streamed[guid_str] = {
+                    "kind": kind,
+                    "name": name or "points {}".format(guid_str[:8]),
+                    "signature": signature,
+                    "rows": rows,
+                }
+                continue
+
             data = mesh_data_for(obj)
             if data is None:
                 continue
 
+            kind = "mesh"
             signature = (data["verticesB64"], data["facesB64"])
-            existing = self.streamed.get(guid_str)
-            if existing and existing["signature"] == signature:
+            if existing and existing["kind"] == kind and existing["signature"] == signature:
                 continue
+            if existing and existing["kind"] != kind:
+                self._drop_entry(existing, ops)
+                existing = None
 
             payload = dict(data)
             payload["guid"] = guid_str
-            payload["name"] = obj.Name or ""
-            payload["layer"] = doc.Layers[obj.Attributes.LayerIndex].FullPath
-            payload["color"] = _object_color_hex(obj, doc)
+            payload["name"] = name
+            payload["layer"] = layer
+            payload["color"] = color
             payload["visible"] = True
-            payload["updatedAt"] = time.time() * 1000
+            payload["updatedAt"] = updated_at
 
-            row_id = existing["row_id"] if existing else str(uuid.uuid4())
+            row_id = existing["rows"][0]["id"] if existing and existing.get("rows") else str(uuid.uuid4())
             self.streamed[guid_str] = {
-                "row_id": row_id,
-                "name": payload["name"] or guid_str[:8],
+                "kind": kind,
+                "name": name or guid_str[:8],
                 "signature": signature,
+                "rows": [{"namespace": "meshes", "id": row_id}],
             }
-            ops.append(("update", row_id, payload))
+            ops.append(("update", "meshes", row_id, payload))
 
         if ops:
             try:
-                self.client.push_meshes(ops)
+                self.client.push_ops(ops)
             except Exception as exc:
                 self._set_status("Error: " + str(exc), drawing.Color.FromArgb(200, 0, 0))
                 print("InstantDB push failed: " + str(exc))
@@ -555,11 +639,22 @@ class StreamApp(forms.Form):
         self.last_sync = time.time()
         self._refresh_list_ui()
 
-        count = len(self.streamed)
+        n_meshes, n_points = self._stream_counts()
+        summary = "{0} mesh(es), {1} point(s)".format(n_meshes, n_points)
         if self.auto_sync:
-            self._set_status("Auto-sync ON ({0})".format(count), drawing.Color.FromArgb(0, 150, 0))
+            self._set_status("Auto-sync ON ({0})".format(summary), drawing.Color.FromArgb(0, 150, 0))
         else:
-            self._set_status("Pushed {0} object(s)".format(count), drawing.Color.FromArgb(0, 150, 0))
+            self._set_status("Pushed {0}".format(summary), drawing.Color.FromArgb(0, 150, 0))
+
+    def _stream_counts(self):
+        n_meshes = 0
+        n_points = 0
+        for entry in self.streamed.values():
+            if entry["kind"] == "points":
+                n_points += len(entry["rows"])
+            else:
+                n_meshes += 1
+        return n_meshes, n_points
 
     def _refresh_list_ui(self):
         self.list_layout.Clear()
@@ -573,7 +668,10 @@ class StreamApp(forms.Form):
         else:
             for entry in self.streamed.values():
                 label = forms.Label()
-                label.Text = entry["name"]
+                if entry["kind"] == "points":
+                    label.Text = "{0}  ({1} pts)".format(entry["name"], len(entry["rows"]))
+                else:
+                    label.Text = "{0}  (mesh)".format(entry["name"])
                 self.list_layout.AddRow(label)
 
         self.list_layout.AddRow(None)  # Fill remaining space
@@ -594,7 +692,7 @@ class StreamApp(forms.Form):
         entry = self.streamed.pop(guid_str, None)
         if entry is not None:
             try:
-                self.client.delete_mesh(entry["row_id"])
+                self.client.delete_rows(entry.get("rows", []))
             except Exception as exc:
                 print("InstantDB delete failed: " + str(exc))
             self._refresh_list_ui()
@@ -655,7 +753,7 @@ class StreamApp(forms.Form):
 
     def on_clear_all(self, sender, e):
         try:
-            self.client.clear_meshes()
+            self.client.clear_stream()
             self.streamed.clear()
             self._refresh_list_ui()
             self._set_status("Cleared", drawing.Colors.Gray)
@@ -672,35 +770,45 @@ class StreamApp(forms.Form):
 # Main Entry Point
 # ============================================================================
 
+def _connect(app_id, admin_token):
+    client = InstantDBClient(app_id, admin_token)
+    client.get_meshes()
+    client.get_points()
+    return client
+
+
 def main():
     """Main entry point for the script"""
 
-    # Show login dialog
-    login = LoginDialog()
-    login.ShowModal(Rhino.UI.RhinoEtoApp.MainWindow)
+    client = None
+    if DEFAULT_APP_ID and DEFAULT_ADMIN_TOKEN:
+        try:
+            client = _connect(DEFAULT_APP_ID, DEFAULT_ADMIN_TOKEN)
+            print("Connected to InstantDB successfully!")
+        except Exception as e:
+            print("Auto-connect failed, opening login: " + str(e))
+            client = None
 
-    if not login.dialog_result:
-        print("Login cancelled")
-        return
+    if client is None:
+        login = LoginDialog()
+        login.ShowModal(Rhino.UI.RhinoEtoApp.MainWindow)
 
-    # Create client and test connection
-    try:
-        client = InstantDBClient(login.app_id, login.admin_token)
+        if not login.dialog_result:
+            print("Login cancelled")
+            return
 
-        # Test the connection with a simple query
-        client.get_meshes()
-
-        print("Connected to InstantDB successfully!")
-
-    except Exception as e:
-        forms.MessageBox.Show(
-            None,
-            "Failed to connect to InstantDB:\n\n" + str(e),
-            "Connection Error",
-            forms.MessageBoxButtons.OK,
-            forms.MessageBoxType.Error
-        )
-        return
+        try:
+            client = _connect(login.app_id, login.admin_token)
+            print("Connected to InstantDB successfully!")
+        except Exception as e:
+            forms.MessageBox.Show(
+                None,
+                "Failed to connect to InstantDB:\n\n" + str(e),
+                "Connection Error",
+                forms.MessageBoxButtons.OK,
+                forms.MessageBoxType.Error
+            )
+            return
 
     # Show main application window
     app = StreamApp()

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { type ThreeEvent } from "@react-three/fiber";
 import { useTexture } from "@react-three/drei";
 import {
@@ -7,6 +7,7 @@ import {
   type RigidBodyProps,
 } from "@react-three/rapier";
 import { create } from "zustand";
+import { occupiedPointCoords, useGridPoints } from "@/lib/use-grid-points";
 
 // Served from `public/dirt.jpg` — see the note in Axe.tsx.
 const dirtImg = "/dirt.jpg";
@@ -29,8 +30,23 @@ const useCubeStore = create<CubeStore>((set) => ({
 }));
 
 export const Cubes = () => {
-  const cubes = useCubeStore((state) => state.cubes);
-  return cubes.map((coords, index) => <Cube key={index} position={coords} />);
+  const localCubes = useCubeStore((state) => state.cubes);
+  const { data } = useGridPoints();
+  const seeded = useMemo(
+    () => occupiedPointCoords(data?.points),
+    [data?.points],
+  );
+
+  return (
+    <>
+      {seeded.map(({ id, position }) => (
+        <Cube key={id} position={position} />
+      ))}
+      {localCubes.map((coords, index) => (
+        <Cube key={`local-${index}`} position={coords} />
+      ))}
+    </>
+  );
 };
 
 export function Cube(props: RigidBodyProps) {
