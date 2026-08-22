@@ -1,6 +1,6 @@
 "use client";
 
-import { STAR_SPOTS } from "./houseData";
+import { useStarSpots } from "./starPlacement";
 import { useTreasureStore } from "./store";
 
 function StarPip({ filled }: { filled: boolean }) {
@@ -19,11 +19,12 @@ function StarPip({ filled }: { filled: boolean }) {
 /** Treasure-hunt scoreboard: how many stars are found, and a nudge toward
  *  the next one so a child is never stuck wandering. */
 export default function TreasureHud() {
+  const spots = useStarSpots();
   const found = useTreasureStore((s) => s.found);
   const total = useTreasureStore((s) => s.total);
   const restart = useTreasureStore((s) => s.restart);
   const complete = found.length === total;
-  const next = STAR_SPOTS.find((spot) => !found.includes(spot.id));
+  const next = spots.find((spot) => !found.includes(spot.id));
 
   return (
     // Sits below the "All games" link, which owns the top-left corner.
@@ -33,8 +34,10 @@ export default function TreasureHud() {
           <span className="text-sm font-bold text-slate-700">
             Stars {found.length}/{total}
           </span>
-          <div className="flex gap-0.5">
-            {STAR_SPOTS.map((spot) => (
+          {/* Wraps: the procedural spots make this list longer than the eight
+              authored ones, and it shouldn't push the panel off the screen. */}
+          <div className="flex max-w-45 flex-wrap gap-0.5">
+            {spots.map((spot) => (
               <StarPip key={spot.id} filled={found.includes(spot.id)} />
             ))}
           </div>

@@ -1,7 +1,8 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
-import { STAR_SPOTS, STAR_PICKUP_RADIUS } from "./houseData";
+import { STAR_PICKUP_RADIUS } from "./houseData";
+import { useStarSpots } from "./starPlacement";
 import { useTreasureStore } from "./store";
 
 const SPIN_SPEED = 1.4; // rad/s
@@ -44,14 +45,21 @@ function useStarGeometry() {
  */
 export function Stars() {
   const geometry = useStarGeometry();
+  const spots = useStarSpots();
   const groups = useRef<(THREE.Group | null)[]>([]);
-  const scales = useRef<number[]>(STAR_SPOTS.map(() => 1));
+  const scales = useRef<number[]>([]);
   const collect = useTreasureStore((s) => s.collect);
+  const setTotal = useTreasureStore((s) => s.setTotal);
+
+  // The procedural spots only exist once the grid query resolves, so the list
+  // grows after mount; keep the scoreboard's denominator in step with it.
+  useEffect(() => setTotal(spots.length), [spots.length, setTotal]);
 
   useFrame((state, delta) => {
     const found = useTreasureStore.getState().found;
     const t = state.clock.elapsedTime;
-    STAR_SPOTS.forEach((spot, i) => {
+    spots.forEach((spot, i) => {
+      if (scales.current[i] === undefined) scales.current[i] = 1;
       const group = groups.current[i];
       if (!group) return;
       const isFound = found.includes(spot.id);
@@ -77,7 +85,7 @@ export function Stars() {
 
   return (
     <>
-      {STAR_SPOTS.map((spot, i) => (
+      {spots.map((spot, i) => (
         <group
           key={spot.id}
           ref={(el) => {
@@ -94,8 +102,11 @@ export function Stars() {
               metalness={0.15}
             />
           </mesh>
-          {/* A soft glow so stars stay findable in shadow or at distance. */}
-          <pointLight color="#ffb700" intensity={3} distance={4} decay={2} />
+          {/* A soft glow so stars stay findable in shadow or at distance.
+              Opt-out for stars in open daylight — see StarSpot.glow. */}
+          {spot.glow !== false ? (
+            <pointLight color="#ffb700" intensity={3} distance={4} decay={2} />
+          ) : null}
         </group>
       ))}
     </>
