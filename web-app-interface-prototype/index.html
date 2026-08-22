@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Make Revit Fun Again — a playful interface for children to explore live architectural models."
+    />
+    <title>Make Revit Fun Again — Model Playground</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Fredoka:wght@500;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="Make Revit Fun Again home">
+          <span class="brand-mark" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </span>
+          <span class="brand-wordmark">
+            <small>MAKE</small>
+            <strong>REVIT</strong>
+            <em>FUN AGAIN!</em>
+          </span>
+        </a>
+
+        <div class="model-status" aria-label="Current model stream status">
+          <span class="model-thumb" aria-hidden="true">⌂</span>
+          <span class="model-copy">
+            <strong id="modelName">Riverside School</strong>
+            <small><i id="connectionDot"></i><span id="connectionText">Live model connected</span></small>
+          </span>
+          <button class="icon-button chevron" aria-label="Choose another model">⌄</button>
+        </div>
+
+        <div class="profile-area">
+          <div class="star-score" aria-label="128 stars earned">
+            <span>★</span><strong id="starCount">128</strong>
+          </div>
+          <button class="sound-button icon-button" id="soundButton" aria-label="Turn sound off" aria-pressed="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zm12.5 3a4.5 4.5 0 0 0-2.1-3.8v7.6a4.5 4.5 0 0 0 2.1-3.8zm-2.1-8v2.1a7 7 0 0 1 0 11.8V20a9 9 0 0 0 0-16z"/></svg>
+          </button>
+          <button class="avatar" aria-label="Open Amira's profile">A<span></span></button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="activity-rail" aria-label="Model activities">
+          <div class="rail-heading">
+            <span class="eyebrow">Choose a way to play</span>
+            <h1>What will you<br />discover?</h1>
+          </div>
+
+          <nav class="activity-list">
+            <button class="activity-card active" data-mode="explore" style="--activity: #5f63df" aria-current="step">
+              <span class="activity-icon icon-explore" aria-hidden="true">
+                <svg viewBox="0 0 48 48"><path d="M9 18 24 9l15 9-15 9-15-9Z"/><path d="m9 25 15 9 15-9M9 32l15 9 15-9"/></svg>
+              </span>
+              <span><strong>Explore</strong><small>Look around the model</small></span>
+              <i>›</i>
+            </button>
+            <button class="activity-card" data-mode="explode" style="--activity: #2cae87">
+              <span class="activity-icon icon-explode" aria-hidden="true">
+                <svg viewBox="0 0 48 48"><path d="m9 18 15-8 15 8-15 8-15-8Z"/><path d="m9 31 15 8 15-8M24 27v11M8 24H3m42 0h-5M24 6V2"/></svg>
+              </span>
+              <span><strong>Pull It Apart</strong><small>See how it is built</small></span>
+              <i>›</i>
+            </button>
+            <button class="activity-card" data-mode="sketch" style="--activity: #f09b3d">
+              <span class="activity-icon icon-sketch" aria-hidden="true">
+                <svg viewBox="0 0 48 48"><path d="m11 36 3-10L31 9l8 8-17 17-11 2Z"/><path d="m27 13 8 8M14 27l7 7"/></svg>
+              </span>
+              <span><strong>Sketch to 3D</strong><small>Draw your big idea</small></span>
+              <i>›</i>
+            </button>
+            <button class="activity-card" data-mode="remix" style="--activity: #568dc9">
+              <span class="activity-icon icon-remix" aria-hidden="true">
+                <svg viewBox="0 0 48 48"><path d="M8 36V18l16-9 16 9v18L24 44 8 36Z"/><path d="m8 18 16 9 16-9M24 27v17M17 23l15-9"/></svg>
+              </span>
+              <span><strong>Remix a Room</strong><small>Make the space yours</small></span>
+              <i>›</i>
+            </button>
+            <button class="activity-card" data-mode="treasure" style="--activity: #e85675">
+              <span class="activity-icon icon-treasure" aria-hidden="true">
+                <svg viewBox="0 0 48 48"><path d="M10 20h28v20H10z"/><path d="M7 16h34v8H7zM17 16v-4h14v4M21 24h6v7h-6z"/></svg>
+              </span>
+              <span><strong>Treasure Hunt</strong><small>Find hidden surprises</small></span>
+              <i>›</i>
+            </button>
+          </nav>
+
+          <button class="helper-card" id="helperButton" type="button">
+            <div class="helper-face" aria-hidden="true"><span>•</span><span>•</span><b>⌣</b></div>
+            <p><strong>Need a hand?</strong><br />Ask your grown-up or tap me!</p>
+          </button>
+        </aside>
+
+        <section class="model-stage" aria-label="Interactive architectural model">
+          <div class="stage-top">
+            <div>
+              <span class="mode-pill" id="modePill">Free explore</span>
+              <h2 id="stageTitle">The whole school is yours!</h2>
+            </div>
+            <div class="stage-actions">
+              <button class="round-action" id="resetButton" aria-label="Reset model view" title="Reset view">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4v6h6M5.5 15a7 7 0 1 0 .4-6.5L4 10"/></svg>
+              </button>
+              <button class="round-action" id="fullscreenButton" aria-label="Enter fullscreen" title="Fullscreen">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5m13 5h5v-5"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="model-viewport" id="modelViewport" data-mode="explore">
+            <div class="grid-plane" aria-hidden="true"></div>
+            <div class="orbit-hint" id="orbitHint"><span>↔</span> Drag to spin</div>
+
+            <div class="building-wrap" id="buildingWrap" data-floor="all">
+              <svg class="building" id="building" viewBox="0 0 760 520" role="img" aria-label="A colorful three-dimensional school model">
+                <g class="model-layer roof-layer">
+                  <path class="roof-shadow" d="m110 194 252-137 297 170-249 145z" />
+                  <path class="roof" d="m119 177 243-132 286 164-241 139z" />
+                  <path class="roof-top" d="m161 176 202-109 239 137-200 116z" />
+                  <path class="skylight" d="m328 116 59-32 70 40-59 34z" />
+                  <path class="skylight-side" d="m398 158 59-34v23l-59 34z" />
+                </g>
+                <g class="model-layer upper-layer">
+                  <path class="wall-light" d="m140 190 266 153v107L140 297z" />
+                  <path class="wall-mid" d="m406 343 219-126v106L406 450z" />
+                  <g class="windows-left">
+                    <path d="m167 236 43 25v48l-43-25z"/><path d="m226 270 43 25v48l-43-25z"/><path d="m285 304 43 25v48l-43-25z"/>
+                  </g>
+                  <g class="windows-right">
+                    <path d="m446 343 43-25v49l-43 25z"/><path d="m507 308 43-25v49l-43 25z"/><path d="m568 273 33-19v49l-33 19z"/>
+                  </g>
+                  <path class="entrance" d="m350 366 54 31v53l-54-31z" />
+                  <path class="door-line" d="m377 382v52" />
+                </g>
+                <g class="model-layer ground-layer">
+                  <path class="base" d="m75 331 323 187 297-172-323-185z" />
+                  <path class="grass-patch" d="m89 333 282-155 288 165-267 154z" />
+                  <path class="path" d="m347 379 58 33-80 47-58-34z" />
+                  <g class="trees">
+                    <g transform="translate(125 304)"><path d="M0 18v35"/><circle cy="7" r="25"/><circle cx="-15" cy="17" r="18"/><circle cx="16" cy="18" r="18"/></g>
+                    <g transform="translate(610 322)"><path d="M0 18v35"/><circle cy="7" r="25"/><circle cx="-15" cy="17" r="18"/><circle cx="16" cy="18" r="18"/></g>
+                  </g>
+                </g>
+              </svg>
+
+              <button class="treasure-marker marker-one" data-treasure="1" aria-label="Find treasure near the roof">?</button>
+              <button class="treasure-marker marker-two" data-treasure="2" aria-label="Find treasure near the entrance">?</button>
+              <button class="treasure-marker marker-three" data-treasure="3" aria-label="Find treasure by the trees">?</button>
+            </div>
+
+            <canvas id="sketchCanvas" aria-label="Drawing canvas"></canvas>
+            <div class="remix-palette" id="remixPalette" aria-label="Room color choices">
+              <span>Paint the walls</span>
+              <button data-color="#ff846f" style="--swatch:#ff846f" aria-label="Coral"></button>
+              <button data-color="#f6c951" style="--swatch:#f6c951" aria-label="Yellow"></button>
+              <button data-color="#66cbb1" style="--swatch:#66cbb1" aria-label="Mint"></button>
+              <button data-color="#797de8" style="--swatch:#797de8" aria-label="Purple"></button>
+            </div>
+
+            <div class="remix-inventory" id="remixInventory" aria-label="Room item inventory">
+              <span>Tap to add</span>
+              <button type="button" data-item="chair" aria-label="Add a chair"><b>🪑</b><small>Chair</small></button>
+              <button type="button" data-item="plant" aria-label="Add a plant"><b>🪴</b><small>Plant</small></button>
+              <button type="button" data-item="lamp" aria-label="Add a lamp"><b>💡</b><small>Lamp</small></button>
+              <button type="button" data-item="sketch" aria-label="Add your sketch"><b>✏️</b><small>My idea</small></button>
+            </div>
+
+            <div class="gesture-panel" id="gesturePanel">
+              <div class="camera-preview">
+                <video id="gestureVideo" muted playsinline aria-label="Webcam hand gesture preview"></video>
+                <span id="cameraPlaceholder">👋</span>
+              </div>
+              <div>
+                <strong>Pull with your hands!</strong>
+                <small id="gestureStatus">Turn on the camera, then move your hands.</small>
+                <div class="motion-meter"><span id="motionMeter"></span></div>
+              </div>
+              <button type="button" id="cameraButton">Start camera</button>
+            </div>
+
+            <div class="view-cube" aria-hidden="true">
+              <span class="cube-top">TOP</span><span class="cube-front">FRONT</span><span class="cube-side">SIDE</span>
+            </div>
+
+            <div class="zoom-controls">
+              <button id="zoomIn" aria-label="Zoom in">+</button>
+              <button id="zoomOut" aria-label="Zoom out">−</button>
+            </div>
+          </div>
+
+          <div class="stage-toolbar" id="stageToolbar">
+            <div class="tool-group floor-tools">
+              <span class="tool-label">Show me</span>
+              <button class="tool-chip active" data-floor="all">Whole model</button>
+              <button class="tool-chip" data-floor="roof">Roof</button>
+              <button class="tool-chip" data-floor="upper">Upper floor</button>
+              <button class="tool-chip" data-floor="ground">Ground</button>
+            </div>
+            <div class="tool-group explode-tools">
+              <span class="tool-label">Pull apart</span>
+              <input id="explodeRange" type="range" min="0" max="100" value="0" aria-label="Pull model layers apart" />
+              <span class="range-icon" aria-hidden="true">✦</span>
+            </div>
+            <div class="tool-group sketch-tools">
+              <span class="tool-label">Draw with</span>
+              <button class="color-dot active" data-ink="#f05d72" style="--ink:#f05d72" aria-label="Red pencil"></button>
+              <button class="color-dot" data-ink="#5362d9" style="--ink:#5362d9" aria-label="Blue pencil"></button>
+              <button class="color-dot" data-ink="#1d9779" style="--ink:#1d9779" aria-label="Green pencil"></button>
+              <button class="tool-chip" id="clearSketch">Clear drawing</button>
+              <button class="tool-chip save-sketch" id="saveSketch">Save my idea</button>
+            </div>
+          </div>
+        </section>
+
+        <aside class="mission-panel">
+          <div class="guide-bubble">
+            <div class="guide-character" aria-hidden="true">
+              <div class="hard-hat"></div><div class="head"><i></i><i></i><b></b></div><div class="body"></div>
+            </div>
+            <div>
+              <span class="eyebrow" id="guideName">Pip says</span>
+              <p id="guideText">Try spinning the model, then pick a floor to peek inside!</p>
+            </div>
+          </div>
+
+          <section class="mission-card">
+            <div class="mission-card-head">
+              <span class="mission-icon">◎</span>
+              <div><span class="eyebrow">Today's mini mission</span><h3 id="missionTitle">Meet your building</h3></div>
+            </div>
+            <div class="progress-track"><span id="progressBar"></span></div>
+            <p class="progress-copy"><strong id="progressText">1 of 3</strong> steps complete</p>
+            <ol class="mission-steps" id="missionSteps">
+              <li class="done"><span>✓</span><p><strong>Say hello!</strong><small>Open the live school model</small></p></li>
+              <li><span>2</span><p><strong>Spin it around</strong><small>Drag anywhere on the model</small></p></li>
+              <li><span>3</span><p><strong>Peek inside</strong><small>Choose a floor below</small></p></li>
+            </ol>
+            <div class="reward-preview"><span>★</span><p><small>Mission reward</small><strong>+15 stars</strong></p></div>
+          </section>
+
+            <button class="next-adventure" id="surpriseButton">
+              <span id="nextLabel">Next adventure</span><small id="nextDescription">Pull the building apart</small><b>↗</b>
+          </button>
+        </aside>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"><span>★</span><p><strong>Great job!</strong><small>You found something new.</small></p></div>
+    <div class="pixel-cursor" id="pixelCursor" aria-hidden="true">
+      <svg viewBox="0 0 32 40" shape-rendering="crispEdges">
+        <path class="cursor-outline" d="M8 0h8v4h4v4h4v4h4v4h4v16h-4v8H8v-4H4v-8H0V16h8z" />
+        <path class="cursor-fill" d="M8 4h4v16h4V8h4v12h4v-8h4v16h-4v8H8v-4H4V20h4z" />
+        <path class="cursor-shine" d="M8 8h4v8H8z" />
+      </svg>
+    </div>
+    <script src="script.js"></script>
+  </body>
+</html>
