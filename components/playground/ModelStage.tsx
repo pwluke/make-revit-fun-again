@@ -6,6 +6,7 @@ import {
   FullscreenIcon,
   ResetIcon,
 } from "./icons";
+import GestureTracker from "@/components/gesture/GestureTracker";
 import { GesturePanel } from "./GesturePanel";
 import { MinecraftViewport } from "./MinecraftViewport";
 import {
@@ -161,6 +162,13 @@ export function ModelStage() {
         </div>
 
         <GesturePanel />
+
+        {/* Camera hand/head control for the Minecraft scene. The tracker owns
+            its own Hands button, so it must live inside the viewport (the same
+            box the scene fills) on every mode, not just explode. */}
+        <div className="gesture-tracker">
+          <GestureTracker />
+        </div>
 
         <div className="view-cube" aria-hidden="true">
           <span className="cube-top">TOP</span>

@@ -2,8 +2,10 @@
 
 import { getMission, MODES } from "./modes";
 import { usePlayground } from "./playground-context";
+import { useCursorLook } from "./use-cursor-look";
 
 export function MissionPanel() {
+  const guideRef = useCursorLook<HTMLDivElement>();
   const {
     mode,
     setMode,
@@ -38,7 +40,7 @@ export function MissionPanel() {
   return (
     <aside className="mission-panel">
       <div className="guide-bubble">
-        <div className="guide-character" aria-hidden="true">
+        <div ref={guideRef} className="guide-character" aria-hidden="true">
           <div className="hard-hat" />
           <div className="head">
             <i />
