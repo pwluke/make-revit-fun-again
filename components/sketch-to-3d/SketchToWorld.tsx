@@ -3,14 +3,18 @@
 import { useCallback, useEffect, useState } from "react";
 import { creationStore } from "./core/creationStore";
 import { generate } from "./core/falClient";
-import { generateMock, USE_MOCK } from "./core/mockGenerator";
+import { generateMock, generateSpriteMock, USE_MOCK } from "./core/mockGenerator";
 import { buildPrompt } from "./core/prompt";
 import { generateSprite } from "./core/spriteClient";
-import type { CreationMode, Progress } from "./core/types";
+import type { CreationMode, Generate, Progress } from "./core/types";
 import { onSceneInputUnlocked } from "./r3f/useR3FSceneBridge";
 import { SketchOverlay } from "./ui/SketchOverlay";
 
-const generateMeshFn = USE_MOCK ? generateMock : generate;
+/** Resolves which generator to call, keyed on BOTH mode and mock-vs-real. */
+function resolveGenerateFn(mode: CreationMode): Generate {
+  if (mode === "sprite") return USE_MOCK ? generateSpriteMock : generateSprite;
+  return USE_MOCK ? generateMock : generate;
+}
 
 /**
  * DOM-side container for the sketch-to-3D block. Renders as a sibling of the
@@ -82,7 +86,7 @@ export function SketchToWorld() {
       }
     };
 
-    const generateFn = mode === "sprite" ? generateSprite : generateMeshFn;
+    const generateFn = resolveGenerateFn(mode);
     generateFn(png, prompt, onProgress)
       .then((result) => {
         creationStore.getState().updateJob(id, { status: "ready", result });

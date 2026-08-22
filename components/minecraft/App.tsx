@@ -6,7 +6,6 @@ import { Physics } from "@react-three/rapier";
 import { SceneCanvas } from "@/components/canvas/SceneCanvas";
 import { Ground } from "./Ground";
 import { Player } from "./Player";
-import { Cube, Cubes } from "./Cube";
 import { Creations } from "@/components/sketch-to-3d/r3f/Creations";
 
 // The original was made by Maksim Ivanow: https://www.youtube.com/watch?v=Lc2JvBXMesY&t=124s
@@ -35,8 +34,20 @@ export function MinecraftScene() {
       <Physics gravity={[0, -30, 0]}>
         <Ground />
         <Player />
-        <Cube position={[0, 0.5, -10]} />
-        <Cubes />
+        {/* Dirt voxels are disabled entirely — they were the frame-rate problem.
+            <Cubes /> renders one rapier RigidBody (mesh + SIX materials) per
+            occupied point returned by `db.useQuery({ points: {} })`, an unbounded
+            InstantDB query. Cube.tsx's own comment notes the approach "wouldn't
+            allow for more than a few thousand boxes" and needs instancing to scale.
+            Note its filter is `occupied !== false`, so points where `occupied` is
+            merely undefined render too.
+
+            Restoring is one line — <Cubes /> — plus, for click-to-place building,
+            a seed cube: <Cube position={[0, 0.5, -10]} /> (Ground has no click
+            handler, so without a seed there is nothing to place blocks against).
+            Both need `Cube`/`Cubes` re-imported from "./Cube".
+
+            Removed so the scene renders the player's own creations, not scaffolding. */}
         {/* Renders whatever the player has drawn, and registers the SceneBridge
             that the DOM-side overlay calls back through. */}
         <Creations />

@@ -36,3 +36,26 @@ export const generateMock: Generate = async (
   // show offline.
   return { mode: "mesh", glbUrl: "/axe.glb" };
 };
+
+const MOCK_SPRITE_MESSAGES: Array<{ message: string; pct: number }> = [
+  { message: "Drawing your picture…", pct: 0.15 },
+  { message: "Cutting it out…", pct: 0.8 },
+];
+
+export const generateSpriteMock: Generate = async (
+  png: Blob,
+  prompt: string,
+  onProgress: (progress: Progress) => void,
+) => {
+  onProgress({ phase: "uploading" });
+  await delay(300);
+
+  for (const { message, pct } of MOCK_SPRITE_MESSAGES) {
+    onProgress({ phase: "generating", message, pct });
+    await delay(600);
+  }
+
+  // "/cutout-cat.png" already ships in public/, so the sprite mock path
+  // needs no committed fallback asset of its own.
+  return { mode: "sprite", spriteUrl: "/cutout-cat.png" };
+};

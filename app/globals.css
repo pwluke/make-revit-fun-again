@@ -1,7 +1,7 @@
 @import "tailwindcss";
 /* Package only exports the `style` condition; Turbopack's PostCSS worker
    can't resolve `@import "tw-animate-css"` from `app/`. */
-@import "../node_modules/tw-animate-css/dist/tw-animate.css";
+@import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
