@@ -6,7 +6,7 @@ import {
   occupiedPointCoords,
   useGridPoints,
 } from "@/lib/use-grid-points";
-import { bearing, seededRandom } from "@/components/world/starPlacement";
+import { bearing, seededRandom } from "@/components/world/placementUtils";
 
 /**
  * Where the bots live, derived from the streamed Revit voxels.

@@ -4,7 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import { SCENE } from "@/lib/palette";
 import { STAR_PICKUP_RADIUS } from "./houseData";
 import { useStarSpots } from "./starPlacement";
-import { useTreasureStore } from "./store";
+import { useTreasureStore } from "./treasureStore";
 
 const SPIN_SPEED = 1.4; // rad/s
 const BOB_HEIGHT = 0.18;

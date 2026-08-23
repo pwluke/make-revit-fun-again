@@ -127,23 +127,47 @@ export function PurseIcon({ className }: IconProps) {
 }
 
 /** A block with an orbit ring around it — ORBIT (fist-drag around a target) */
-export function OrbitIcon({ className }: IconProps) {
+/** Fist swinging downward — HAMMER (break, or fire in Laser Tag) */
+export function HammerIcon({ className }: IconProps) {
   return (
     <IconBase className={className}>
-      {/* the grabbed block */}
-      <rect x="9.3" y="9.3" width="5.4" height="5.4" rx="1.1" />
-      {/* orbit path */}
-      <ellipse
-        cx="12"
-        cy="12"
-        rx="9"
-        ry="4.6"
+      {/* knuckles */}
+      <circle cx="8.2" cy="6.2" r="1.8" />
+      <circle cx="11.2" cy="5.7" r="1.8" />
+      <circle cx="14.2" cy="5.9" r="1.8" />
+      <circle cx="16.8" cy="6.6" r="1.8" />
+      {/* thumb bump */}
+      <circle cx="6.6" cy="10.2" r="2" />
+      {/* fist body */}
+      <rect x="6.2" y="5.8" width="12" height="8.8" rx="3.7" />
+      {/* swing arrow */}
+      <rect x="11" y="15.2" width="2" height="3.4" rx="1" />
+      <path d="M8.6 18.4h6.8L12 22z" />
+    </IconBase>
+  );
+}
+
+/** Open hand plus a thumb, arcing forward — LEAP (jump toward what is ahead) */
+export function LeapIcon({ className }: IconProps) {
+  return (
+    <IconBase className={className}>
+      {/* the walking hand */}
+      <rect x="3.6" y="8.2" width="2.1" height="6.4" rx="1.05" />
+      <rect x="6" y="6.8" width="2.1" height="7.6" rx="1.05" />
+      <rect x="8.4" y="7.2" width="2.1" height="7.2" rx="1.05" />
+      <rect x="3.6" y="13" width="7" height="7.4" rx="3.2" />
+      {/* the raised thumb beside it */}
+      <rect x="14.4" y="12.4" width="5.6" height="7.4" rx="2.6" />
+      <rect x="15.2" y="5.4" width="2.6" height="8" rx="1.3" transform="rotate(-12 16.5 9.4)" />
+      {/* the leap arc */}
+      <path
+        d="M4.6 5.6C8 1.9 15 1.9 19.6 4.4"
         fill="none"
         stroke="currentColor"
         strokeWidth="1.8"
+        strokeLinecap="round"
       />
-      {/* direction arrowhead on the ring */}
-      <path d="M19.6 9.4 23 11.9l-4 1.3z" />
+      <path d="M17.4 2.2 21.4 4.8l-4.4 1.6z" />
     </IconBase>
   );
 }

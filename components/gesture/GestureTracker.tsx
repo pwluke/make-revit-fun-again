@@ -16,7 +16,8 @@ import {
   BackIcon,
   GoIcon,
   LookIcon,
-  OrbitIcon,
+  HammerIcon,
+  LeapIcon,
   PinchIcon,
   PurseIcon,
   ThumbIcon,
@@ -54,9 +55,9 @@ const LEGEND: { key: Exclude<GestureLabel, null>; word: string; Icon: typeof Loo
   { key: "go", word: "Go", Icon: GoIcon },
   { key: "back", word: "Back", Icon: BackIcon },
   { key: "jump", word: "Jump", Icon: ThumbIcon },
+  { key: "leap", word: "Leap", Icon: LeapIcon },
   { key: "build", word: "Build", Icon: PinchIcon },
-  { key: "break", word: "Break", Icon: PurseIcon },
-  { key: "orbit", word: "Orbit", Icon: OrbitIcon },
+  { key: "hammer", word: "Smash", Icon: HammerIcon },
 ];
 
 
@@ -100,11 +101,11 @@ export default function GestureTracker() {
     // one-shots
     let pinchIsOpen = true;
     let prevThumb = false;
-    let prevPurse = false;
+    let prevSwing = false;
+    let prevLeap = false;
     let purseHand: Landmark[] | null = null;
     let lastAction = 0;
     // orbit (fist drag)
-    let prevFist: { x: number; y: number } | null = null;
 
     function headAngles(matrixData: number[] | undefined) {
       if (!matrixData) return null;
@@ -165,7 +166,7 @@ export default function GestureTracker() {
       }
       // The gathered fingertips doing the breaking, so it is obvious which
       // hand the recognizer locked onto.
-      if (frameLabel === "break" && purseHand) {
+      if (frameLabel === "hammer" && purseHand) {
         const tips = [4, 8, 12, 16, 20].map((t) => purseHand![t]);
         const cx = (tips.reduce((sum, p) => sum + p.x, 0) / tips.length) * w;
         const cy = (tips.reduce((sum, p) => sum + p.y, 0) / tips.length) * h;
@@ -189,16 +190,15 @@ export default function GestureTracker() {
 
       let frameLabel: GestureLabel = null;
       let move = 0;
-      let orbiting = false;
 
-      const fists: number[] = [];
+      let sawFist = false;
       let sawPalm = false;
       let sawBack = false;
       let sawThumb = false;
       let sawPinch = false;
       let sawPurse = false;
       handPoses.forEach((pose, i) => {
-        if (pose === "fist") fists.push(i);
+        if (pose === "fist") sawFist = true;
         else if (pose === "palm") sawPalm = true;
         else if (pose === "back") sawBack = true;
         else if (pose === "thumb") sawThumb = true;
@@ -210,58 +210,56 @@ export default function GestureTracker() {
       });
       if (!sawPurse) purseHand = null;
 
-      if (fists.length > 0) {
-        // Fist = grab: drag it to orbit the camera around the target the
-        // crosshair was pointing at. Other gestures pause while grabbing.
-        orbiting = true;
-        frameLabel = "orbit";
-        const grip = handLms[fists[0]][9];
-        const gx = 1 - grip.x; // mirrored, so moving right is positive
-        if (prevFist) store.addOrbit(gx - prevFist.x, grip.y - prevFist.y);
-        prevFist = { x: gx, y: grip.y };
-      } else {
-        prevFist = null;
-
-        // Pinch-to-build with hysteresis: closing places one block; the
-        // pinch must open again before the next close builds another.
-        if (pinchRatio !== null && pinchRatio < PINCH_CLOSE) {
-          if (pinchIsOpen && now - lastAction > ACTION_COOLDOWN_MS) {
-            store.queueBuild();
-            lastAction = now;
-          }
-          pinchIsOpen = false;
-        } else if (pinchRatio === null || pinchRatio > PINCH_OPEN) {
-          pinchIsOpen = true;
-        }
-
-        // Walking: palm toward the camera = forward, back of hand = backward.
-        if (sawPalm) move = 1;
-        else if (sawBack) move = -1;
-
-        // Jump fires on thumb-up entry.
-        if (sawThumb && !prevThumb && now - lastAction > ACTION_COOLDOWN_MS) {
-          store.queueJump();
+      // Pinch-to-build with hysteresis: closing places one block; the pinch
+      // must open again before the next close builds another.
+      if (pinchRatio !== null && pinchRatio < PINCH_CLOSE) {
+        if (pinchIsOpen && now - lastAction > ACTION_COOLDOWN_MS) {
+          store.queueBuild();
           lastAction = now;
         }
-        prevThumb = sawThumb;
-
-        // Break fires when the purse closes, and repeats while it is held —
-        // holding a mouse button down breaks a run of blocks, and a gesture you
-        // have to re-form for every block is exhausting. The repeat is slower
-        // than the one-shot cooldown so a single pinch can't take two blocks.
-        if (sawPurse && now - lastAction > (prevPurse ? BREAK_REPEAT_MS : ACTION_COOLDOWN_MS)) {
-          store.queueBreak();
-          lastAction = now;
-        }
-        prevPurse = sawPurse;
-
-        if (sawPurse) frameLabel = "break";
-        else if (sawPinch) frameLabel = "build";
-        else if (sawThumb) frameLabel = "jump";
-        else if (sawPalm) frameLabel = "go";
-        else if (sawBack) frameLabel = "back";
-        else if (faceSeen) frameLabel = "look";
+        pinchIsOpen = false;
+      } else if (pinchRatio === null || pinchRatio > PINCH_OPEN) {
+        pinchIsOpen = true;
       }
+
+      // Walking: palm toward the camera = forward, back of hand = backward.
+      if (sawPalm) move = 1;
+      else if (sawBack) move = -1;
+
+      // A walking hand AND a thumb up together is a leap: a jump that
+      // carries you forward, for getting onto the stairs ahead. It is
+      // checked before the plain jump so the combo never fires both.
+      const wantLeap = sawThumb && (sawPalm || sawBack);
+      if (wantLeap) {
+        if (!prevLeap && now - lastAction > ACTION_COOLDOWN_MS) {
+          store.queueLeap();
+          lastAction = now;
+        }
+      } else if (sawThumb && !prevThumb && now - lastAction > ACTION_COOLDOWN_MS) {
+        store.queueJump();
+        lastAction = now;
+      }
+      prevLeap = wantLeap;
+      prevThumb = sawThumb;
+
+      // Hammer: a closed fist swings at whatever the crosshair is on, and
+      // keeps swinging while it is held — re-forming the pose for every
+      // brick is exhausting. In Laser Tag the same fist pulls the trigger
+      // instead; LaserTag.tsx reads breakQueued and decides.
+      const swinging = sawFist || sawPurse;
+      if (swinging && now - lastAction > (prevSwing ? BREAK_REPEAT_MS : ACTION_COOLDOWN_MS)) {
+        store.queueBreak();
+        lastAction = now;
+      }
+      prevSwing = swinging;
+
+      if (swinging) frameLabel = "hammer";
+      else if (sawPinch) frameLabel = "build";
+      else if (wantLeap) frameLabel = "leap";
+      else if (sawThumb) frameLabel = "jump";
+      else if (sawPalm) frameLabel = "go";
+      else if (sawBack) frameLabel = "back";
+      else if (faceSeen) frameLabel = "look";
 
       store.setFrame({
         faceTracking: faceSeen,
@@ -270,7 +268,7 @@ export default function GestureTracker() {
         headYaw: smoothHead.yaw,
         headPitch: smoothHead.pitch,
         move,
-        orbiting,
+        jumpHeld: sawThumb,
       });
       drawOverlay(frameLabel);
     }

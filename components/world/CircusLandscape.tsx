@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { seededRandom } from "./starPlacement";
+import { seededRandom } from "./placementUtils";
 import { useThemeStore } from "./themeStore";
 
 type Vec3 = [number, number, number];
