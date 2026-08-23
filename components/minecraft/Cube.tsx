@@ -12,6 +12,7 @@ import { CuboidCollider, RigidBody } from "@react-three/rapier";
 import * as THREE from "three";
 import { create } from "zustand";
 import { occupiedPointCoords, useGridPoints } from "@/lib/use-grid-points";
+import { useGestureStore } from "../gesture/store";
 
 // Served from `public/dirt.jpg` — see the note in Axe.tsx.
 const dirtImg = "/dirt.jpg";
@@ -141,6 +142,10 @@ function InstancedCubes({ cubes }: { cubes: CubeCoords[] }) {
   }, []);
 
   useFrame(() => {
+    // Consumed up front, even when nothing is under the crosshair: a queued
+    // break that missed should be dropped, not held until the player happens to
+    // aim at a block later.
+    const breakQueued = useGestureStore.getState().consumeBreak();
     const mesh = meshRef.current;
     if (!mesh || mesh.count === 0) return clearHit();
     picker.setFromCamera(CROSSHAIR, camera);
@@ -150,6 +155,16 @@ function InstancedCubes({ cubes }: { cubes: CubeCoords[] }) {
     setHovered((current) =>
       current === first.instanceId ? current : first.instanceId!,
     );
+    if (breakQueued) {
+      // The gesture break takes exactly the same path as the left-click break
+      // below: instance id -> the authoritative coords array. Reading the
+      // position back out of the instance matrix instead would go through
+      // Float32, and these cubes are streamed Rhino coordinates rather than a
+      // tidy integer grid — the round-tripped value no longer matches the key
+      // the store is built on, so the removal silently does nothing.
+      const coords = cubesRef.current[first.instanceId];
+      if (coords) removeCube(...coords);
+    }
   });
 
   useEffect(() => {

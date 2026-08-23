@@ -9,6 +9,7 @@ import {
   LookIcon,
   OrbitIcon,
   PinchIcon,
+  PointIcon,
   ThumbIcon,
 } from "./icons";
 
@@ -29,8 +30,11 @@ const PALM_SIGN = 1;
 // pinch, one block.
 const PINCH_CLOSE = 0.3;
 const PINCH_OPEN = 0.45;
-// Minimum gap between one-shot actions (jump/build).
+// Minimum gap between one-shot actions (jump/build/break).
 const ACTION_COOLDOWN_MS = 250;
+// Gap between repeats while a point is held. Slower than the one-shot
+// cooldown, so a single deliberate poke never takes two blocks.
+const BREAK_REPEAT_MS = 600;
 const MIN_SCORE = 0.55;
 
 // MediaPipe hand skeleton (21 landmarks).
@@ -49,11 +53,12 @@ const LEGEND: { key: Exclude<GestureLabel, null>; word: string; Icon: typeof Loo
   { key: "back", word: "Back", Icon: BackIcon },
   { key: "jump", word: "Jump", Icon: ThumbIcon },
   { key: "build", word: "Build", Icon: PinchIcon },
+  { key: "break", word: "Break", Icon: PointIcon },
   { key: "orbit", word: "Orbit", Icon: OrbitIcon },
 ];
 
 type Landmark = { x: number; y: number; z: number };
-type HandPose = "palm" | "back" | "fist" | "thumb" | "pinch" | "other";
+type HandPose = "palm" | "back" | "fist" | "thumb" | "pinch" | "point" | "other";
 
 const dist = (a: Landmark, b: Landmark) => Math.hypot(a.x - b.x, a.y - b.y);
 
@@ -107,6 +112,8 @@ export default function GestureTracker() {
     // one-shots
     let pinchIsOpen = true;
     let prevThumb = false;
+    let prevPoint = false;
+    let pointHand: Landmark[] | null = null;
     let lastAction = 0;
     // orbit (fist drag)
     let prevFist: { x: number; y: number } | null = null;
@@ -132,12 +139,21 @@ export default function GestureTracker() {
       if (middleExtended && dist(lm[4], lm[8]) / palm < PINCH_OPEN) return "pinch";
       if (canned === "Closed_Fist") return "fist";
       if (canned === "Thumb_Up") return "thumb";
+      if (canned === "Pointing_Up") return "point";
       if (canned === "Open_Palm") {
         return palmFacesCamera(lm, handedness) ? "palm" : "back";
       }
       // Fallbacks for poses the canned classifier drops mid-motion.
       const tips = [8, 12, 16, 20];
       const openness = tips.reduce((sum, t) => sum + dist(lm[0], lm[t]) / palm, 0) / tips.length;
+      // Pointing: index reaching well past a fist while the other three stay
+      // curled. The canned "Pointing_Up" only fires when the finger is roughly
+      // vertical, but you point at a block by aiming the hand at it — so this
+      // catches the same pose held at an angle.
+      const indexOut = dist(lm[0], lm[8]) / palm;
+      const othersIn =
+        [12, 16, 20].reduce((sum, t) => sum + dist(lm[0], lm[t]) / palm, 0) / 3;
+      if (indexOut > 1.45 && othersIn < 1.15) return "point";
       if (openness > 1.55) return palmFacesCamera(lm, handedness) ? "palm" : "back";
       if (openness < 1.1) return "fist";
       return "other";
@@ -188,6 +204,16 @@ export default function GestureTracker() {
         ctx.fillRect(px - 6, py - 6, 12, 12);
         ctx.strokeRect(px - 6, py - 6, 12, 12);
       }
+      // The fingertip doing the breaking, so it is obvious which hand the
+      // recognizer locked onto.
+      if (frameLabel === "break" && pointHand) {
+        const tip = pointHand[8];
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(tip.x * w, tip.y * h, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
       // "I can see your face" marker on the nose.
       if (nose) {
         ctx.fillStyle = color;
@@ -209,13 +235,19 @@ export default function GestureTracker() {
       let sawBack = false;
       let sawThumb = false;
       let sawPinch = false;
+      let sawPoint = false;
       handPoses.forEach((pose, i) => {
         if (pose === "fist") fists.push(i);
         else if (pose === "palm") sawPalm = true;
         else if (pose === "back") sawBack = true;
         else if (pose === "thumb") sawThumb = true;
         else if (pose === "pinch") sawPinch = true;
+        else if (pose === "point") {
+          sawPoint = true;
+          pointHand = handLms[i];
+        }
       });
+      if (!sawPoint) pointHand = null;
 
       if (fists.length > 0) {
         // Fist = grab: drag it to orbit the camera around the target the
@@ -252,7 +284,18 @@ export default function GestureTracker() {
         }
         prevThumb = sawThumb;
 
-        if (sawPinch) frameLabel = "build";
+        // Break fires on point entry, and repeats while the finger stays out —
+        // holding a mouse button down breaks a run of blocks, and a gesture you
+        // have to re-form for every block is exhausting. The repeat is slower
+        // than the one-shot cooldown so a single poke can't take two blocks.
+        if (sawPoint && now - lastAction > (prevPoint ? BREAK_REPEAT_MS : ACTION_COOLDOWN_MS)) {
+          store.queueBreak();
+          lastAction = now;
+        }
+        prevPoint = sawPoint;
+
+        if (sawPoint) frameLabel = "break";
+        else if (sawPinch) frameLabel = "build";
         else if (sawThumb) frameLabel = "jump";
         else if (sawPalm) frameLabel = "go";
         else if (sawBack) frameLabel = "back";

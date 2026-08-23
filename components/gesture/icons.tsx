@@ -104,6 +104,26 @@ export function PinchIcon({ className }: IconProps) {
   );
 }
 
+/** Index finger poking a cracked block — BREAK (point at a block to mine it) */
+export function PointIcon({ className }: IconProps) {
+  return (
+    <IconBase className={className}>
+      {/* extended index */}
+      <rect x="8.6" y="2.8" width="2.6" height="9.4" rx="1.3" />
+      {/* curled fingers, stacked shorter than the index */}
+      <rect x="11.8" y="7.6" width="2.4" height="4.6" rx="1.2" />
+      <rect x="14.6" y="8.2" width="2.4" height="4" rx="1.2" />
+      {/* palm */}
+      <rect x="8.2" y="11" width="9.6" height="9" rx="3.8" />
+      {/* thumb */}
+      <rect x="6.2" y="12" width="2.4" height="5.6" rx="1.2" transform="rotate(38 7.4 14.8)" />
+      {/* the block taking the hit, with a chip out of it */}
+      <rect x="1.6" y="3.4" width="4.6" height="4.6" rx="0.8" />
+      <path d="M6.4 8.8 4.6 10.6 6.4 10.6z" />
+    </IconBase>
+  );
+}
+
 /** A block with an orbit ring around it — ORBIT (fist-drag around a target) */
 export function OrbitIcon({ className }: IconProps) {
   return (
