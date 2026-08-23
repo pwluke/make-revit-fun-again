@@ -22,6 +22,11 @@ import { usePlayground } from "./playground-context";
 import { SketchOverlay } from "./SketchOverlay";
 import { StageToolbar } from "./StageToolbar";
 import { ThemeHud } from "@/components/world/ThemeHud";
+import TreasureHud from "@/components/world/TreasureHud";
+import PowerupHud from "@/components/world/PowerupHud";
+import FloodHud from "@/components/world/FloodHud";
+import { SketchToWorld } from "@/components/sketch-to-3d/SketchToWorld";
+import { PaletteHUD } from "@/components/sketch3d/ui/PaletteHUD";
 
 export function ModelStage() {
   const {
@@ -114,6 +119,25 @@ export function ModelStage() {
         </div>
 
         <ThemeHud className="top-4 left-4 right-auto items-start" />
+
+        {/* The DOM half of the shared world, mounted here for the same reason
+            app/minecraft/page.js mounts it: none of this can live inside
+            <Canvas>, so every host of <MinecraftScene/> has to remount it by
+            hand. The scene already renders <Stars/>, <Powerups/>, <Flood/>,
+            <SketchController/> and <Creations/> on this page — without the
+            components below the star count, the breath bar, the drown-restart
+            button and the `E`/`B` key bindings simply did not exist here, with
+            no error to say so.
+
+            All of these are `absolute`, so they land inside .model-viewport
+            (position: relative) rather than over the playground chrome. */}
+        <TreasureHud />
+        <PowerupHud />
+        <FloodHud />
+        {/* top-14 rather than the default top-4: the orbit hint owns the top
+            centre of this viewport. */}
+        <SketchToWorld modeStripClassName="top-14 z-20" />
+        <PaletteHUD />
 
         {placedItems.map((item) => (
           <span

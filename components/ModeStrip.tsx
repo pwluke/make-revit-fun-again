@@ -3,6 +3,7 @@
 import { useStore } from "zustand";
 import { creationStore } from "@/components/sketch-to-3d/core/creationStore";
 import { sketchStore } from "@/components/sketch3d/core/strokeStore";
+import { cn } from "@/lib/utils";
 
 /**
  * Advertises every creation mode in the world at once.
@@ -12,8 +13,14 @@ import { sketchStore } from "@/components/sketch3d/core/strokeStore";
  * holds pointer lock, so there is no cursor to click with and every entry point
  * has to be a key. `pointer-events-none` makes that explicit — a strip that
  * looks clickable but is not would be worse than one that plainly is not.
+ *
+ * `className` exists because the strip is `absolute`, so its offsets are read
+ * against whatever the host page positions it in. On /minecraft that is the
+ * whole viewport and the default top-centre is free; inside the playground's
+ * `.model-viewport` the orbit hint already owns that spot, so ModelStage pushes
+ * the strip down. Same component, two different neighbourhoods.
  */
-export function ModeStrip() {
+export function ModeStrip({ className }: { className?: string }) {
   const drawMode = useStore(sketchStore, (state) => state.drawMode);
   const selectedId = useStore(creationStore, (state) => state.selectedId);
 
@@ -22,7 +29,12 @@ export function ModeStrip() {
   // just lost pointer lock, which needs explaining on its own.
   if (selectedId) {
     return (
-      <div className="pointer-events-none absolute top-4 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1.5 font-sans select-none">
+      <div
+        className={cn(
+          "pointer-events-none absolute top-4 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1.5 font-sans select-none",
+          className,
+        )}
+      >
         <div className="rounded-full bg-sky-600/90 px-4 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
           Drag a corner to resize · drag the middle to move it up and down
         </div>
@@ -34,7 +46,12 @@ export function ModeStrip() {
   }
 
   return (
-    <div className="pointer-events-none absolute top-4 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1.5 font-sans select-none">
+    <div
+      className={cn(
+        "pointer-events-none absolute top-4 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1.5 font-sans select-none",
+        className,
+      )}
+    >
       <Row hotkey="E" label="Draw a picture → quick sprite, fast 3D, or detailed 3D" active={false} />
       <Row hotkey="B" label="Draw lines in 3D" active={drawMode} />
       {!drawMode && (

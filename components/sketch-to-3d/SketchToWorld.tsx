@@ -60,8 +60,20 @@ function resolveGenerateFn(mode: CreationMode): Generate {
  * DOM-side container for the sketch-to-3D block. Renders as a sibling of the
  * R3F <App/>, never inside <Canvas> — this file owns overlay-open state and
  * the fal.ai call, both DOM/JS concerns that don't belong in the scene.
+ *
+ * Mounted by BOTH hosts of the scene: app/minecraft/page.js and the playground's
+ * ModelStage. Without it the `E` key does nothing at all — the key listener
+ * lives here, not in the R3F tree — so a page that renders <Creations/> but not
+ * this component can display creations and never make one.
+ *
+ * `modeStripClassName` is forwarded to <ModeStrip/>, whose absolute offsets are
+ * resolved against the host's positioning context. See ModeStrip's own note.
  */
-export function SketchToWorld() {
+export function SketchToWorld({
+  modeStripClassName,
+}: {
+  modeStripClassName?: string;
+} = {}) {
   // Shared gallery: every machine at the booth sees every creation, and this
   // machine publishes its own. Replaces the localStorage layer rather than
   // sitting beside it — two sources of truth would mean deciding which wins on
@@ -198,7 +210,7 @@ export function SketchToWorld() {
           never opens an overlay. Hidden while the overlay is open, as before. */}
       {!open && (
         <>
-          <ModeStrip />
+          <ModeStrip className={modeStripClassName} />
           <ControlBar />
         </>
       )}
