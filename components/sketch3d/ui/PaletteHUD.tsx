@@ -97,14 +97,21 @@ export function PaletteHUD() {
     };
   }, []);
 
-  // Renders nothing at rest: the mode strip in app/minecraft/page.js already
-  // advertises `B`, and three features sharing one screen cannot each keep a
+  // Renders nothing at rest. Advertising `B` is somebody else's job — it was
+  // <ModeStrip/>'s until that strip was cut, and is moving to a dedicated UI
+  // element — and three features sharing one screen cannot each keep a
   // permanent pill up. Everything below is draw-mode-only, including the clear
   // confirm — which previously survived toggling draw mode off.
   if (!drawMode) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-14 flex flex-col items-center gap-2 font-sans select-none">
+    // `absolute`, not `fixed`. On /minecraft the two are indistinguishable —
+    // ThemeFrame is a `relative h-dvh` box filling the viewport. Inside the
+    // playground they are not: `fixed` would pin the palette to the bottom of
+    // the browser window, below the stage toolbar and outside the viewport the
+    // strokes are actually being drawn in. z-20 clears the playground's own
+    // overlay stack (the sketch canvas is z-7, the zoom controls z-10).
+    <div className="pointer-events-none absolute inset-x-0 bottom-14 z-20 flex flex-col items-center gap-2 font-sans select-none">
       {confirmingClear && (
         <div className="rounded bg-red-600/90 px-3 py-1 text-sm text-white">
           Press C again to clear everything

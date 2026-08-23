@@ -27,6 +27,10 @@ import {
   useControlMode,
   type ControlModeId,
 } from "@/components/controls/controlModeStore";
+import TreasureHud from "@/components/world/TreasureHud";
+import PowerupHud from "@/components/world/PowerupHud";
+import { SketchToWorld } from "@/components/sketch-to-3d/SketchToWorld";
+import { PaletteHUD } from "@/components/sketch3d/ui/PaletteHUD";
 import type { ModeId } from "./modes";
 
 /**
@@ -155,6 +159,28 @@ export function ModelStage() {
           className="top-4 left-4 right-auto items-start"
           creativeToggle={false}
         />
+
+        {/* The DOM half of the shared world, mounted here for the same reason
+            app/minecraft/page.js mounts it: none of this can live inside
+            <Canvas>, so every host of <MinecraftScene/> has to remount it by
+            hand. The scene already renders <Stars/>, <Powerups/>, <Flood/>,
+            <SketchController/> and <Creations/> on this page — without the
+            components below the star count, the breath bar, the drown-restart
+            button and the `E`/`B` key bindings simply did not exist here, with
+            no error to say so.
+
+            All of these are `absolute`, so they land inside .model-viewport
+            (position: relative) rather than over the playground chrome. */}
+        {/* The stars/water pills stack in the bottom-left of the viewport. Two
+            modes park a panel in that same corner, so playground.css lifts the
+            stack clear of them — see .world-hud-* there. */}
+        <TreasureHud className="world-hud-stars" />
+        <PowerupHud />
+        <FloodHud className="world-hud-water" />
+        {/* top-14 rather than the default top-4: the orbit hint owns the top
+            centre of this viewport. */}
+        <SketchToWorld modeStripClassName="top-14 z-20" />
+        <PaletteHUD />
 
         {placedItems.map((item) => (
           <span

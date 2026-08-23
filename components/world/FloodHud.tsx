@@ -1,6 +1,7 @@
 "use client";
 
 import { nextHighGround, useFloodStore } from "./floodStore";
+import { cn } from "@/lib/utils";
 
 function formatTime(seconds: number) {
   const whole = Math.floor(seconds);
@@ -11,8 +12,14 @@ function formatTime(seconds: number) {
  * Flood readout: how high the water is, how much breath is left, and where the
  * next dry ground is. The hint matters — without it a new player drowns in the
  * living room not knowing the house has stairs.
+ *
+ * Collapsed from a three-line white card to a single pill matching the rest of
+ * the floating chrome (see the note in TreasureHud). Everything still on screen
+ * earns its place: the depth and the clock always, the breath bar only once it
+ * starts draining, and the higher-ground hint only while it can still help —
+ * once you are under, "get your head up" is the only useful instruction.
  */
-export default function FloodHud() {
+export default function FloodHud({ className }: { className?: string }) {
   const level = useFloodStore((s) => s.level);
   const elapsed = useFloodStore((s) => s.elapsed);
   const breath = useFloodStore((s) => s.breath);
@@ -37,38 +44,46 @@ export default function FloodHud() {
         />
       ) : null}
 
-      {/* Top-right; the treasure scoreboard owns the left. */}
-      <div className="pointer-events-none absolute top-24 right-4 z-20 flex w-56 flex-col items-end gap-2">
-        <div className="w-full rounded-2xl bg-white/90 px-3 py-2 shadow-lg ring-1 ring-slate-900/10">
-          <div className="flex items-baseline justify-between">
-            <span className="text-sm font-bold text-slate-700">
-              Water {level > 0 ? level.toFixed(1) : "0.0"}m
-            </span>
-            <span className="text-xs font-semibold text-slate-500">
-              {formatTime(elapsed)}
-            </span>
-          </div>
+      {/* Bottom-left, sitting directly above the star count. */}
+      <div
+        className={cn(
+          "pointer-events-none absolute bottom-14 left-4 z-10 font-sans select-none",
+          className,
+        )}
+      >
+        <div className="flex items-center gap-2 rounded-full bg-black/40 px-3 py-1 text-xs backdrop-blur-sm">
+          <span className="text-sky-300">◆</span>
+          <span className="font-semibold tabular-nums text-white">
+            {level > 0 ? level.toFixed(1) : "0.0"}m
+          </span>
+          <span className="tabular-nums text-white/50">
+            {formatTime(elapsed)}
+          </span>
 
-          {/* Breath bar — only once it actually starts draining. */}
+          {/* Only once it actually starts draining. */}
           {breath < 1 ? (
-            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
-              <div
+            <span className="h-1 w-12 overflow-hidden rounded-full bg-white/25">
+              <span
                 className={
-                  "h-full rounded-full transition-[width] duration-150 " +
-                  (breath < 0.35 ? "bg-red-500" : "bg-sky-500")
+                  "block h-full rounded-full transition-[width] duration-150 " +
+                  (breath < 0.35 ? "bg-red-400" : "bg-sky-300")
                 }
                 style={{ width: `${Math.round(breath * 100)}%` }}
               />
-            </div>
+            </span>
           ) : null}
 
-          <p className="mt-1 text-xs font-semibold text-slate-500">
-            {submerged
-              ? "Underwater — get your head up!"
-              : next
-                ? `Higher ground: ${next.label}`
-                : "Nowhere higher left — hold out!"}
-          </p>
+          {submerged ? (
+            <span className="font-semibold text-sky-200">
+              Get your head up!
+            </span>
+          ) : next ? (
+            <span className="font-medium text-white/60">{next.label}</span>
+          ) : (
+            <span className="font-medium text-white/60">
+              Nowhere higher left
+            </span>
+          )}
         </div>
       </div>
 

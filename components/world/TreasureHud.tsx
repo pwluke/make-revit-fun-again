@@ -2,23 +2,25 @@
 
 import { useStarSpots } from "./starPlacement";
 import { useTreasureStore } from "./store";
+import { cn } from "@/lib/utils";
 
-function StarPip({ filled }: { filled: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden
-      className={"h-5 w-5 " + (filled ? "text-amber-400" : "text-slate-300")}
-      fill="currentColor"
-    >
-      <path d="M12 2.2l2.9 6.2 6.8.9-5 4.7 1.3 6.8-6-3.3-6 3.3 1.3-6.8-5-4.7 6.8-.9z" />
-    </svg>
-  );
-}
-
-/** Treasure-hunt scoreboard: how many stars are found, and a nudge toward
- *  the next one so a child is never stuck wandering. */
-export default function TreasureHud() {
+/**
+ * Treasure-hunt scoreboard: how many stars are found, and a nudge toward the
+ * next one so a child is never stuck wandering.
+ *
+ * One pill, always exactly one. The previous version was a white card carrying
+ * a row of one pip per star — with the procedural spots that is fourteen glyphs
+ * restating a number already printed next to them — plus a separate celebration
+ * banner that appeared as a second floating element. Both are gone: the count
+ * is the count, and completing the hunt swaps this pill's contents rather than
+ * stacking another one on top of it.
+ *
+ * Styling matches <ModeStrip/>, <PaletteHUD/> and <PowerupHud/> — translucent
+ * dark pill, no shadow, no ring. Those were already the house style for chrome
+ * that floats over the scene; the light card this replaces was the odd one out
+ * and read as an interface panel rather than a readout.
+ */
+export default function TreasureHud({ className }: { className?: string }) {
   const spots = useStarSpots();
   const found = useTreasureStore((s) => s.found);
   const total = useTreasureStore((s) => s.total);
@@ -27,41 +29,38 @@ export default function TreasureHud() {
   const next = spots.find((spot) => !found.includes(spot.id));
 
   return (
-    // Sits below the "All games" link, which owns the top-left corner.
-    <div className="pointer-events-none absolute top-16 left-4 z-10 flex flex-col items-start gap-2">
-      <div className="rounded-2xl bg-white/90 px-3 py-2 shadow-lg ring-1 ring-slate-900/10">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-slate-700">
-            Stars {found.length}/{total}
-          </span>
-          {/* Wraps: the procedural spots make this list longer than the eight
-              authored ones, and it shouldn't push the panel off the screen. */}
-          <div className="flex max-w-45 flex-wrap gap-0.5">
-            {spots.map((spot) => (
-              <StarPip key={spot.id} filled={found.includes(spot.id)} />
-            ))}
-          </div>
-        </div>
-        {!complete && next ? (
-          <p className="mt-1 text-xs font-semibold text-slate-500">
-            Next: {next.hint}
-          </p>
-        ) : null}
-      </div>
-
+    // Bottom-left, with the flood readout stacked directly above it. Hosts that
+    // have something else in this corner pass their own offset — see the note in
+    // components/playground/ModelStage.tsx.
+    <div
+      className={cn(
+        "pointer-events-none absolute bottom-4 left-4 z-10 font-sans select-none",
+        className,
+      )}
+    >
       {complete ? (
-        <div className="pointer-events-auto flex items-center gap-3 rounded-2xl bg-amber-300 px-3 py-2 shadow-lg ring-1 ring-amber-500/30">
-          <span className="text-sm font-bold text-slate-900">
-            🎉 You found every star!
+        <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-amber-500/85 px-3 py-1 text-xs backdrop-blur-sm">
+          <span className="font-semibold text-white">
+            🎉 Every star found
           </span>
           <button
             onClick={restart}
-            className="rounded-full bg-white/80 px-3 py-1 text-xs font-bold text-slate-700 transition hover:bg-white"
+            className="rounded-full bg-white/25 px-2 py-0.5 text-[0.7rem] font-bold text-white transition hover:bg-white/40"
           >
             Play again
           </button>
         </div>
-      ) : null}
+      ) : (
+        <div className="flex items-center gap-2 rounded-full bg-black/40 px-3 py-1 text-xs backdrop-blur-sm">
+          <span className="text-amber-300">★</span>
+          <span className="font-semibold tabular-nums text-white">
+            {found.length}/{total}
+          </span>
+          {next ? (
+            <span className="font-medium text-white/60">{next.hint}</span>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }

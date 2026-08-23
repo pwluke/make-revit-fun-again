@@ -1111,6 +1111,34 @@
 .playground .model-viewport.mode-explode .gesture-panel {
   display: grid;
 }
+
+/* World HUD pills — the star count and the water readout, stacked in the
+   bottom-left of the viewport (their default offsets are Tailwind classes on the
+   components themselves, shared with /minecraft, where that corner is empty).
+
+   Two modes park a panel in that same corner and would be drawn straight over,
+   since the pills sit at z-10 and both panels below them: measured against the
+   viewport's bottom edge, the remix palette's top is 141px up and the explode
+   gesture panel's is 103px. Lift the stack clear in exactly those two modes and
+   leave it low everywhere else — the pills move when the panel that crowds them
+   appears, which reads as making room rather than as drift.
+
+   Unlayered, so these beat the components' own Tailwind `bottom-*` utilities
+   without needing !important — the same mechanism the Hands button relies on
+   further down this file. */
+.playground .model-viewport.mode-remix .world-hud-stars {
+  bottom: 152px;
+}
+.playground .model-viewport.mode-remix .world-hud-water {
+  bottom: 192px;
+}
+.playground .model-viewport.mode-explode .world-hud-stars {
+  bottom: 114px;
+}
+.playground .model-viewport.mode-explode .world-hud-water {
+  bottom: 154px;
+}
+
 .playground .camera-preview {
   width: 88px;
   height: 65px;
