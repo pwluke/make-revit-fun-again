@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAbilityEmblemSpots } from "./emblemPlacement";
 import { Emblem } from "./Emblem";
+import { playPowerUp, playToggle } from "./sfx";
 import {
   ABILITY_COLORS,
   ABILITY_ORDER,
@@ -18,7 +19,11 @@ import {
  * switch that mode on and off. Modes stack, and an owned card can be used
  * as often as the player likes.
  */
-export default function HeroHud({ topClass = "top-4" }: { topClass?: string }) {
+export default function HeroHud({
+  anchorClass = "top-4 right-4",
+}: {
+  anchorClass?: string;
+}) {
   const theme = useHeroStore((s) => s.theme);
   const setTheme = useHeroStore((s) => s.setTheme);
   const found = useHeroStore((s) => s.found);
@@ -39,6 +44,7 @@ export default function HeroHud({ topClass = "top-4" }: { topClass?: string }) {
   const unlocking = pending[0] ?? null;
   useEffect(() => {
     if (!unlocking) return;
+    playPowerUp();
     setUnlockPhase("burst");
     const toDock = setTimeout(() => setUnlockPhase("dock"), 1400);
     const done = setTimeout(() => {
@@ -54,12 +60,21 @@ export default function HeroHud({ topClass = "top-4" }: { topClass?: string }) {
     };
   }, [unlocking]);
 
+  // One place both the hotkey and the slot button go through, so the cue
+  // can never fire for one and not the other.
+  const toggleWithSound = (id: AbilityId) => {
+    const store = useHeroStore.getState();
+    if (!store.found.includes(id)) return;
+    playToggle(!store.active.includes(id));
+    store.toggle(id);
+  };
+
   // Number hotkeys, so modes toggle under pointer lock too.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const n = Number(e.key);
       if (n >= 1 && n <= ABILITY_ORDER.length) {
-        useHeroStore.getState().toggle(ABILITY_ORDER[n - 1]);
+        toggleWithSound(ABILITY_ORDER[n - 1]);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -83,7 +98,7 @@ export default function HeroHud({ topClass = "top-4" }: { topClass?: string }) {
            relative to the viewport box, not the window. */
         @keyframes card-dock {
           0% { top: 50%; left: 50%; transform: translate(-50%, -50%) scale(1); opacity: 1; }
-          100% { top: 14%; left: 13%; transform: translate(-50%, -50%) scale(0.16); opacity: 0.2; }
+          100% { top: 15%; left: 86%; transform: translate(-50%, -50%) scale(0.16); opacity: 0.2; }
         }
         @keyframes slot-land {
           0% { transform: scale(1); box-shadow: 0 0 0 rgba(251,191,36,0); }
@@ -93,7 +108,7 @@ export default function HeroHud({ topClass = "top-4" }: { topClass?: string }) {
       `}</style>
 
       <div
-        className={`pointer-events-none absolute ${topClass} left-4 z-10 flex flex-col items-start gap-2`}
+        className={`pointer-events-none absolute ${anchorClass} z-10 flex flex-col items-end gap-2`}
       >
         <div className="rounded-2xl bg-white/92 px-3 py-2.5 shadow-xl ring-1 ring-slate-900/10 backdrop-blur-sm">
           {/* header: count + theme switch */}
@@ -121,7 +136,7 @@ export default function HeroHud({ topClass = "top-4" }: { topClass?: string }) {
           </div>
 
           {!complete && nextSpot ? (
-            <p className="mt-0.5 max-w-[15rem] text-[11px] font-semibold text-slate-500">
+            <p className="mt-0.5 max-w-[15rem] text-right text-[11px] font-semibold text-slate-500">
               Next: {nextSpot.hint}
             </p>
           ) : null}
@@ -135,7 +150,7 @@ export default function HeroHud({ topClass = "top-4" }: { topClass?: string }) {
               return (
                 <button
                   key={id}
-                  onClick={() => toggle(id)}
+                  onClick={() => toggleWithSound(id)}
                   disabled={!unlocked}
                   title={unlocked ? skin.power : "Find this emblem to unlock it"}
                   className={

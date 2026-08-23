@@ -7,6 +7,7 @@ import {
 } from "@/lib/use-grid-points";
 import { useGestureStore } from "../gesture/store";
 import { useCubeStore } from "./Cube";
+import { playPlace } from "@/components/world/sfx";
 
 // Blocks can only be placed within reach, like holding a block in front of
 // you. The lower bound skips the axe model that floats ~1m from the camera.
@@ -58,6 +59,7 @@ export function GestureBuilder() {
     const mesh = hit.object as THREE.Mesh;
     if (mesh.geometry.type === "PlaneGeometry") {
       addCube(...snapToGroundGrid(hit.point.x, hit.point.z, blockSize));
+      playPlace();
     } else if (mesh.geometry.type === "BoxGeometry") {
       // Cube or house block: place against the hit face, same as the
       // mouse-click path in Cube.tsx.
@@ -66,6 +68,7 @@ export function GestureBuilder() {
       addCube(
         ...neighborPosition([worldPos.x, worldPos.y, worldPos.z], n, blockSize),
       );
+      playPlace();
     }
   });
   return null;

@@ -18,7 +18,8 @@ import {
 } from "@/lib/use-grid-points";
 import { SCENE } from "@/lib/palette";
 import { useGestureStore } from "../gesture/store";
-import { BreakDebris, playBreakSound, spawnBreakDebris } from "./break-fx";
+import { BreakDebris, spawnBreakDebris } from "./break-fx";
+import { playBreak, playPlace } from "@/components/world/sfx";
 import { playerOrigin } from "./player-origin";
 import { THEMES, type LayerId } from "@/lib/themes";
 import { useSceneTheme, useThemeStore } from "../world/themeStore";
@@ -226,7 +227,7 @@ function InstancedCubes({
       const cluster = breakCluster(target, cubesRef.current, BREAK_NEIGHBORS);
       removeCubes(cluster.map((cube) => cube.position));
       spawnBreakDebris(cluster, sizeRef.current);
-      playBreakSound(cluster.length);
+      playBreak(cluster.length);
     },
     [removeCubes],
   );
@@ -269,6 +270,7 @@ function InstancedCubes({
         addCube(
           ...neighborPosition(target.position, current.normal, sizeRef.current),
         );
+        playPlace();
       }
     };
     // Only while the scene holds the mouse — otherwise this would swallow the

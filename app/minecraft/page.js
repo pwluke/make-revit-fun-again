@@ -35,7 +35,7 @@ export default function MinecraftGame() {
         with gestures
       </p>
       <GestureTracker />
-      <HeroHud topClass="top-16" />
+      <HeroHud />
       <PowerupHud />
       <FloodHud />
     </ThemeFrame>

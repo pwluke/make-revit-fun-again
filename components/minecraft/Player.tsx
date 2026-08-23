@@ -14,6 +14,7 @@ import { useGestureStore } from "../gesture/store";
 import { hitBlockCenter } from "./GestureBuilder";
 import { powerupState, usePowerupStore } from "../world/powerupStore";
 import { useHeroStore } from "../world/store";
+import { playFootstep } from "../world/sfx";
 import { useFloodStore } from "../world/floodStore";
 import { playerOrigin } from "./player-origin";
 import { TARGET_BLOCK_SIZE } from "@/lib/use-grid-points";
@@ -30,6 +31,9 @@ type PlayerProps = {
   lerp?: typeof THREE.MathUtils.lerp;
 };
 
+/** Metres of ground covered between footsteps. Tuned so a normal walk is
+ *  roughly two steps a second; speed powers then quicken it for free. */
+const STEP_DISTANCE = 1.9;
 const SPEED = 5;
 /** Speed ability card: double speed (its jump boost is applied inline). */
 const SPEED_CARD_MULTIPLIER = 2;
@@ -116,6 +120,7 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
   const jumpWasDown = useRef(false);
   const jumpLockout = useRef(0);
   const flying = useRef(false);
+  const stepAccum = useRef(0);
 
   // The one effect Player needs during render rather than in the frame loop:
   // the collider size is a prop, so shrinking means re-rendering.
@@ -410,6 +415,22 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     // floor on the next frame or two, which would otherwise refill the jumps.
     if (jumpLockout.current > 0) jumpLockout.current -= delta;
     if (grounded && jumpLockout.current <= 0) jumpsUsed.current = 0;
+
+    // Footsteps are driven by distance covered rather than a timer: speed
+    // powers quicken the cadence for free, and pushing into a wall stays
+    // silent because the body isn't actually moving.
+    const walkingBack = backward || gestureBack;
+    const walkingFwd = forward || gestureForward;
+    if (grounded && !flying.current && (walkingFwd || walkingBack || left || right)) {
+      stepAccum.current += Math.hypot(velocity.x, velocity.z) * delta;
+      if (stepAccum.current >= STEP_DISTANCE) {
+        stepAccum.current = 0;
+        playFootstep(walkingBack && !walkingFwd ? -1 : 1);
+      }
+    } else {
+      // Land the next step promptly instead of part-way through a stride.
+      stepAccum.current = STEP_DISTANCE * 0.7;
+    }
     if (climbing || flying.current) jumpsUsed.current = 0;
 
     if (!orbiting && !flying.current && pressedJump && jumpsUsed.current < maxJumps) {

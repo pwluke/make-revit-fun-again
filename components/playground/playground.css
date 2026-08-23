@@ -603,26 +603,6 @@
   transform: translate(-50%, -8px);
 }
 
-.playground .view-cube {
-  width: 45px;
-  height: 45px;
-  position: absolute;
-  z-index: 4;
-  right: 21px;
-  top: 21px;
-  color: #777a91;
-  font-size: 6px;
-  font-weight: 700;
-  transform: rotate(-7deg);
-  pointer-events: none;
-}
-.playground .view-cube span {
-  position: absolute;
-  display: grid;
-  place-items: center;
-  border: 1px solid #b9bbc6;
-  background: rgba(255, 255, 255, 0.75);
-}
 .playground .cube-top {
   width: 34px;
   height: 18px;
@@ -1589,10 +1569,7 @@
   .playground .mission-card {
     margin-bottom: 12px;
   }
-  .playground .view-cube {
-    display: none;
-  }
-  .playground .orbit-hint {
+    .playground .orbit-hint {
     top: 8px;
   }
   .playground .remix-inventory {
