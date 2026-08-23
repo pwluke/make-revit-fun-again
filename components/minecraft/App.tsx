@@ -1,9 +1,10 @@
 "use client";
 
 import { type ReactNode } from "react";
-import { Sky, PointerLockControls, KeyboardControls } from "@react-three/drei";
+import { PointerLockControls, KeyboardControls } from "@react-three/drei";
 import { Physics } from "@react-three/rapier";
 import { SceneCanvas } from "@/components/canvas/SceneCanvas";
+import { PostFX } from "@/components/canvas/PostFX";
 import { Ground } from "./Ground";
 import { Player } from "./Player";
 import { Cubes } from "./Cube";
@@ -13,6 +14,7 @@ import { AbilityCards } from "../world/AbilityCards";
 import { Portals } from "../world/Portals";
 import { Powerups } from "../world/Powerups";
 import { Flood } from "../world/Flood";
+import { ThemeAtmosphere } from "../world/ThemeAtmosphere";
 
 // The original was made by Maksim Ivanow: https://www.youtube.com/watch?v=Lc2JvBXMesY&t=124s
 // This example needs pointer-lock, that works only if you open it in a new window
@@ -32,14 +34,7 @@ export const minecraftKeyMap = [
 export function MinecraftScene() {
   return (
     <>
-      <Sky sunPosition={[100, 20, 100]} />
-      <ambientLight intensity={0.3 * Math.PI} />
-      <pointLight
-        castShadow
-        intensity={0.8 * Math.PI}
-        decay={0}
-        position={[100, 100, 100]}
-      />
+      <ThemeAtmosphere />
       <Physics gravity={[0, -30, 0]}>
         <Ground />
         <Player />
@@ -55,6 +50,7 @@ export function MinecraftScene() {
       <Flood />
       <GestureBuilder />
       <PointerLockControls />
+      <PostFX />
     </>
   );
 }

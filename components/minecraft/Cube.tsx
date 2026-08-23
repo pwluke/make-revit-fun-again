@@ -9,7 +9,6 @@ import {
 import { useFrame, useThree } from "@react-three/fiber";
 import { CuboidCollider, RigidBody } from "@react-three/rapier";
 import * as THREE from "three";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { create } from "zustand";
 import {
   neighborPosition,
@@ -17,16 +16,13 @@ import {
   useGridPoints,
   type CubeCoords,
 } from "@/lib/use-grid-points";
-import {
-  BreakDebris,
-  playBreakSound,
-  spawnBreakDebris,
-} from "./break-fx";
+import { SCENE } from "@/lib/palette";
+import { useGestureStore } from "../gesture/store";
+import { BreakDebris, playBreakSound, spawnBreakDebris } from "./break-fx";
 import { playerOrigin } from "./player-origin";
+import { THEMES, type LayerId } from "@/lib/themes";
+import { useSceneTheme, useThemeStore } from "../world/themeStore";
 import { useHeroStore } from "@/components/world/store";
-
-/** Warm clay for blocks the player places, against the pastel point layers. */
-const PLAYER_BLOCK_COLOR = "#d9a07a";
 
 // How far the player can reach to break or place, in world units. Also caps the
 // per-frame raycast, so a block across the map can't be edited by aiming at it.
@@ -36,38 +32,7 @@ const BREAK_NEIGHBORS = 10;
 
 const dummy = new THREE.Object3D();
 const tint = new THREE.Color();
-/** Slightly proud of the brick faces so the mortar lines don't z-fight. */
-const EDGE_SCALE = 1.004;
 
-function cubeCageGeometry(size: CubeCoords) {
-  const [sx, sy, sz] = size;
-  const t = Math.min(sx, sy, sz) * 0.055;
-  const hx = sx / 2;
-  const hy = sy / 2;
-  const hz = sz / 2;
-  const bars: THREE.BufferGeometry[] = [];
-  const bar = (w: number, h: number, d: number, x: number, y: number, z: number) => {
-    const geometry = new THREE.BoxGeometry(w, h, d);
-    geometry.translate(x, y, z);
-    bars.push(geometry);
-  };
-  bar(sx, t, t, 0, -hy, -hz);
-  bar(sx, t, t, 0, -hy, hz);
-  bar(sx, t, t, 0, hy, -hz);
-  bar(sx, t, t, 0, hy, hz);
-  bar(t, sy, t, -hx, 0, -hz);
-  bar(t, sy, t, hx, 0, -hz);
-  bar(t, sy, t, -hx, 0, hz);
-  bar(t, sy, t, hx, 0, hz);
-  bar(t, t, sz, -hx, -hy, 0);
-  bar(t, t, sz, hx, -hy, 0);
-  bar(t, t, sz, -hx, hy, 0);
-  bar(t, t, sz, hx, hy, 0);
-  const merged = mergeGeometries(bars);
-  for (const geometry of bars) geometry.dispose();
-  if (!merged) throw new Error("cube cage merge failed");
-  return merged;
-}
 // Pointer lock freezes the mouse, so every pick is from the screen centre —
 // i.e. the crosshair the page draws over the canvas.
 const CROSSHAIR = new THREE.Vector2(0, 0);
@@ -107,8 +72,7 @@ export const useCubeStore = create<CubeStore>((set) => ({
         added: already ? state.added : [...state.added, [x, y, z]],
       };
     }),
-  removeCube: (x, y, z) =>
-    set((state) => maskRemoved(state, [[x, y, z]])),
+  removeCube: (x, y, z) => set((state) => maskRemoved(state, [[x, y, z]])),
   removeCubes: (positions) => set((state) => maskRemoved(state, positions)),
 }));
 
@@ -150,6 +114,8 @@ function breakCluster(
 export const Cubes = () => {
   const added = useCubeStore((state) => state.added);
   const removed = useCubeStore((state) => state.removed);
+  const themeId = useThemeStore((state) => state.id);
+  const theme = THEMES[themeId];
   const { data, blockSize } = useGridPoints();
 
   const cubes = useMemo(() => {
@@ -162,11 +128,12 @@ export const Cubes = () => {
       out.push({ position: coords, color });
     };
     for (const point of occupiedPointCoords(data?.points)) {
-      push(point.position, point.color);
+      const themed = theme.layers[point.layer as LayerId] ?? point.color;
+      push(point.position, themed);
     }
-    for (const coords of added) push(coords, PLAYER_BLOCK_COLOR);
+    for (const coords of added) push(coords, theme.playerBlock);
     return out;
-  }, [data?.points, added, removed]);
+  }, [data?.points, added, removed, theme]);
 
   return (
     <>
@@ -184,14 +151,12 @@ function InstancedCubes({
   size: CubeCoords;
 }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
-  const edgesRef = useRef<THREE.InstancedMesh>(null);
   const cubesRef = useRef(cubes);
   cubesRef.current = cubes;
   const sizeRef = useRef(size);
   sizeRef.current = size;
-  const cage = useMemo(() => cubeCageGeometry(size), [size]);
-  useEffect(() => () => cage.dispose(), [cage]);
 
+  const theme = useSceneTheme();
   const camera = useThree((state) => state.camera);
   const addCube = useCubeStore((state) => state.addCube);
   const removeCubes = useCubeStore((state) => state.removeCubes);
@@ -208,27 +173,17 @@ function InstancedCubes({
 
   useLayoutEffect(() => {
     const mesh = meshRef.current;
-    const edges = edgesRef.current;
     if (!mesh) return;
     for (let i = 0; i < cubes.length; i++) {
       dummy.position.set(...cubes[i].position);
-      dummy.scale.set(1, 1, 1);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
       mesh.setColorAt(i, tint.set(cubes[i].color));
-      dummy.scale.setScalar(EDGE_SCALE);
-      dummy.updateMatrix();
-      edges?.setMatrixAt(i, dummy.matrix);
     }
-    dummy.scale.set(1, 1, 1);
     mesh.count = cubes.length;
     mesh.instanceMatrix.needsUpdate = true;
+    // `setColorAt` creates the attribute on first use, so this can't be hoisted.
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    if (edges) {
-      edges.count = cubes.length;
-      edges.instanceMatrix.needsUpdate = true;
-      edges.computeBoundingSphere();
-    }
     // InstancedMesh.raycast rejects against the instance bounding sphere first,
     // so it has to be refreshed or newly-placed cubes become unpickable.
     mesh.computeBoundingSphere();
@@ -252,7 +207,35 @@ function InstancedCubes({
     setHovered((current) => (current === null ? current : null));
   }, []);
 
+  /**
+   * Break the brick at an instance index, with its cluster, debris and sound.
+   * Shared by the left click and the gesture so the two can't drift apart — and
+   * so the gesture picks up anything added to the mouse path later.
+   *
+   * Takes the index into the authoritative cube array rather than a position
+   * read back out of the instance matrix: that buffer is Float32, and these are
+   * voxelised model coordinates rather than a tidy integer grid, so the round
+   * trip shifts the low digits. keyOf's 4dp rounding would currently absorb
+   * that, but relying on it would make deletion depend on a rounding choice
+   * made elsewhere.
+   */
+  const breakAt = useCallback(
+    (index: number) => {
+      const target = cubesRef.current[index];
+      if (!target) return;
+      const cluster = breakCluster(target, cubesRef.current, BREAK_NEIGHBORS);
+      removeCubes(cluster.map((cube) => cube.position));
+      spawnBreakDebris(cluster, sizeRef.current);
+      playBreakSound(cluster.length);
+    },
+    [removeCubes],
+  );
+
   useFrame(() => {
+    // Consumed up front, even when nothing is under the crosshair: a queued
+    // break that missed should be dropped, not held until the player happens to
+    // aim at a block later.
+    const breakQueued = useGestureStore.getState().consumeBreak();
     const mesh = meshRef.current;
     if (!mesh || mesh.count === 0) return clearHit();
     picker.setFromCamera(CROSSHAIR, camera);
@@ -262,6 +245,7 @@ function InstancedCubes({
     setHovered((current) =>
       current === first.instanceId ? current : first.instanceId!,
     );
+    if (breakQueued) breakAt(first.instanceId);
   });
 
   useEffect(() => {
@@ -278,10 +262,7 @@ function InstancedCubes({
       const target = cubesRef.current[current.index];
       if (!target) return;
       if (e.button === 0) {
-        const cluster = breakCluster(target, cubesRef.current, BREAK_NEIGHBORS);
-        removeCubes(cluster.map((cube) => cube.position));
-        spawnBreakDebris(cluster, sizeRef.current);
-        playBreakSound(cluster.length);
+        breakAt(current.index);
       } else if (e.button === 2) {
         // Instances are translation-only, so the local face normal is already
         // the world-space unit axis pointing out of the face that was hit.
@@ -301,7 +282,7 @@ function InstancedCubes({
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("contextmenu", onContextMenu);
     };
-  }, [addCube, removeCubes]);
+  }, [addCube, breakAt]);
 
   const hoverPos = hovered != null ? cubes[hovered]?.position : undefined;
   const half: CubeCoords = [size[0] / 2, size[1] / 2, size[2] / 2];
@@ -319,28 +300,13 @@ function InstancedCubes({
         receiveShadow
       >
         <boxGeometry args={size} />
+        {/* White base so per-instance layer colours come through as authored. */}
         <meshStandardMaterial
-          roughness={0.55}
-          metalness={0.05}
+          roughness={theme.cubeRoughness}
+          metalness={theme.cubeMetalness}
           transparent={xray}
           opacity={xray ? 0.25 : 1}
           depthWrite={!xray}
-          polygonOffset
-          polygonOffsetFactor={1}
-          polygonOffsetUnits={1}
-        />
-      </instancedMesh>
-      <instancedMesh
-        key={`edges-${capacity}`}
-        ref={edgesRef}
-        args={[cage, undefined, capacity]}
-        frustumCulled={false}
-        raycast={() => {}}
-      >
-        <meshBasicMaterial
-          color="#2c2118"
-          transparent={xray}
-          opacity={xray ? 0.3 : 1}
         />
       </instancedMesh>
       <NearbyColliders cubes={cubes} half={half} />
@@ -348,7 +314,7 @@ function InstancedCubes({
         <mesh position={hoverPos} scale={1.02} raycast={() => {}}>
           <boxGeometry args={size} />
           <meshBasicMaterial
-            color="hotpink"
+            color={SCENE.highlight}
             transparent
             opacity={0.35}
             depthWrite={false}

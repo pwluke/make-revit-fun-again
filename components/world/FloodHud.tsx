@@ -35,7 +35,7 @@ export default function FloodHud() {
       ) : null}
 
       {/* Top-right; the treasure scoreboard owns the left. */}
-      <div className="pointer-events-none absolute top-16 right-4 z-20 flex w-56 flex-col items-end gap-2">
+      <div className="pointer-events-none absolute top-24 right-4 z-20 flex w-56 flex-col items-end gap-2">
         <div className="w-full rounded-2xl bg-white/90 px-3 py-2 shadow-lg ring-1 ring-slate-900/10">
           <div className="flex items-baseline justify-between">
             <span className="text-sm font-bold text-slate-700">

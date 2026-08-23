@@ -6,6 +6,7 @@ export type GestureLabel =
   | "back"
   | "jump"
   | "build"
+  | "break"
   | "orbit"
   | null;
 export type GestureStatus = "off" | "starting" | "on" | "error";
@@ -34,6 +35,7 @@ type GestureState = {
   /** One-shot actions, queued by the tracker and consumed by the game loop */
   jumpQueued: boolean;
   buildQueued: boolean;
+  breakQueued: boolean;
   setActive: (active: boolean) => void;
   setStatus: (status: GestureStatus) => void;
   setFrame: (frame: {
@@ -48,9 +50,11 @@ type GestureState = {
   addOrbit: (dx: number, dy: number) => void;
   queueJump: () => void;
   queueBuild: () => void;
+  queueBreak: () => void;
   consumeOrbit: () => { x: number; y: number };
   consumeJump: () => boolean;
   consumeBuild: () => boolean;
+  consumeBreak: () => boolean;
   reset: () => void;
 };
 
@@ -67,6 +71,7 @@ export const useGestureStore = create<GestureState>((set, get) => ({
   orbitDelta: { x: 0, y: 0 },
   jumpQueued: false,
   buildQueued: false,
+  breakQueued: false,
   setActive: (active) => set({ active }),
   setStatus: (status) => set({ status }),
   setFrame: ({ faceTracking, handTracking, label, headYaw, headPitch, move, orbiting }) =>
@@ -75,6 +80,7 @@ export const useGestureStore = create<GestureState>((set, get) => ({
     set((s) => ({ orbitDelta: { x: s.orbitDelta.x + dx, y: s.orbitDelta.y + dy } })),
   queueJump: () => set({ jumpQueued: true }),
   queueBuild: () => set({ buildQueued: true }),
+  queueBreak: () => set({ breakQueued: true }),
   consumeOrbit: () => {
     const delta = get().orbitDelta;
     if (delta.x !== 0 || delta.y !== 0) set({ orbitDelta: { x: 0, y: 0 } });
@@ -90,6 +96,11 @@ export const useGestureStore = create<GestureState>((set, get) => ({
     if (queued) set({ buildQueued: false });
     return queued;
   },
+  consumeBreak: () => {
+    const queued = get().breakQueued;
+    if (queued) set({ breakQueued: false });
+    return queued;
+  },
   reset: () =>
     set({
       status: "off",
@@ -103,5 +114,6 @@ export const useGestureStore = create<GestureState>((set, get) => ({
       orbitDelta: { x: 0, y: 0 },
       jumpQueued: false,
       buildQueued: false,
+      breakQueued: false,
     }),
 }));
