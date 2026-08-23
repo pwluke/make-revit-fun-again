@@ -7,14 +7,11 @@ import {
   useState,
 } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useTexture } from "@react-three/drei";
 import { CuboidCollider, RigidBody } from "@react-three/rapier";
 import * as THREE from "three";
 import { create } from "zustand";
 import { occupiedPointCoords, useGridPoints } from "@/lib/use-grid-points";
-
-// Served from `public/dirt.jpg` — see the note in Axe.tsx.
-const dirtImg = "/dirt.jpg";
+import { SCENE, VOXEL_RAMP, VOXEL_RAMP_RANGE } from "@/lib/palette";
 
 type CubeCoords = [x: number, y: number, z: number];
 
@@ -26,6 +23,24 @@ const dummy = new THREE.Object3D();
 // Pointer lock freezes the mouse, so every pick is from the screen centre —
 // i.e. the crosshair the page draws over the canvas.
 const CROSSHAIR = new THREE.Vector2(0, 0);
+
+const RAMP = VOXEL_RAMP.map((hex) => new THREE.Color(hex));
+const scratchColor = new THREE.Color();
+
+/**
+ * Sample the massing ramp at world height `y`, warm at the base climbing to
+ * cool at the top. The reference art bands its stepped volumes this way, and
+ * here the block field is the massing — a single flat colour across thousands
+ * of cubes reads as a heap rather than as a building.
+ */
+function bandColor(y: number, target: THREE.Color) {
+  const { low, high } = VOXEL_RAMP_RANGE;
+  const span =
+    THREE.MathUtils.clamp((y - low) / (high - low), 0, 1) * (RAMP.length - 1);
+  const index = Math.floor(span);
+  const next = Math.min(index + 1, RAMP.length - 1);
+  return target.copy(RAMP[index]).lerp(RAMP[next], span - index);
+}
 
 const keyOf = (x: number, y: number, z: number) => `${x},${y},${z}`;
 
@@ -96,7 +111,6 @@ function InstancedCubes({ cubes }: { cubes: CubeCoords[] }) {
   cubesRef.current = cubes;
 
   const camera = useThree((state) => state.camera);
-  const texture = useTexture(dirtImg);
   const addCube = useCubeStore((state) => state.addCube);
   const removeCube = useCubeStore((state) => state.removeCube);
   const [hovered, setHovered] = useState<number | null>(null);
@@ -114,9 +128,12 @@ function InstancedCubes({ cubes }: { cubes: CubeCoords[] }) {
       dummy.position.set(cubes[i][0], cubes[i][1], cubes[i][2]);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
+      mesh.setColorAt(i, bandColor(cubes[i][1], scratchColor));
     }
     mesh.count = cubes.length;
     mesh.instanceMatrix.needsUpdate = true;
+    // `setColorAt` creates the attribute on first use, so this can't be hoisted.
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     // InstancedMesh.raycast rejects against the instance bounding sphere first,
     // so it has to be refreshed or newly-placed cubes become unpickable.
     mesh.computeBoundingSphere();
@@ -206,14 +223,16 @@ function InstancedCubes({ cubes }: { cubes: CubeCoords[] }) {
         receiveShadow
       >
         <boxGeometry />
-        <meshStandardMaterial map={texture} />
+        {/* White base colour so the per-instance band colours come through as
+            authored; matte, because every surface in the reference art is. */}
+        <meshStandardMaterial roughness={0.82} metalness={0} />
       </instancedMesh>
       <NearbyColliders cubes={cubes} />
       {hoverPos && (
         <mesh position={hoverPos} scale={1.02} raycast={() => {}}>
           <boxGeometry />
           <meshBasicMaterial
-            color="hotpink"
+            color={SCENE.highlight}
             transparent
             opacity={0.35}
             depthWrite={false}
