@@ -91,11 +91,15 @@ export function SketchToWorld() {
     // would spawn the model at wherever the kid wandered off to later.
     const spawn = bridge.getSpawnTransform();
     const id = crypto.randomUUID();
+    // Shown in-world immediately, so the moment the overlay closes the child sees
+    // their own drawing standing where it will become a model — rather than a
+    // placeholder box, or nothing. Revoked once the job settles, below.
+    const sketchUrl = URL.createObjectURL(png);
     // Mode-aware: sprite mode steers SDXL, mesh mode steers Hunyuan. They are
     // different models and do not necessarily want the same style string.
     const prompt = buildPrompt(userText, mode);
 
-    creationStore.getState().startCreation({ id, userText, prompt, mode, spawn });
+    creationStore.getState().startCreation({ id, userText, prompt, mode, spawn, sketchUrl });
 
     // Close immediately — the kid returns to the world and walks around
     // while it generates. Multiple generations can be in flight at once, so
@@ -124,6 +128,13 @@ export function SketchToWorld() {
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : "Generation failed";
         creationStore.getState().updateJob(id, { status: "error", message, retryable: true });
+      })
+      .finally(() => {
+        // Safe once the job has settled: the sketch is only rendered while
+        // generating, and a texture already uploaded to the GPU is unaffected by
+        // revoking the URL it was loaded from. Without this each submission
+        // leaks its PNG for the lifetime of the page.
+        URL.revokeObjectURL(sketchUrl);
       });
   }, []);
 

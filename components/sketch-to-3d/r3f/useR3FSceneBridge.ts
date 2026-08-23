@@ -9,6 +9,14 @@ import type { Creation, SceneBridge, SpawnTransform } from "../core/types";
 const direction = new THREE.Vector3();
 
 /**
+ * Floor for a creation's spawn height. The ground mesh sits at y=0
+ * (components/minecraft/Ground.tsx), and creations are placed base-first, so
+ * anything below this is inside the floor. Kept marginally above zero so a
+ * model resting exactly on the ground does not z-fight with it.
+ */
+const MIN_SPAWN_Y = 0.05;
+
+/**
  * Module-scope pub-sub for "the pointer lock was released by something other
  * than our own setInputEnabled(false) call" — i.e. the player hit Escape.
  *
@@ -83,7 +91,13 @@ export function useR3FSceneBridge(): SceneBridge {
       currentCamera.getWorldDirection(direction);
       const position: [number, number, number] = [
         currentCamera.position.x + direction.x * 4,
-        currentCamera.position.y + direction.y * 4,
+        // Clamped to the ground. normalizeScene (Creations.tsx) sits a model's
+        // BASE on the spawn point, and SpriteCreation does the same, so a
+        // negative y buries the creation under the floor where it is invisible.
+        // Looking down even 30 degrees at eye height is enough to do it, which
+        // made creations appear to vanish at random depending on where the
+        // player happened to be looking when they pressed submit.
+        Math.max(currentCamera.position.y + direction.y * 4, MIN_SPAWN_Y),
         currentCamera.position.z + direction.z * 4,
       ];
       // Face the model back toward the player: the model's default forward

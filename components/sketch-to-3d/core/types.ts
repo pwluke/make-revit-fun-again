@@ -87,6 +87,19 @@ export type Creation = {
    */
   mode: CreationMode;
   spawn: SpawnTransform;
+  /**
+   * An object URL for the PNG the user actually drew.
+   *
+   * Shown in the world from the instant they submit, so there is never a moment
+   * where their drawing has vanished and nothing of theirs has appeared yet.
+   * Fast mode later replaces it with the coloured bridge image; the other two
+   * modes keep it for the whole wait, which for the ~105s mesh path is the
+   * difference between watching a placeholder box and watching your own drawing.
+   *
+   * Optional so a Creation restored from anywhere other than a live submit is
+   * still representable.
+   */
+  sketchUrl?: string;
   state: JobState;
 };
 

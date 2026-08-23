@@ -208,18 +208,24 @@ function CreationEntry({ creation }: { creation: Creation }) {
       </Suspense>
     );
   }
-  // Fast mode hands us its bridge image partway through, so the child sees their
-  // own drawing in colour at ~2.3s rather than a placeholder box for ~19s. The
-  // Ghost remains the fallback for every other mode and for the window before the
-  // bridge lands.
-  if (creation.state.status === "generating" && creation.state.previewUrl) {
-    return (
-      <Suspense fallback={<Ghost creation={creation} />}>
-        <PreviewCard previewUrl={creation.state.previewUrl} spawn={creation.spawn} />
-      </Suspense>
-    );
-  }
   if (creation.state.status === "uploading" || creation.state.status === "generating") {
+    // Best artifact available, in order of how much it tells the child:
+    //   1. fast mode's coloured bridge image, once it exists (~2.3s)
+    //   2. their own drawing, from the instant they submitted (0s)
+    //   3. the pulsing Ghost box, only if neither is available
+    // The point is that there is never a moment where their drawing has
+    // disappeared and nothing of theirs has replaced it.
+    const previewUrl =
+      (creation.state.status === "generating" ? creation.state.previewUrl : undefined) ??
+      creation.sketchUrl;
+
+    if (previewUrl) {
+      return (
+        <Suspense fallback={<Ghost creation={creation} />}>
+          <PreviewCard previewUrl={previewUrl} spawn={creation.spawn} />
+        </Suspense>
+      );
+    }
     return <Ghost creation={creation} />;
   }
   // "error" — render nothing.

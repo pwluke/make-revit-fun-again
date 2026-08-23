@@ -74,7 +74,11 @@ export function PreviewCard({ previewUrl, spawn }: PreviewCardProps) {
           the photo always wins the depth test against it. */}
       <mesh position={[0, 0, -0.01]}>
         <planeGeometry args={[width + frame * 2, height + frame * 2]} />
-        <meshBasicMaterial color="#ffffff" side={DoubleSide} />
+        {/* Soft grey rather than white. This card shows two very different
+            images over its life: the user's black-on-white line art from t=0,
+            and fast mode's grey-background photo later. A white frame is
+            invisible against the first; this reads as a mount against both. */}
+        <meshBasicMaterial color="#e2ded6" side={DoubleSide} />
       </mesh>
       <mesh>
         <planeGeometry args={[width, height]} />

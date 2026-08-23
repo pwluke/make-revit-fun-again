@@ -26,6 +26,8 @@ export type CreationStoreState = {
     prompt: string;
     mode: CreationMode;
     spawn: SpawnTransform;
+    /** Object URL of the submitted drawing — shown in-world until a result lands. */
+    sketchUrl?: string;
   }) => void;
   updateJob: (id: string, state: JobState) => void;
   removeCreation: (id: string) => void;
@@ -38,7 +40,7 @@ export function createCreationStore(): StoreApi<CreationStoreState> {
 
     registerBridge: (bridge) => set({ bridge }),
 
-    startCreation: ({ id, userText, prompt, mode, spawn }) =>
+    startCreation: ({ id, userText, prompt, mode, spawn, sketchUrl }) =>
       set((state) => {
         const next: Creation = {
           id,
@@ -46,6 +48,7 @@ export function createCreationStore(): StoreApi<CreationStoreState> {
           prompt,
           mode,
           spawn,
+          sketchUrl,
           state: { status: "uploading" },
         };
         // Array order is insertion order, so the oldest is always at the front.
