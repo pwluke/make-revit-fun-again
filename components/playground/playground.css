@@ -1069,7 +1069,7 @@
 }
 /* The control group is the exception to the rule below: it is a setting rather
    than an activity, so it shows in every mode. The divider always has something
-   on its right — all seven modes contribute exactly one group. */
+   on its right — all five modes contribute exactly one group. */
 .playground .control-tools {
   display: flex;
   padding-right: 16px;
