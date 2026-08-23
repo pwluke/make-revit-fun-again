@@ -17,6 +17,7 @@ import { Powerups } from "../world/Powerups";
 import { Flood } from "../world/Flood";
 import { ThemeAtmosphere } from "../world/ThemeAtmosphere";
 import { MarineGarden } from "../world/MarineGarden";
+import { DesertLandscape } from "../world/DesertLandscape";
 import { StaticShadows } from "../canvas/StaticShadows";
 import { useFastMode, useThemeStore } from "../world/themeStore";
 import { useGestureStore } from "../gesture/store";
@@ -109,6 +110,7 @@ export function MinecraftScene({ children }: { children?: ReactNode }) {
       <Stars />
       <Powerups />
       <MarineGarden />
+      <DesertLandscape />
       <Flood />
       {/* Also outside <Physics>, and that is the design: other players are
           drawn, not simulated. Each client owns only its own capsule, which is
