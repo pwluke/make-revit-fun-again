@@ -47,7 +47,9 @@ export function MinecraftScene() {
       <Powerups />
       <Flood />
       <GestureBuilder />
-      <PointerLockControls />
+      {/* makeDefault so Player can disable it while wall-walking, where the
+          camera is driven from the wall's own frame instead of world Y-up. */}
+      <PointerLockControls makeDefault />
       <PostFX />
     </>
   );

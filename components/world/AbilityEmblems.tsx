@@ -28,11 +28,11 @@ function makeSprite(emoji: string, color: string): THREE.CanvasTexture {
     size * 0.1,
     size / 2,
     size / 2,
-    size * 0.5,
+    size * 0.36,
   );
-  glow.addColorStop(0, color + "cc");
-  glow.addColorStop(0.65, color + "44");
-  glow.addColorStop(1, color + "00");
+  glow.addColorStop(0, color + "88");
+  glow.addColorStop(0.42, color + "22");
+  glow.addColorStop(0.72, color + "00");
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, size, size);
   ctx.font = `${Math.round(size * 0.62)}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
@@ -110,7 +110,7 @@ export function AbilityEmblems() {
               <spriteMaterial map={texture} transparent depthWrite={false} />
             </sprite>
             {/* Keeps them findable in shade and at a distance. */}
-            <pointLight color={color} intensity={2.5} distance={5} decay={2} />
+            <pointLight color={color} intensity={1.1} distance={3} decay={2} />
           </group>
         );
       })}

@@ -7,7 +7,6 @@ import {
   CapsuleCollider,
   RigidBody,
   useRapier,
-  type RapierCollider,
   type RapierRigidBody,
 } from "@react-three/rapier";
 import Axe from "./Axe";
@@ -56,8 +55,15 @@ const WALL_REACH = TARGET_BLOCK_SIZE * 0.7;
 const WALL_PROBE_HEIGHTS = [0.2, 0, -0.25, -0.5];
 /** Fraction of walk speed pushed into the wall while climbing. */
 const CLIMB_WALL_PUSH = 0.25;
-/** Sideways crawl speed once stuck to a wall. */
-const CLIMB_STRAFE_SPEED = 2.6;
+/** Speed of a spider walking across a wall face. */
+const WALL_WALK_SPEED = 4;
+/** Constant pull into the face you are standing on, so you stay attached. */
+const WALL_STICK = 6;
+/** How far below your feet the face may be before you count as fallen off. */
+const WALL_REPROBE = 1.2;
+/** Mouse sensitivity while wall-walking, matching PointerLockControls. */
+const WALL_LOOK_SENSITIVITY = 0.002;
+const WALL_MAX_PITCH = Math.PI / 2 - 0.12;
 /** Web-zip: click a surface further than the break reach to be pulled to it. */
 const ZIP_SPEED = 16;
 const ZIP_MAX_DIST = 60;
@@ -77,19 +83,35 @@ const DOUBLE_TAP_MS = 320;
 const JUMP_LOCKOUT = 0.2;
 /** Standing eye height from the original [0.75, 0.5] capsule (its centre). */
 const EYE_HEIGHT = 0.75 + 0.5;
+/** Mouse mode drops the eye to a fraction of standing height. The capsule
+ *  shrinking is not enough on its own: eyeLift below is written to hold the
+ *  eye at EYE_HEIGHT whatever the capsule does, which cancelled the whole
+ *  point of being small. */
+const TINY_EYE_FACTOR = 0.4;
 /** Wider than half a voxel so you cannot slip through a one-brick gap.
  *  Slide-along-wall still keeps stairs from swallowing the capsule. */
 const VOXEL_RADIUS = TARGET_BLOCK_SIZE * 0.55;
 const CAPSULE_NORMAL: [number, number] = [0.38, VOXEL_RADIUS];
 const CAPSULE_TINY: [number, number] = [0.16, TARGET_BLOCK_SIZE * 0.38];
-function eyeLift(shape: [number, number]) {
-  return EYE_HEIGHT - (shape[0] + shape[1]);
+function eyeLift(shape: [number, number], small: boolean) {
+  const target = small ? EYE_HEIGHT * TINY_EYE_FACTOR : EYE_HEIGHT;
+  return target - (shape[0] + shape[1]);
 }
 const slideDir = new THREE.Vector3();
 const SLIDE_PROBE_HEIGHTS = [0.15, -0.2];
 const climbDir = new THREE.Vector3();
 const wallNormal = new THREE.Vector3();
 const wallRight = new THREE.Vector3();
+// Scratch for building the camera basis on a wall.
+const wUp = new THREE.Vector3();
+const wRight = new THREE.Vector3();
+const wBack = new THREE.Vector3();
+const wRef = new THREE.Vector3();
+const wMat = new THREE.Matrix4();
+const wQuat = new THREE.Quaternion();
+const wLocal = new THREE.Quaternion();
+const wEuler = new THREE.Euler(0, 0, 0, "YXZ");
+const wMove = new THREE.Vector3();
 const zipVec = new THREE.Vector3();
 const direction = new THREE.Vector3();
 const frontVector = new THREE.Vector3();
@@ -120,6 +142,20 @@ const ORBIT_MIN_RADIUS = 2.5;
 const ORBIT_MAX_TARGET_DIST = 40;
 const ORBIT_FALLBACK_DIST = 8; // empty crosshair: orbit a point this far ahead
 
+/** Camera basis for standing on a face: `up` is the surface normal, and the
+ *  other two axes are any stable tangents. three cameras look down -Z, so the
+ *  matrix's third column is "back". */
+function buildWallBasis(up: THREE.Vector3) {
+  wUp.copy(up).normalize();
+  // Any reference that is not parallel to the normal gives a stable tangent.
+  wRef.set(0, 1, 0);
+  if (Math.abs(wUp.dot(wRef)) > 0.95) wRef.set(0, 0, 1);
+  wRight.copy(wRef).cross(wUp).normalize();
+  wBack.copy(wRight).cross(wUp).normalize();
+  wMat.makeBasis(wRight, wUp, wBack);
+  wQuat.setFromRotationMatrix(wMat);
+}
+
 export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
   const axe = useRef<THREE.Group>(null!);
   const ref = useRef<RapierRigidBody>(null!);
@@ -130,6 +166,8 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
   const headWasTracked = useRef(false);
   // Fist-orbit state.
   const { scene, camera } = useThree();
+  // PointerLockControls, registered with makeDefault in App.
+  const controls = useThree((state) => state.controls);
   const orbitWas = useRef(false);
   const orbitTarget = useRef(new THREE.Vector3());
   const orbitRadius = useRef(0);
@@ -145,12 +183,15 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
   const onWall = useRef(false);
   const zipTarget = useRef<THREE.Vector3 | null>(null);
   const zipDeadline = useRef(0);
+  const zipFace = useRef<THREE.Vector3 | null>(null);
   // Flight: the altitude the last double-tap asked for.
   const flyTarget = useRef<number | null>(null);
   const lastJumpTap = useRef(0);
-  // Pangolin: the collider is flipped to a sensor so nothing stops you.
-  const colliderRef = useRef<RapierCollider>(null);
-  const phasing = useRef(false);
+  // Wall walking: the face we are standing on, and where we look on it.
+  const wallUp = useRef<THREE.Vector3 | null>(null);
+  const wallYaw = useRef(0);
+  const wallPitch = useRef(0);
+  const gravityOn = useRef(true);
 
   // The one effect Player needs during render rather than in the frame loop:
   // the collider size is a prop, so shrinking means re-rendering.
@@ -183,6 +224,23 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
   useEffect(() => {
     camera.rotation.set(0, 0, 0);
   }, [camera]);
+  // While wall-walking the camera is built from the wall's own frame, so
+  // PointerLockControls (which assumes world Y-up) is switched off and its
+  // mouse input handled here instead.
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!wallUp.current || !document.pointerLockElement) return;
+      wallYaw.current -= e.movementX * WALL_LOOK_SENSITIVITY;
+      wallPitch.current = THREE.MathUtils.clamp(
+        wallPitch.current - e.movementY * WALL_LOOK_SENSITIVITY,
+        -WALL_MAX_PITCH,
+        WALL_MAX_PITCH,
+      );
+    };
+    document.addEventListener("mousemove", onMove);
+    return () => document.removeEventListener("mousemove", onMove);
+  }, []);
+
   // SPIDER web: clicking something FAR away pulls you to it. Near clicks are
   // left alone so breaking still works — the split is the break reach itself,
   // which is also how the player already reads "in range" vs "over there".
@@ -201,12 +259,47 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
         });
       if (!hit) return;
       zipTarget.current = hit.point.clone();
+      // Land standing on whatever face was clicked, the same as walking
+      // into one — so a web shot across the atrium reorients you too.
+      if (hit.face) {
+        zipFace.current = hit.face.normal
+          .clone()
+          .transformDirection(hit.object.matrixWorld)
+          .normalize();
+      } else {
+        zipFace.current = null;
+      }
       zipDeadline.current = performance.now() / 1000 + ZIP_TIMEOUT;
       playWebZip();
     };
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [camera, scene]);
+
+  /** Snap onto a face: adopt its normal as "up", and pick a yaw that keeps
+   *  looking roughly where the player already was, so the flip is a roll
+   *  rather than a teleport of the view. */
+  const attachToFace = (
+    nx: number,
+    ny: number,
+    nz: number,
+    cam: THREE.Camera,
+  ) => {
+    const up = (wallUp.current ??= new THREE.Vector3());
+    up.set(nx, ny, nz).normalize();
+    buildWallBasis(up);
+    // Project the old view direction into the new face's tangent plane and
+    // read the yaw straight off it.
+    const look = cam.getWorldDirection(rotation).clone();
+    look.addScaledVector(up, -look.dot(up));
+    if (look.lengthSq() < 1e-6) look.copy(wBack).negate();
+    look.normalize();
+    wallYaw.current = Math.atan2(
+      -look.dot(wRight),
+      -look.dot(wBack),
+    );
+    wallPitch.current = 0;
+  };
 
   useFrame((state, delta) => {
     // Rapier's wasm initialises asynchronously, so on a cold load this loop can
@@ -237,7 +330,7 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     const shape = tiny ? CAPSULE_TINY : CAPSULE_NORMAL;
     const body = ref.current.translation();
     playerOrigin.set(body.x, body.y, body.z);
-    state.camera.position.set(body.x, body.y + eyeLift(shape), body.z);
+    state.camera.position.set(body.x, body.y + eyeLift(shape, isTiny), body.z);
     // gesture input (merged with mouse + keyboard)
     const gesture = useGestureStore.getState();
     const gestureOn = gesture.status === "on";
@@ -362,75 +455,111 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     const groundReach = isTiny ? 0.45 : 0.85;
     const grounded = ray && ray.collider && Math.abs(ray.timeOfImpact) <= groundReach;
 
-    // PANGOLIN: turn the capsule into a sensor and the world stops stopping
-    // you. Gravity has to go with it — without the floor pushing back you
-    // would simply fall out of the model — so phasing is a slow hover that
-    // happens to ignore walls, and Space/Shift trim the height. Flipped on
-    // transition only; Rapier does bookkeeping on every sensor change.
-    const canPhase = heroActive.includes("phase");
-    if (canPhase !== phasing.current) {
-      phasing.current = canPhase;
-      colliderRef.current?.setSensor(canPhase);
-      // Leaving phase drops you: gravity is restored below by the fly check
-      // unless flight is also on, which is exactly the wanted behaviour.
-      ref.current.setGravityScale(canPhase ? 0 : 1, true);
-    }
 
     // FLY: gravity off, Space rises and Shift drops. Toggled on transition
     // rather than every frame so we don't fight Rapier's own bookkeeping.
     if (canFly !== flying.current) {
       flying.current = canFly;
-      // Phasing already zeroed gravity; don't hand it back underneath it.
-      if (!phasing.current) ref.current.setGravityScale(canFly ? 0 : 1, true);
+      ref.current.setGravityScale(canFly ? 0 : 1, true);
+    }
+    // Standing on a wall replaces world gravity with the stick force below;
+    // leaving the wall hands it straight back so you fall.
+    const wantGravity = !wallUp.current && !flying.current;
+    if (gravityOn.current !== wantGravity) {
+      gravityOn.current = wantGravity;
+      ref.current.setGravityScale(wantGravity ? 1 : 0, true);
     }
 
     // MONKEY: walking into a wall climbs it. The ray goes along the camera's
     // horizontal facing, so you climb whatever you're looking at and pressing
     // into — no separate "grab" input to explain.
-    let climbing = false;
-    if (canClimb && !orbiting) {
-      state.camera.getWorldDirection(climbDir);
-      climbDir.y = 0;
-      if (climbDir.lengthSq() > 0.0001) {
-        climbDir.normalize();
-        const origin = ref.current.translation();
-        // Probe at several heights, not just the body centre: a centre-only ray
-        // sails over a one-block ledge — the very thing that stops you walking —
-        // so the climb would refuse to start on exactly the obstacles it exists
-        // to solve. Any hit counts as a wall, and the first one gives us the
-        // face we are crawling on.
-        for (const offset of WALL_PROBE_HEIGHTS) {
-          const hit = world.castRayAndGetNormal(
-            new RAPIER.Ray(
-              { x: origin.x, y: origin.y + offset, z: origin.z },
-              climbDir,
-            ),
-            WALL_REACH,
-            true,
-            undefined,
-            undefined,
-            undefined,
-            ref.current,
-          );
-          if (hit && hit.collider) {
-            climbing = true;
-            wallNormal.set(hit.normal.x, 0, hit.normal.z);
-            if (wallNormal.lengthSq() < 1e-6) wallNormal.copy(climbDir).negate();
-            wallNormal.normalize();
-            break;
+    // SPIDER. Walking into a wall while the power is on flips you onto it:
+    // that face becomes the floor, the sky is ahead, and you crawl across
+    // the building like the animal does. Leaving the power drops you.
+    if (!canClimb || orbiting) wallUp.current = null;
+
+    if (canClimb && !orbiting && !wallUp.current) {
+      // Not yet attached: pressing forward into a face grabs it.
+      if (forward || gestureForward) {
+        state.camera.getWorldDirection(climbDir);
+        climbDir.y = 0;
+        if (climbDir.lengthSq() > 0.0001) {
+          climbDir.normalize();
+          for (const offset of WALL_PROBE_HEIGHTS) {
+            const hit = world.castRayAndGetNormal(
+              new RAPIER.Ray(
+                { x: body.x, y: body.y + offset, z: body.z },
+                climbDir,
+              ),
+              WALL_REACH,
+              true,
+              undefined,
+              undefined,
+              undefined,
+              ref.current,
+            );
+            if (hit && hit.collider) {
+              attachToFace(hit.normal.x, hit.normal.y, hit.normal.z, state.camera);
+              break;
+            }
           }
         }
       }
+    } else if (wallUp.current) {
+      // Attached: keep the face under our feet up to date, so crawling over
+      // a corner rolls onto the next face instead of dropping off it.
+      wUp.copy(wallUp.current);
+      const below = world.castRayAndGetNormal(
+        new RAPIER.Ray(body, { x: -wUp.x, y: -wUp.y, z: -wUp.z }),
+        WALL_REPROBE,
+        true,
+        undefined,
+        undefined,
+        undefined,
+        ref.current,
+      );
+      if (below && below.collider) {
+        wallUp.current.set(below.normal.x, below.normal.y, below.normal.z).normalize();
+      } else {
+        // Nothing underfoot. Try the face we are walking into — that is a
+        // convex corner, and wrapping onto it is the whole point.
+        const ahead = world.castRayAndGetNormal(
+          new RAPIER.Ray(body, { x: wMove.x, y: wMove.y, z: wMove.z }),
+          WALL_REPROBE,
+          true,
+          undefined,
+          undefined,
+          undefined,
+          ref.current,
+        );
+        if (ahead && ahead.collider && wMove.lengthSq() > 0.01) {
+          attachToFace(ahead.normal.x, ahead.normal.y, ahead.normal.z, state.camera);
+        } else {
+          wallUp.current = null;
+        }
+      }
     }
+    const climbing = wallUp.current !== null;
     onWall.current = climbing;
 
-    if (
-      !orbiting &&
-      !climbing &&
-      !flying.current &&
-      !phasing.current &&
-      (direction.x || direction.z)
-    ) {
+    // Drive the camera from the wall's frame while attached, and hand the
+    // mouse back to PointerLockControls when not.
+    const plc = controls as { enabled?: boolean } | null;
+    if (climbing && wallUp.current) {
+      if (plc && plc.enabled !== false) plc.enabled = false;
+      buildWallBasis(wallUp.current);
+      wEuler.set(wallPitch.current, wallYaw.current, 0, "YXZ");
+      wLocal.setFromEuler(wEuler);
+      state.camera.quaternion.copy(wQuat).multiply(wLocal);
+      // Where "forward" points across the face, for movement and corner probing.
+      wMove.set(0, 0, -1).applyQuaternion(state.camera.quaternion);
+      wMove.addScaledVector(wallUp.current, -wMove.dot(wallUp.current));
+      if (wMove.lengthSq() > 1e-6) wMove.normalize();
+    } else if (plc && plc.enabled === false) {
+      plc.enabled = true;
+    }
+
+    if (!orbiting && !climbing && !flying.current && (direction.x || direction.z)) {
       // setLinvel every frame would otherwise keep driving the capsule into a
       // stair riser or voxel corner after the solver already pushed it out.
       slideDir.set(direction.x, 0, direction.z);
@@ -473,7 +602,17 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
       );
       const dist = zipVec.length();
       if (!canClimb || orbiting || dist < ZIP_ARRIVE || now > zipDeadline.current) {
+        // Arriving on a face you shot at lands you standing on it.
+        if (dist < ZIP_ARRIVE && zipFace.current && canClimb) {
+          attachToFace(
+            zipFace.current.x,
+            zipFace.current.y,
+            zipFace.current.z,
+            state.camera,
+          );
+        }
         zipTarget.current = null;
+        zipFace.current = null;
       } else {
         zipVec.normalize().multiplyScalar(ZIP_SPEED);
         ref.current.setLinvel({ x: zipVec.x, y: zipVec.y, z: zipVec.z }, true);
@@ -485,25 +624,26 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
       let vz = direction.z;
       let vertical = velocity.y;
 
-      if (phasing.current) {
-        // Straight through: no wall slide, no ground clamp, just the walk
-        // vector plus optional vertical trim.
-        vertical = (+(jump || false) - +(crouch || false)) * FLY_SPEED * 0.6;
-      } else if (climbing) {
-        // Stuck to the wall: forward/back crawl up and down it, left/right
-        // slide along its face. The plain walk vector is discarded — on a
-        // wall the same keys mean something different.
-        const wantUp = +(forward || gestureForward) - +(backward || gestureBack);
-        const wantSide = +right - +left;
-        vertical = wantUp * CLIMB_SPEED;
-        wallRight.set(-wallNormal.z, 0, wallNormal.x).multiplyScalar(
-          wantSide * CLIMB_STRAFE_SPEED,
+      if (climbing && wallUp.current) {
+        // On the face: WASD walks across it in the wall's own tangent
+        // plane, and a steady pull into it keeps you attached. Velocity is
+        // fully three-dimensional here, so there is no "vertical" to speak of.
+        const goF = +(forward || gestureForward) - +(backward || gestureBack);
+        const goR = +right - +left;
+        wallRight.copy(wRight);
+        wallRight.applyAxisAngle(wallUp.current, wallYaw.current);
+        wMove.copy(wallRight).multiplyScalar(-goR);
+        wMove.addScaledVector(
+          wallRight.clone().cross(wallUp.current).normalize(),
+          goF,
         );
-        // A little push into the face keeps contact without the friction
-        // that used to drag the measured climb down to ~0.7m/s.
-        vx = wallRight.x - wallNormal.x * SPEED * CLIMB_WALL_PUSH;
-        vz = wallRight.z - wallNormal.z * SPEED * CLIMB_WALL_PUSH;
-      } else if (flying.current) {
+        if (wMove.lengthSq() > 1e-6) wMove.normalize();
+        wMove.multiplyScalar(WALL_WALK_SPEED);
+        wMove.addScaledVector(wallUp.current, -WALL_STICK);
+        ref.current.setLinvel({ x: wMove.x, y: wMove.y, z: wMove.z }, true);
+        return;
+      }
+      if (flying.current) {
         if (flyTarget.current !== null) {
           // Ease toward the altitude the last double-tap asked for, then hold
           // it: flight is level cruising, not a climb you have to trim.
@@ -585,7 +725,6 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
         enabledRotations={[false, false, false]}
       >
         <CapsuleCollider
-          ref={colliderRef}
           args={tiny ? CAPSULE_TINY : CAPSULE_NORMAL}
           friction={0}
           restitution={0}

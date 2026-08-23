@@ -1,21 +1,15 @@
 import { create } from "zustand";
 
 /**
- * Animal-power hunt. Five emblems hide in the building (placed
+ * Animal-power hunt. Four emblems hide in the building (placed
  * procedurally over whatever model is streamed in — see
  * emblemPlacement.ts); walking into one permanently unlocks a way of
  * moving, toggled from the numbered slots in the HUD. Powers stack, and
  * an owned power can be used as often as the player likes.
  */
-export type AbilityId = "speed" | "tiny" | "fly" | "climb" | "phase";
+export type AbilityId = "speed" | "tiny" | "fly" | "climb";
 
-export const ABILITY_ORDER: AbilityId[] = [
-  "speed",
-  "tiny",
-  "fly",
-  "climb",
-  "phase",
-];
+export const ABILITY_ORDER: AbilityId[] = ["speed", "tiny", "fly", "climb"];
 
 /** Emblem colours, one per power. */
 export const ABILITY_COLORS: Record<AbilityId, string> = {
@@ -23,7 +17,6 @@ export const ABILITY_COLORS: Record<AbilityId, string> = {
   tiny: "#8b5cf6",
   fly: "#f59e0b",
   climb: "#ef4444",
-  phase: "#0ea5e9",
 };
 
 export type Ability = { name: string; emoji: string; power: string };
@@ -41,8 +34,6 @@ export const ABILITIES: Record<AbilityId, Ability> = {
     emoji: "🕷️",
     power: "Walk into a wall to climb it · click far away to swing over",
   },
-  // No pangolin emoji exists; the hedgehog is the nearest scaly-ball animal.
-  phase: { name: "Pangolin", emoji: "🦔", power: "Burrow straight through walls" },
 };
 
 type HeroState = {
