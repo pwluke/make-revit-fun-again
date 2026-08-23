@@ -50,7 +50,7 @@ export function TopBar() {
       <a
         className="brand"
         href="/"
-        aria-label="BIM Blocks home"
+        aria-label="B I M Blocks home"
         onClick={(event) => {
           event.preventDefault();
           setMode("explore", true);
@@ -62,7 +62,7 @@ export function TopBar() {
           <span />
         </span>
         <span className="brand-wordmark">
-          <strong>BIM</strong>
+          <strong >B I M</strong>
           <em>BLOCKS</em>
         </span>
       </a>

@@ -130,7 +130,7 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
     : isLoading
       ? "Receiving model update\u2026"
       : "Live model connected";
-  const modelName = "Riverside School";
+  const modelName = "Snowden Tower  ";
 
   const tone = useCallback(
     (frequency?: number, duration?: number) => {

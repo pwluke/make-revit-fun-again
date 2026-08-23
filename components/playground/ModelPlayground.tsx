@@ -463,7 +463,7 @@ export default function ModelPlayground({ className = "" }: { className?: string
 
         <button className={styles.modelStatus} type="button" onClick={() => showToast("Riverside School", "Your live Minecraft model is connected and ready.")}>
           <span className={styles.modelThumb} aria-hidden="true">⌂</span>
-          <span className={styles.modelCopy}><strong>Riverside School</strong><small><i />Live model connected</small></span>
+          <span className={styles.modelCopy}><strong>Snowden Tower</strong><small><i />Live model connected</small></span>
           <ChevronDown size={16} aria-hidden="true" />
         </button>
 
