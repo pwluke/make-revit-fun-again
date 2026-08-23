@@ -39,9 +39,15 @@ export function Flood() {
   }, [respawnToken]);
 
   useFrame((state, delta) => {
-    const drowned = useFloodStore.getState().drowned;
+    const { drowned, creative } = useFloodStore.getState();
 
-    if (!drowned && !floodState.paused) {
+    // Creative mode freezes the water where it is rather than draining it: a
+    // sudden drop would strand anything the player built at the old level, and
+    // "stop the rise" is what was actually asked for. The surface, the breath
+    // meter and the submerged tint all keep working from the frozen level.
+    // `paused` is the same freeze, written by Laser Tag so a round doesn't
+    // drown you while you hunt.
+    if (!drowned && !creative && !floodState.paused) {
       floodState.elapsed += delta;
       floodState.level = Math.min(
         MAX_LEVEL,
@@ -60,7 +66,12 @@ export function Flood() {
     const submerged = state.camera.position.y < floodState.level;
     floodState.submerged = submerged;
 
-    if (!drowned && !floodState.paused) {
+    if (creative) {
+      // Breath stays full so the meter does not sit at zero and the screen does
+      // not tint as though you were about to drown. Swimming under a frozen
+      // flood is a legitimate way to get around in creative mode.
+      floodState.breath = 1;
+    } else if (!drowned && !floodState.paused) {
       floodState.breath = THREE.MathUtils.clamp(
         submerged
           ? floodState.breath - delta / BREATH_SECONDS

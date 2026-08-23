@@ -9,7 +9,7 @@ import {
   useRapier,
   type RapierRigidBody,
 } from "@react-three/rapier";
-import Axe from "./Axe";
+import { HeldItem } from "./HeldItem";
 import { useGestureStore } from "../gesture/store";
 import { hitBlockCenter } from "./GestureBuilder";
 import { powerupState, usePowerupStore } from "../world/powerupStore";
@@ -245,11 +245,19 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     // update axe — hidden while Laser Tag holds the world, so the diamond axe
     // doesn't float alongside the laser gun.
     axe.current.visible = !laserTagState.active;
-    axe.current.children[0].rotation.x = lerp(
-      axe.current.children[0].rotation.x,
-      Math.sin(+(speed > 1) * state.clock.elapsedTime * 10) / 6,
-      0.1,
-    );
+    // children[0] is whatever HeldItem rendered — the axe, or the player's
+    // newest creation. It is momentarily ABSENT while a creation's GLB
+    // downloads and Suspense swaps the subtree, and an unguarded read throws
+    // inside the frame loop, which kills the loop outright rather than dropping
+    // a frame.
+    const held = axe.current?.children[0];
+    if (held) {
+      held.rotation.x = lerp(
+        held.rotation.x,
+        Math.sin(+(speed > 1) * state.clock.elapsedTime * 10) / 6,
+        0.1,
+      );
+    }
     axe.current.rotation.copy(state.camera.rotation);
     axe.current.position
       .copy(state.camera.position)
@@ -408,9 +416,15 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
       </RigidBody>
       <group
         ref={axe}
-        onPointerMissed={(e) => (axe.current.children[0].rotation.x = -0.5)}
+        onPointerMissed={() => {
+          // Same guard as the frame loop: the held item swaps between the axe
+          // and a generated model, and a generated model suspends while it
+          // downloads, so a child is not guaranteed to exist.
+          const held = axe.current?.children[0];
+          if (held) held.rotation.x = -0.5;
+        }}
       >
-        <Axe position={[0.3, -0.35, 0.5]} />
+        <HeldItem />
       </group>
     </>
   );

@@ -23,6 +23,7 @@ import { BreakDebris, playBreakSound, spawnBreakDebris } from "./break-fx";
 import { playerOrigin } from "./player-origin";
 import { THEMES, type LayerId } from "@/lib/themes";
 import { useSceneTheme, useThemeStore } from "../world/themeStore";
+import { sketchStore } from "../sketch3d/core/strokeStore";
 
 // How far the player can reach to break or place, in world units. Also caps the
 // per-frame raycast, so a block across the map can't be edited by aiming at it.
@@ -326,6 +327,12 @@ function InstancedCubes({
       // This also skips the first click, the one that grabs the lock, which
       // shouldn't edit the world.
       if (!document.pointerLockElement) return;
+      // Draw mode owns the left mouse button — see
+      // docs/specs/2026-08-22-sketch-3d-design.md §6.1. Without this, every
+      // stroke would also smash whatever block the crosshair passed over.
+      // (Selection needs no guard here: it releases pointer lock, so the check
+      // above has already returned.)
+      if (sketchStore.getState().drawMode) return;
       // Laser Tag owns the left button while it is running — a shot must not
       // also demolish the arena you are hunting in. Right-click placement goes
       // with it, which is what you want mid-round.
