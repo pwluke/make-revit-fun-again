@@ -65,10 +65,11 @@ const ZIP_MAX_DIST = 60;
 const WEB_MIN_DIST = 9;
 const ZIP_ARRIVE = 1.4;
 const ZIP_TIMEOUT = 3; // seconds, so a blocked pull always lets go
-/** Flight: each double-tap of jump lifts the hover target by this much. */
-const FLY_STEP = 5;
+/** Flight: each double-tap of jump lifts the hover target by this much.
+ *  The model's storeys sit ~3m apart, so one tap is about two floors. */
+const FLY_STEP = 6;
 /** How fast the body eases toward its hover target. */
-const FLY_CLIMB_SPEED = 7;
+const FLY_CLIMB_SPEED = 9;
 /** Two jump presses inside this window count as a double-tap. */
 const DOUBLE_TAP_MS = 320;
 /** Seconds after a jump during which "grounded" is ignored, so the body still
