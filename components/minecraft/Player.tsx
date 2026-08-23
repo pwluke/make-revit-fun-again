@@ -97,6 +97,7 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     camera.rotation.set(0, 0, 0);
   }, [camera]);
   useFrame((state) => {
+    if (!ref.current) return;
     const { forward, backward, left, right, jump } = get();
     const velocity = ref.current.linvel();
     const speed = Math.hypot(velocity.x, velocity.y, velocity.z);

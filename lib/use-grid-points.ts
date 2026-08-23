@@ -24,26 +24,24 @@ export type PointLayer = {
   id: string;
   file: string;
   color: string;
-  /** Flip to true once that JSON lands in /public. */
   enabled: boolean;
 };
 
 /**
- * Ten warm pastel layers, one file each. Only `points` is fetched today;
- * the rest keep their colors so dropping in points1.json…points9.json is
- * just flipping `enabled`.
+ * Ten warm pastel layers, one `_voxels.json` file each. Colors stay distinct
+ * so walls / floors / roof read apart once they stack on the shared grid.
  */
 export const POINT_LAYERS: PointLayer[] = [
-  { id: "points", file: "/points.json", color: "#f4c7a1", enabled: true },
-  { id: "points1", file: "/points1.json", color: "#f5a99a", enabled: false },
-  { id: "points2", file: "/points2.json", color: "#f8d3a3", enabled: false },
-  { id: "points3", file: "/points3.json", color: "#f3b8c2", enabled: false },
-  { id: "points4", file: "/points4.json", color: "#f6e3a8", enabled: false },
-  { id: "points5", file: "/points5.json", color: "#e8a990", enabled: false },
-  { id: "points6", file: "/points6.json", color: "#eed49a", enabled: false },
-  { id: "points7", file: "/points7.json", color: "#f5c4c8", enabled: false },
-  { id: "points8", file: "/points8.json", color: "#e8d2b0", enabled: false },
-  { id: "points9", file: "/points9.json", color: "#f2b8a8", enabled: false },
+  { id: "S-FNDN", file: "/S-FNDN_voxels.json", color: "#e8d2b0", enabled: true },
+  { id: "A-FLOR", file: "/A-FLOR_voxels.json", color: "#f8d3a3", enabled: true },
+  { id: "A-FLOR-OTLN", file: "/A-FLOR-OTLN_voxels.json", color: "#f3b8c2", enabled: true },
+  { id: "A-WALL", file: "/A-WALL_voxels.json", color: "#f4c7a1", enabled: true },
+  { id: "I-WALL", file: "/I-WALL_voxels.json", color: "#f5a99a", enabled: true },
+  { id: "A-COLS", file: "/A-COLS_voxels.json", color: "#eed49a", enabled: true },
+  { id: "S-STRS", file: "/S-STRS_voxels.json", color: "#f2b8a8", enabled: true },
+  { id: "A-CLNG", file: "/A-CLNG_voxels.json", color: "#f6e3a8", enabled: true },
+  { id: "A-ROOF", file: "/A-ROOF_voxels.json", color: "#e8a990", enabled: true },
+  { id: "A-GENM", file: "/A-GENM_voxels.json", color: "#f5c4c8", enabled: true },
 ];
 
 /** Edge length of the previous InstantDB cubes. This grid is ~1/3 of that. */
@@ -91,8 +89,8 @@ function ensureLoad() {
           if (!response.ok) {
             throw new Error(`Could not load ${layer.file} (${response.status})`);
           }
-          const raw = (await response.json()) as RawPoint[];
-          return { layer, raw };
+          const json: unknown = await response.json();
+          return { layer, raw: extractRawPoints(json, layer.file) };
         }),
       );
       const prepared = preparePoints(loaded);
@@ -110,6 +108,18 @@ function ensureLoad() {
       });
     }
   })();
+}
+
+function extractRawPoints(json: unknown, file: string): RawPoint[] {
+  if (Array.isArray(json)) return json as RawPoint[];
+  if (
+    json &&
+    typeof json === "object" &&
+    Array.isArray((json as { points?: unknown }).points)
+  ) {
+    return (json as { points: RawPoint[] }).points;
+  }
+  throw new Error(`${file} must be an array or { points: [] }`);
 }
 
 /**
@@ -153,7 +163,7 @@ function preparePoints(
     positions: raw.map((point) => rhinoToThree(point.x, point.y, point.z)),
   }));
 
-  const sample = converted[0].positions;
+  const sample = converted.flatMap(({ positions }) => positions);
   const xStep = axisStep(sample.map((position) => position[0]));
   const yStep = axisStep(sample.map((position) => position[1]));
   const zStep = axisStep(sample.map((position) => position[2]));
