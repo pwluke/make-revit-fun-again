@@ -16,6 +16,7 @@ import { generateFast } from "./core/trellisClient";
 import { warmAll } from "./core/warmup";
 import type { CreationMode, Generate, Progress } from "./core/types";
 import { onSceneInputUnlocked } from "./r3f/useR3FSceneBridge";
+import { useCreationPersistence } from "./useCreationPersistence";
 import { SketchOverlay } from "./ui/SketchOverlay";
 
 /**
@@ -60,6 +61,10 @@ function resolveGenerateFn(mode: CreationMode): Generate {
  * the fal.ai call, both DOM/JS concerns that don't belong in the scene.
  */
 export function SketchToWorld() {
+  // Restores anything made in a previous session, and keeps storage in step
+  // from here on.
+  useCreationPersistence();
+
   const [open, setOpen] = useState(false);
   /** Most recent generation failure, surfaced in the world and auto-dismissed. */
   const [lastError, setLastError] = useState<string | null>(null);

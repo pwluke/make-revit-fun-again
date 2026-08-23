@@ -46,6 +46,15 @@ export type CreationStoreState = {
   setTransform: (id: string, patch: Partial<CreationTransform>) => void;
   /** Puts a creation's base back on the floor. */
   dropToGround: (id: string) => void;
+
+  /**
+   * Replaces the list with creations restored from storage.
+   *
+   * Only ever called once, on mount, before anything can be generated — hence a
+   * replace rather than a merge. Merging would need identity rules for a
+   * conflict that cannot happen.
+   */
+  hydrate: (creations: Creation[]) => void;
 };
 
 export function createCreationStore(): StoreApi<CreationStoreState> {
@@ -116,6 +125,8 @@ export function createCreationStore(): StoreApi<CreationStoreState> {
             : creation,
         ),
       })),
+
+    hydrate: (creations) => set({ creations, selectedId: null }),
   }));
 }
 

@@ -44,6 +44,7 @@ export const handleWasJustInteracted = () => performance.now() - handleInteracti
 const HANDLE_SIZE = 0.12;
 const BOX_COLOR = "#38bdf8";
 const HANDLE_COLOR = "#ffffff";
+const DELETE_COLOR = "#e5352b";
 
 /** Matches the normalised creation size in Creations.tsx. */
 const BASE_SIZE = 2;
@@ -152,6 +153,14 @@ export function SelectionBox() {
     };
   };
 
+  const deleteCreation = (event: { stopPropagation: () => void }) => {
+    event.stopPropagation();
+    markHandleInteraction();
+    // Removing clears the selection too — removeCreation nulls selectedId when
+    // it matches, so the box cannot outlive the thing it was framing.
+    creationStore.getState().removeCreation(creation.id);
+  };
+
   const beginMove = (event: { clientY: number; stopPropagation: () => void }) => {
     event.stopPropagation();
     markHandleInteraction();
@@ -201,6 +210,25 @@ export function SelectionBox() {
           <meshBasicMaterial color={HANDLE_COLOR} depthTest={false} side={THREE.DoubleSide} />
         </mesh>
       ))}
+
+      {/* Delete. Sits OUTSIDE the box's top-right corner rather than on it, so
+          it cannot be hit while reaching for the scale handle — the two do very
+          different things and one of them is destructive. Red for the same
+          reason, matching the error markers elsewhere. */}
+      <group position={[half + HANDLE_SIZE * 1.4, half + HANDLE_SIZE * 1.4, 0.02]}>
+        <mesh onPointerDown={deleteCreation}>
+          <planeGeometry args={[HANDLE_SIZE * 1.5, HANDLE_SIZE * 1.5]} />
+          <meshBasicMaterial color={DELETE_COLOR} depthTest={false} side={THREE.DoubleSide} />
+        </mesh>
+        {/* The X itself: two thin bars crossed. Cheaper and crisper at this size
+            than a texture, and it scales with the box for free. */}
+        {[Math.PI / 4, -Math.PI / 4].map((angle) => (
+          <mesh key={angle} position={[0, 0, 0.001]} rotation={[0, 0, angle]}>
+            <planeGeometry args={[HANDLE_SIZE * 0.95, HANDLE_SIZE * 0.18]} />
+            <meshBasicMaterial color="#ffffff" depthTest={false} side={THREE.DoubleSide} />
+          </mesh>
+        ))}
+      </group>
     </group>
   );
 }
