@@ -4,8 +4,9 @@ import { create } from "zustand";
  * Animal-power hunt. Four emblems hide in the building (placed
  * procedurally over whatever model is streamed in — see
  * emblemPlacement.ts); walking into one permanently unlocks a way of
- * moving, toggled from the numbered slots in the HUD. Powers stack, and
- * an owned power can be used as often as the player likes.
+ * moving AND switches it straight on. From then on the numbered slots in
+ * the HUD toggle it. Powers stack, and an owned power can be used as often
+ * as the player likes.
  */
 export type AbilityId = "speed" | "tiny" | "fly" | "climb";
 
@@ -58,8 +59,12 @@ export const useHeroStore = create<HeroState>((set, get) => ({
   pendingUnlocks: [],
   collect: (id) => {
     if (get().found.includes(id)) return;
+    // Switched on the instant you pick it up: the power is the reward, so
+    // making the player find the slot and click it first buries the payoff.
+    // It stays on until they turn it off.
     set((s) => ({
       found: [...s.found, id],
+      active: s.active.includes(id) ? s.active : [...s.active, id],
       pendingUnlocks: [...s.pendingUnlocks, id],
     }));
   },
