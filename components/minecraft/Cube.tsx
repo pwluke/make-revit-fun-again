@@ -21,6 +21,7 @@ import { useGestureStore } from "../gesture/store";
 import { laserTagState } from "../lasertag/laserTagStore";
 import { BreakDebris, playBreakSound, spawnBreakDebris } from "./break-fx";
 import { playerOrigin } from "./player-origin";
+import { buildVoxelIndex, cellKey, pickVoxel } from "./voxel-pick";
 import { THEMES, type LayerId } from "@/lib/themes";
 import { useSceneTheme, useThemeStore } from "../world/themeStore";
 import { sketchStore } from "../sketch3d/core/strokeStore";
@@ -35,16 +36,13 @@ import type { EditOp } from "../multiplayer/core/protocol";
 const REACH = 8;
 /** Extra bricks removed with the one you aim at. */
 const BREAK_NEIGHBORS = 10;
-/** Seconds between crosshair re-picks. The highlight only has to keep up with
- *  the eye; breaking forces a fresh pick regardless. */
-const PICK_INTERVAL = 0.1;
 
 const dummy = new THREE.Object3D();
 const tint = new THREE.Color();
 
-// Pointer lock freezes the mouse, so every pick is from the screen centre —
-// i.e. the crosshair the page draws over the canvas.
-const CROSSHAIR = new THREE.Vector2(0, 0);
+// Pointer lock freezes the mouse, so every pick is straight down the camera's
+// facing — i.e. the crosshair the page draws over the canvas.
+const viewDir = new THREE.Vector3();
 
 const keyOf = (x: number, y: number, z: number) =>
   `${x.toFixed(4)},${y.toFixed(4)},${z.toFixed(4)}`;
@@ -139,19 +137,6 @@ function maskRemoved(state: CubeStore, positions: CubeCoords[]) {
     removed,
   };
 }
-
-/**
- * Pack a lattice cell into one number so the occupancy set can be a Set<number>
- * rather than a Set<string>. Interior culling does six lookups per cube across
- * ~317k cubes; building two million strings for that is most of the cost.
- *
- * ±32k cells per axis, which is far more than the model needs, and the packed
- * value stays well inside the 2^53 range doubles represent exactly.
- */
-const CELL_BIAS = 32768;
-const CELL_SPAN = CELL_BIAS * 2;
-const cellKey = (ix: number, iy: number, iz: number) =>
-  (ix + CELL_BIAS) * CELL_SPAN * CELL_SPAN + (iy + CELL_BIAS) * CELL_SPAN + (iz + CELL_BIAS);
 
 /**
  * Drop cubes that are completely surrounded — they can never be seen, but they
@@ -286,19 +271,18 @@ function InstancedCubes({
     mesh.computeBoundingSphere();
   }, [cubes]);
 
-  // Private raycaster: setting `far` on the one from useThree would silently
-  // clamp r3f's own pointer-event system too.
-  const picker = useMemo(() => {
-    const raycaster = new THREE.Raycaster();
-    raycaster.far = REACH;
-    return raycaster;
-  }, []);
+  // Cell -> instance lookup for crosshair picking, rebuilt with the world.
+  const voxelIndex = useMemo(() => buildVoxelIndex(cubes, size), [cubes, size]);
 
   // The pointerdown handler needs the pick synchronously, and React state is a
   // frame behind, so the authoritative copy lives in a ref. `hovered` exists
   // only to drive the highlight render.
-  const hit = useRef<{ index: number; normal: THREE.Vector3 } | null>(null);
-  const pickCooldown = useRef(0);
+  // The normal is a plain axis vector, not a THREE.Vector3: the voxel walk knows
+  // which face it crossed, and neighborPosition only reads x/y/z.
+  const hit = useRef<{
+    index: number;
+    normal: { x: number; y: number; z: number };
+  } | null>(null);
 
   const clearHit = useCallback(() => {
     hit.current = null;
@@ -329,7 +313,7 @@ function InstancedCubes({
     [removeCubes],
   );
 
-  useFrame((_, delta) => {
+  useFrame(() => {
     // Consumed up front, even when nothing is under the crosshair: a queued
     // break that missed should be dropped, not held until the player happens to
     // aim at a block later.
@@ -337,28 +321,22 @@ function InstancedCubes({
     const mesh = meshRef.current;
     if (!mesh || mesh.count === 0) return clearHit();
 
-    // Repicking is throttled because InstancedMesh.raycast is O(instances): once
-    // the ray is inside the batch's bounding sphere it tests every cube on the
-    // CPU, and the voxel layers put ~317k of them in there. Running that every
-    // frame cost more than the entire GPU frame. A break needs the pick to be
-    // current, so it forces one.
-    pickCooldown.current -= delta;
-    const mustPick = breakQueued || pickCooldown.current <= 0;
-    if (mustPick) {
-      pickCooldown.current = PICK_INTERVAL;
-      picker.setFromCamera(CROSSHAIR, camera);
-      const [first] = picker.intersectObject(mesh, false);
-      if (!first || first.instanceId == null || !first.face) return clearHit();
-      hit.current = { index: first.instanceId, normal: first.face.normal };
-      setHovered((current) =>
-        current === first.instanceId ? current : first.instanceId!,
-      );
-    }
+    // Marching the voxel grid is a couple of dozen map lookups regardless of
+    // world size, so this can run every frame again — the throttle this
+    // replaces existed only to make an O(instances) raycast affordable.
+    camera.getWorldDirection(viewDir);
+    const found = pickVoxel(voxelIndex, camera.position, viewDir, REACH);
+    if (!found) return clearHit();
+    hit.current = { index: found.instanceId, normal: found.normal };
+    setHovered((current) =>
+      current === found.instanceId ? current : found.instanceId,
+    );
 
     // Laser Tag owns breaking while a round is live — same gate as pointerdown.
-    if (breakQueued && hit.current && !laserTagState.active) {
-      breakAt(hit.current.index);
-    }
+    // `found.instanceId` rather than `hit.current.index`: they hold the same
+    // value (it was assigned from `found` three lines up), but reading the local
+    // keeps this independent of the ref.
+    if (breakQueued && !laserTagState.active) breakAt(found.instanceId);
   });
 
   useEffect(() => {
