@@ -1,5 +1,10 @@
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
+import {
+  neighborPosition,
+  snapToGroundGrid,
+  useGridPoints,
+} from "@/lib/use-grid-points";
 import { useGestureStore } from "../gesture/store";
 import { useCubeStore } from "./Cube";
 
@@ -36,6 +41,7 @@ export function hitBlockCenter(hit: THREE.Intersection, out: THREE.Vector3) {
  */
 export function GestureBuilder() {
   const addCube = useCubeStore((state) => state.addCube);
+  const { blockSize } = useGridPoints();
   const { camera, scene } = useThree();
   useFrame(() => {
     if (!useGestureStore.getState().consumeBuild()) return;
@@ -51,17 +57,14 @@ export function GestureBuilder() {
     if (!hit || !hit.face) return;
     const mesh = hit.object as THREE.Mesh;
     if (mesh.geometry.type === "PlaneGeometry") {
-      // Ground: snap to the integer grid the cubes live on.
-      addCube(Math.round(hit.point.x), 0.5, Math.round(hit.point.z));
+      addCube(...snapToGroundGrid(hit.point.x, hit.point.z, blockSize));
     } else if (mesh.geometry.type === "BoxGeometry") {
       // Cube or house block: place against the hit face, same as the
       // mouse-click path in Cube.tsx.
       hitBlockCenter(hit, worldPos);
       const n = hit.face.normal.clone().transformDirection(mesh.matrixWorld);
       addCube(
-        worldPos.x + Math.round(n.x),
-        worldPos.y + Math.round(n.y),
-        worldPos.z + Math.round(n.z),
+        ...neighborPosition([worldPos.x, worldPos.y, worldPos.z], n, blockSize),
       );
     }
   });
