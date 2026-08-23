@@ -2,6 +2,7 @@
 
 import { useStarSpots } from "./starPlacement";
 import { useTreasureStore } from "./store";
+import { cn } from "@/lib/utils";
 
 function StarPip({ filled }: { filled: boolean }) {
   return (
@@ -17,8 +18,14 @@ function StarPip({ filled }: { filled: boolean }) {
 }
 
 /** Treasure-hunt scoreboard: how many stars are found, and a nudge toward
- *  the next one so a child is never stuck wandering. */
-export default function TreasureHud() {
+ *  the next one so a child is never stuck wandering.
+ *
+ *  `className` overrides the offsets, because what the top-left corner already
+ *  holds differs per host. On /minecraft it is the "All games" link and the
+ *  default top-16 clears it; the playground moves <ThemeHud/> to the left, and
+ *  its swatch row plus theme-name pill run past 64px — so ModelStage passes a
+ *  lower offset rather than letting the two overlap. */
+export default function TreasureHud({ className }: { className?: string }) {
   const spots = useStarSpots();
   const found = useTreasureStore((s) => s.found);
   const total = useTreasureStore((s) => s.total);
@@ -28,7 +35,12 @@ export default function TreasureHud() {
 
   return (
     // Sits below the "All games" link, which owns the top-left corner.
-    <div className="pointer-events-none absolute top-16 left-4 z-10 flex flex-col items-start gap-2">
+    <div
+      className={cn(
+        "pointer-events-none absolute top-16 left-4 z-10 flex flex-col items-start gap-2",
+        className,
+      )}
+    >
       <div className="rounded-2xl bg-white/90 px-3 py-2 shadow-lg ring-1 ring-slate-900/10">
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold text-slate-700">

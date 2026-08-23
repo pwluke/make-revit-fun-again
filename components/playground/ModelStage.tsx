@@ -131,7 +131,9 @@ export function ModelStage() {
 
             All of these are `absolute`, so they land inside .model-viewport
             (position: relative) rather than over the playground chrome. */}
-        <TreasureHud />
+        {/* top-26, not the default top-16: ThemeHud is left-aligned on this
+            page and its theme-name pill runs to roughly 72px. */}
+        <TreasureHud className="top-26" />
         <PowerupHud />
         <FloodHud />
         {/* top-14 rather than the default top-4: the orbit hint owns the top
