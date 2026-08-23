@@ -23,6 +23,23 @@ import { useStore } from "zustand";
 import { creationStore } from "../core/creationStore";
 import { heightFromDrag, scaleFromDrag } from "../core/transform";
 
+/**
+ * Set when a handle or the box body takes a pointerdown, and read by
+ * SelectionController to know that click was NOT "click empty space to
+ * deselect".
+ *
+ * A module flag rather than R3F's `stopPropagation`, because that only stops
+ * R3F's own synthetic propagation — the native window listener that owns
+ * deselection still fires for the same physical click. Without this, grabbing a
+ * handle deselected the creation on the way down and the drag never began.
+ */
+let handleInteractionAt = 0;
+export const markHandleInteraction = () => {
+  handleInteractionAt = performance.now();
+};
+/** Same-click window. R3F's canvas handler runs before the window one bubbles. */
+export const handleWasJustInteracted = () => performance.now() - handleInteractionAt < 150;
+
 /** Half-size of a corner handle, in world units at the box's distance. */
 const HANDLE_SIZE = 0.12;
 const BOX_COLOR = "#38bdf8";
@@ -125,6 +142,7 @@ export function SelectionBox() {
 
   const beginScale = (event: { clientX: number; clientY: number; stopPropagation: () => void }) => {
     event.stopPropagation();
+    markHandleInteraction();
     const anchor = centerScreen();
     drag.current = {
       kind: "scale",
@@ -136,6 +154,7 @@ export function SelectionBox() {
 
   const beginMove = (event: { clientY: number; stopPropagation: () => void }) => {
     event.stopPropagation();
+    markHandleInteraction();
     // How much world space one screen pixel covers at the box's distance. Without
     // this the object races away from the cursor when far and crawls when near.
     const distance = camera.position.distanceTo(new THREE.Vector3(...center));

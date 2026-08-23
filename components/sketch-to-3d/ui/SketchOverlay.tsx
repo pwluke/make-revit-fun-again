@@ -363,7 +363,18 @@ export function SketchOverlay({ open, onCancel, onSubmit }: SketchOverlayProps) 
               setUserText(e.target.value);
               if (e.target.value.trim().length > 0) setTextHint(null);
             }}
-            placeholder="a red dragon..."
+            onKeyDown={(e) => {
+              // Enter submits. Typing the name of the thing and pressing Enter
+              // is what everyone tries first; making them hunt for the button
+              // afterwards is a small tax paid on every single creation.
+              // stopPropagation keeps it from reaching the window-level key
+              // handlers that drive draw mode and selection.
+              if (e.key !== "Enter") return;
+              e.preventDefault();
+              e.stopPropagation();
+              handleSubmit();
+            }}
+            placeholder="a red dragon... (press Enter)"
             className="flex-1 rounded-full border-2 border-slate-600 bg-slate-800 px-4 py-2 text-base text-white placeholder-slate-400 outline-none focus:border-sky-400"
           />
         </div>

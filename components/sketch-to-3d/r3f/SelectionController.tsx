@@ -18,6 +18,7 @@ import { useEffect } from "react";
 import * as THREE from "three";
 import { useThree } from "@react-three/fiber";
 import { creationStore } from "../core/creationStore";
+import { handleWasJustInteracted } from "./SelectionBox";
 import { sketchStore } from "@/components/sketch3d/core/strokeStore";
 
 const raycaster = new THREE.Raycaster();
@@ -48,11 +49,16 @@ export function SelectionController() {
       const { selectedId, select, bridge } = creationStore.getState();
 
       // While something is selected the pointer is unlocked and the bounding box
-      // handles own the mouse. Clicks are theirs to handle (they stopPropagation);
-      // anything reaching here is a click on empty space, meaning "deselect".
+      // owns the mouse. A click that a handle already claimed is a drag, not a
+      // deselect — and R3F's stopPropagation cannot tell us that, because it
+      // does not stop this native listener. Hence the shared flag.
       if (selectedId) {
+        if (handleWasJustInteracted()) return;
         select(null);
-        bridge?.setInputEnabled(true);
+        // Deliberately NOT re-locking via the bridge: PointerLockControls is
+        // unmounted while a selection exists (see MinecraftScene), so there is
+        // nothing to call. Deselecting remounts it, and its own click handler
+        // re-locks on the player's next click.
         return;
       }
 
@@ -65,7 +71,9 @@ export function SelectionController() {
         const id = creationIdOf(hit.object);
         if (!id) continue;
         select(id);
-        // Hand the mouse back so the bounding box can be dragged.
+        // Hand the mouse back so the bounding box can be dragged. Unmounting
+        // the controls (MinecraftScene) is what restores R3F's normal
+        // cursor-based hit testing; this is what releases the lock itself.
         bridge?.setInputEnabled(false);
         return;
       }
@@ -77,7 +85,6 @@ export function SelectionController() {
 
       if (event.code === "Escape") {
         select(null);
-        bridge?.setInputEnabled(true);
       } else if (event.code === "KeyG") {
         // Drop to the floor. The single most-wanted adjustment, so it gets a key
         // rather than a careful drag.

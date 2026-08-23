@@ -6,6 +6,8 @@ import { Physics } from "@react-three/rapier";
 import { SceneCanvas } from "@/components/canvas/SceneCanvas";
 import { Ground } from "./Ground";
 import { Player } from "./Player";
+import { useStore } from "zustand";
+import { creationStore } from "@/components/sketch-to-3d/core/creationStore";
 import { Creations } from "@/components/sketch-to-3d/r3f/Creations";
 import { GroundGuide } from "@/components/sketch3d/r3f/GroundGuide";
 import { SketchController } from "@/components/sketch3d/r3f/SketchController";
@@ -24,6 +26,15 @@ export const minecraftKeyMap = [
 ];
 
 export function MinecraftScene() {
+  // Editing a creation needs a real cursor, and PointerLockControls actively
+  // prevents one in two ways: it overrides R3F's hit-test compute to always
+  // raycast from the SCREEN CENTRE (drei/core/PointerLockControls.js:38-42), so
+  // no off-centre handle is ever clickable, and it re-locks the pointer on any
+  // click inside its selector (line 60-62). `enabled={false}` fixes neither —
+  // three-stdlib's disconnect() leaves domElement set, so lock() still fires.
+  // Unmounting is the only clean answer.
+  const selectedId = useStore(creationStore, (state) => state.selectedId);
+
   return (
     <>
       <Sky sunPosition={[100, 20, 100]} />
@@ -80,7 +91,7 @@ export function MinecraftScene() {
           `useThree((s) => s.controls)` resolves. drei does that in an effect, so
           without it the scene bridge binds to null on first render and pointer
           lock never releases when the overlay opens. */}
-      <PointerLockControls makeDefault selector="#game-surface" />
+      {!selectedId && <PointerLockControls makeDefault selector="#game-surface" />}
     </>
   );
 }
