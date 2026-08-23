@@ -13,6 +13,7 @@ import {
 import { buildPrompt } from "./core/prompt";
 import { generateSprite } from "./core/spriteClient";
 import { generateFast } from "./core/trellisClient";
+import { warmAll } from "./core/warmup";
 import type { CreationMode, Generate, Progress } from "./core/types";
 import { onSceneInputUnlocked } from "./r3f/useR3FSceneBridge";
 import { SketchOverlay } from "./ui/SketchOverlay";
@@ -66,6 +67,16 @@ export function SketchToWorld() {
     bridge?.setInputEnabled(!open);
   }, [open]);
 
+  // Warm the endpoints the moment the overlay opens. The user then spends 20-60s
+  // drawing and typing, which is exactly the window a cold fal machine needs to
+  // boot — measured queue waits on this project have hit 48.8s, more than the
+  // entire compute budget. warmAll rather than warmForMode because the mode is
+  // chosen inside the overlay, after this fires. No-op unless
+  // NEXT_PUBLIC_WARM_ENDPOINTS=1; warming is billed like any other generation.
+  useEffect(() => {
+    if (open) warmAll();
+  }, [open]);
+
   const handleCancel = useCallback(() => setOpen(false), []);
 
   const handleSubmit = useCallback((png: Blob, userText: string, mode: CreationMode) => {
@@ -98,6 +109,9 @@ export function SketchToWorld() {
         creationStore.getState().updateJob(id, {
           status: "generating",
           message: progress.message,
+          // Carried through so the scene can show fast mode's bridge image while
+          // the mesh is still generating. Undefined for the other two modes.
+          previewUrl: progress.previewUrl,
         });
       }
     };

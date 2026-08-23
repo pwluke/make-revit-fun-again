@@ -37,9 +37,12 @@ export const generateMock: Generate = async (
   return { mode: "mesh", glbUrl: "/axe.glb" };
 };
 
-const MOCK_FAST_MESSAGES: Array<{ message: string; pct: number }> = [
+const MOCK_FAST_MESSAGES: Array<{ message: string; pct: number; preview?: string }> = [
   { message: "Colouring it in…", pct: 0.1 },
-  { message: "Building it in 3D…", pct: 0.35 },
+  // Carries a previewUrl exactly as the real pipeline does once the bridge stage
+  // returns — so the offline path exercises the progressive reveal rather than
+  // sitting on a Ghost, and the feature can be demoed with the wifi down.
+  { message: "Building it in 3D…", pct: 0.35, preview: "/cutout-cat.png" },
 ];
 
 /**
@@ -55,9 +58,12 @@ export const generateFastMock: Generate = async (
   onProgress({ phase: "uploading" });
   await delay(300);
 
-  for (const { message, pct } of MOCK_FAST_MESSAGES) {
-    onProgress({ phase: "generating", message, pct });
-    await delay(500);
+  for (const { message, pct, preview } of MOCK_FAST_MESSAGES) {
+    onProgress({ phase: "generating", message, pct, previewUrl: preview });
+    // The second step lingers, mirroring the real split: the bridge lands in
+    // ~2.3s and the mesh takes ~16s more, so the preview is on screen for most
+    // of the wait. A uniform delay would hide the very behaviour being tested.
+    await delay(preview ? 2500 : 500);
   }
 
   // Same reasoning as generateMock: reuse an asset already in public/ rather

@@ -121,9 +121,15 @@ export const generateFast: Generate = async (
     );
   }
 
-  // Stage 2 — the actual reconstruction. ~70% of the time, so the progress bar
-  // spends most of its life here.
-  onProgress({ phase: "generating", message: "Building it in 3D…", pct: 0.35 });
+  // Stage 2 — the actual reconstruction, and ~85% of the wait now that the bridge
+  // runs at 10 steps. Every progress event from here carries `previewUrl`, so the
+  // scene can show the child their coloured drawing at ~2.3s instead of ~19s.
+  onProgress({
+    phase: "generating",
+    message: "Building it in 3D…",
+    pct: 0.35,
+    previewUrl: bridgeImageUrl,
+  });
   const meshResult = await fal.subscribe("fal-ai/trellis", {
     input: {
       image_url: bridgeImageUrl,
@@ -137,6 +143,7 @@ export const generateFast: Generate = async (
         phase: "generating",
         message: lastLog ?? "Building it in 3D…",
         pct: 0.35,
+        previewUrl: bridgeImageUrl,
       });
     },
   });

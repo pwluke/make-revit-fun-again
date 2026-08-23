@@ -8,6 +8,7 @@ import { useFrame } from "@react-three/fiber";
 import { RigidBody } from "@react-three/rapier";
 import { creationStore } from "../core/creationStore";
 import type { Creation } from "../core/types";
+import { PreviewCard } from "./PreviewCard";
 import { SpriteCreation } from "./SpriteCreation";
 import { useR3FSceneBridge } from "./useR3FSceneBridge";
 
@@ -192,6 +193,17 @@ function CreationEntry({ creation }: { creation: Creation }) {
     return (
       <Suspense fallback={null}>
         <LoadedModel creation={creation} glbUrl={result.glbUrl} />
+      </Suspense>
+    );
+  }
+  // Fast mode hands us its bridge image partway through, so the child sees their
+  // own drawing in colour at ~2.3s rather than a placeholder box for ~19s. The
+  // Ghost remains the fallback for every other mode and for the window before the
+  // bridge lands.
+  if (creation.state.status === "generating" && creation.state.previewUrl) {
+    return (
+      <Suspense fallback={<Ghost creation={creation} />}>
+        <PreviewCard previewUrl={creation.state.previewUrl} spawn={creation.spawn} />
       </Suspense>
     );
   }

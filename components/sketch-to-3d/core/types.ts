@@ -54,7 +54,22 @@ export type Generate = (
  */
 export type JobState =
   | { status: "uploading" }
-  | { status: "generating"; message: string }
+  | {
+      status: "generating";
+      message: string;
+      /**
+       * An intermediate artifact worth showing before the real result lands.
+       *
+       * Fast mode's ControlNet bridge produces a coloured picture of the drawing
+       * in ~2.3s, while the mesh takes ~16s more. Showing it turns a ~19s wait
+       * into a ~3s one for the child, who sees something of theirs immediately
+       * and can walk around while the geometry finishes.
+       *
+       * Optional because only fast mode has such an artifact: mesh and sprite
+       * produce nothing meaningful until they are done.
+       */
+      previewUrl?: string;
+    }
   | { status: "ready"; result: GenerationResult; thumbnailUrl?: string }
   | { status: "error"; message: string; retryable: boolean };
 
@@ -85,7 +100,13 @@ export type Creation = {
  */
 export type Progress =
   | { phase: "uploading" }
-  | { phase: "generating"; message: string; pct?: number };
+  | {
+      phase: "generating";
+      message: string;
+      pct?: number;
+      /** See `JobState`'s generating variant — an intermediate artifact to show early. */
+      previewUrl?: string;
+    };
 
 /**
  * The seam that makes this block renderer-agnostic.
