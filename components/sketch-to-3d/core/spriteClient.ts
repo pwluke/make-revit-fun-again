@@ -17,6 +17,30 @@ import type { Generate, Progress } from "./types";
 fal.config({ proxyUrl: "/api/fal/proxy" });
 
 /**
+ * Shared tuning for the SDXL ControlNet bridge, used by BOTH this file and
+ * trellisClient.ts — the two modes that run this stage.
+ *
+ * `controlnet_conditioning_scale` is the whole story. At fal's default of 0.5
+ * the canny edge map overpowers the prompt: typing "mickey mouse" over a drawing
+ * of a cat produced a washed-out tracing of the cat, because the model split the
+ * difference between the edges and the text instead of committing to either.
+ * That reads as "the words do nothing" AND as "the quality got worse", which is
+ * exactly how it was reported.
+ *
+ * Measured (scripts/bench-bridge-prompt.mjs, cat sketch + "mickey mouse"):
+ *   0.5  (default)  faint unrendered outlines, barely recognisable as anything
+ *   0.3             an unmistakable Mickey toy that KEEPS the drawing's pose
+ *   0.15            a perfect Mickey with almost nothing left of the drawing
+ *
+ * 0.3 is the point where the child's drawing still drives the pose and
+ * composition while their words drive the subject. Do not raise it back toward
+ * 0.5 to "respect the drawing more" — that is what broke it.
+ */
+export const BRIDGE_TUNING = {
+  controlnet_conditioning_scale: 0.3,
+} as const;
+
+/**
  * The client's generated types for each endpoint only declare the one shape
  * its docs promise (`images[]` for fast-sdxl-controlnet-canny, `image` for
  * birefnet). We read both defensively per the brief, since the shapes were
@@ -45,6 +69,7 @@ export const generateSprite: Generate = async (
     input: {
       prompt,
       control_image_url: sketchUrl,
+      ...BRIDGE_TUNING,
     },
     logs: true,
     onQueueUpdate: (update) => {

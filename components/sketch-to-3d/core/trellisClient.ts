@@ -6,9 +6,9 @@
  *
  * Measured 2026-08-22 (scripts/bench-trellis.mjs), compute not wall-clock:
  *
- *   stage 1  fast-sdxl-controlnet-canny   2.3s  (at 10 steps, tuned down from 35)
+ *   stage 1  fast-sdxl-controlnet-canny   6.3s  (35 steps — see num_inference_steps)
  *   stage 2  trellis                     16.3s
- *   total                               ~19s   0.4 MB   ~4,000 triangles   ~$0.02
+ *   total                               ~23s   0.4 MB   ~4,000 triangles   ~$0.02
  *
  * Stage 2 is a floor, not a budget: a sampler-step sweep moved it only between
  * 15.1s and 18.2s, and 4 steps came out SLOWER than 6 — i.e. inside the noise.
@@ -25,6 +25,7 @@
  */
 
 import { fal } from "@fal-ai/client";
+import { BRIDGE_TUNING } from "./spriteClient";
 import type { Generate, Progress } from "./types";
 
 // The proxy injects FAL_KEY server-side; the browser must never see a key.
@@ -87,18 +88,22 @@ export const generateFast: Generate = async (
     input: {
       prompt,
       control_image_url: sketchUrl,
-      // 10, down from the endpoint's default of 35. This is the ONLY step count in
-      // the pipeline worth tuning — see the sweep in scripts/bench-trellis-steps.mjs:
-      //   bridge  35 → 6.3s   20 → 3.8s   10 → 2.3s   6 → 1.7s
-      //   trellis 12 → 18.2s   8 → 16.8s   6 → 15.1s  4 → 16.2s
-      // Canny ControlNet takes its structure from the edge map rather than from
-      // denoising, so 10 steps is visually indistinguishable from 35 here.
-      //
-      // DO NOT GO LOWER. At 6 steps the endpoint returns a fully BLACK image — and
-      // returns it with a 200, so nothing downstream notices; TRELLIS then happily
-      // reconstructs garbage from it. The only outward tell was file size, 34 KB
-      // against ~610 KB for a real render.
-      num_inference_steps: 10,
+      ...BRIDGE_TUNING,
+      /**
+       * Back to the endpoint default of 35, reverting a speed optimisation.
+       *
+       * Cutting to 10 saved ~4s and I verified the output still looked like the
+       * DRAWING — but never checked whether it still responded to the TEXT, which
+       * is the property that actually matters. The step count was measured
+       * against the wrong metric.
+       *
+       *   bridge  35 → 6.3s   20 → 3.8s   10 → 2.3s   6 → 1.7s (BLACK image, unusable)
+       *
+       * A steps sweep under the new controlnet_conditioning_scale is worth doing
+       * — a lower count may well be fine now — but it has not been measured, and
+       * quality complaints outrank 4 seconds.
+       */
+      num_inference_steps: 35,
     },
     logs: true,
     onQueueUpdate: (update) => {
