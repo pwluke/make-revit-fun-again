@@ -77,7 +77,7 @@ export const MODES: Record<ModeId, ModeConfig> = {
     title: "Find all three hidden treasures!",
     guideName: "Scout",
     guide:
-      "Look high, low, and around the trees. Tap every question mark you discover!",
+      "Look high, low, and around the trees. Walk into every animal emblem and dig up every fossil you spot!",
     companion: "\u{1F989}",
     mission: "The final treasure hunt",
     next: "Play the adventure again",
@@ -130,12 +130,6 @@ export const INK_COLORS = [
   { value: "#1d9779", label: "Green pencil" },
 ] as const;
 
-export const TREASURES = [
-  { id: 1, className: "marker-one", label: "Find treasure near the roof" },
-  { id: 2, className: "marker-two", label: "Find treasure near the entrance" },
-  { id: 3, className: "marker-three", label: "Find treasure by the trees" },
-] as const;
-
 export type MissionStep = {
   title: string;
   detail: string;
@@ -148,7 +142,6 @@ export type PlayProgress = {
   inkPicked: boolean;
   sketchDrawn: boolean;
   sketchSaved: boolean;
-  treasures: number[];
   /** Scan-bots tagged this Laser Tag round, and how many the player chose. */
   botsTagged: number;
   botTotal: number;

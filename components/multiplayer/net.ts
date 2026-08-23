@@ -23,11 +23,15 @@ import { setEditListener } from "./core/editBus";
 import { clearPeers, syncPeers } from "./core/peers";
 import {
   decodeEdit,
+  decodePeerColor,
   decodePresence,
+  decodeShot,
   encodeEdit,
+  encodeShot,
   randomAvatarColor,
   type EditOp,
   type PeerState,
+  type ShotOp,
 } from "./core/protocol";
 
 /**
@@ -52,14 +56,20 @@ let lastPublishAt = 0;
 let selfColor = "";
 
 /**
- * Join the room and start mirroring edits and positions. Returns a disconnect.
+ * Join the room and start mirroring edits, positions and shots. Returns a
+ * disconnect.
  *
  * Guards against a second connection: React 19 StrictMode mounts effects twice
  * in development, and two joins would mean this tab appearing as two avatars and
  * every local edit being published twice.
+ *
+ * `onRemoteShot` is handed the shooter's avatar colour as well as the bolt —
+ * null when that peer's presence has not arrived yet — so the caller can tint a
+ * bolt by who fired it without this module knowing what a colour is for.
  */
 export function connectWorldRoom(
   onRemoteEdit: (op: EditOp) => void,
+  onRemoteShot: (op: ShotOp, color: string | null) => void,
 ): () => void {
   if (room) return () => {};
 
@@ -95,12 +105,21 @@ export function connectWorldRoom(
     onRemoteEdit(op);
   });
 
+  // The second argument is the publisher's presence, which is how a bolt gets
+  // the shooter's colour without the shot payload carrying one.
+  const unsubscribeShots = joined.subscribeTopic("shot", (event, peer) => {
+    const op = decodeShot(event);
+    if (!op) return;
+    onRemoteShot(op, decodePeerColor(peer));
+  });
+
   const unsubscribeLocalEdits = setEditListener((op) => {
     joined.publishTopic("edit", encodeEdit(op));
   });
 
   return () => {
     unsubscribeLocalEdits();
+    unsubscribeShots();
     unsubscribeEdits();
     unsubscribePresence();
     joined.leaveRoom();
@@ -129,4 +148,22 @@ export function publishSelf(
   if (now - lastPublishAt < PRESENCE_INTERVAL_MS) return;
   lastPublishAt = now;
   room.publishPresence({ color: selfColor, x, y, z, yaw });
+}
+
+/**
+ * Tell the room this player just fired. Called straight from the fire handler
+ * rather than through a bus — the same shape as `publishSelf`, which Player.tsx
+ * calls directly. The bus in core/editBus.ts exists to keep Cube.tsx free of the
+ * db for testing and to break the remote-apply echo loop, and a shot has neither
+ * problem: nothing re-broadcasts a received bolt.
+ *
+ * Unthrottled, because the trigger already is: FIRE_COOLDOWN caps a held mouse
+ * at ~5.5 shots a second, well under the ~10Hz this tab already spends on
+ * presence.
+ *
+ * No-op with no room, so single-player and tests need no branch of their own.
+ */
+export function publishShot(op: ShotOp): void {
+  if (!room) return;
+  room.publishTopic("shot", encodeShot(op));
 }

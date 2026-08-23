@@ -98,6 +98,92 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+/** One laser bolt someone fired, muzzle to impact. */
+export type ShotOp = {
+  from: Vec3;
+  to: Vec3;
+  /** Whether the shooter's ray landed on a surface, rather than running out of
+   *  range in mid-air. Decides whether the receiver throws sparks. */
+  hit: boolean;
+};
+
+/** The flat row Instant broadcasts. See the `shot` topic in instant.schema.ts. */
+export type ShotMessage = {
+  fx: number;
+  fy: number;
+  fz: number;
+  tx: number;
+  ty: number;
+  tz: number;
+  hit: boolean;
+};
+
+/**
+ * Longest bolt worth drawing, in world units. LaserTag's MAX_RANGE is 45, so
+ * this is ~4x the longest real shot.
+ *
+ * The bolt is drawn by scaling a unit cylinder to the muzzle-to-impact
+ * distance, so an absurd length is not merely wrong — it puts a kilometre of
+ * unlit, tone-mapping-exempt geometry through the middle of the frame, which
+ * the bloom pass then blows out to white. Cheaper to reject it here.
+ */
+export const MAX_SHOT_LENGTH = 200;
+
+export function encodeShot(op: ShotOp): ShotMessage {
+  return {
+    fx: op.from[0],
+    fy: op.from[1],
+    fz: op.from[2],
+    tx: op.to[0],
+    ty: op.to[1],
+    tz: op.to[2],
+    hit: op.hit,
+  };
+}
+
+/**
+ * Same null-not-throw contract as `decodeEdit`, for the same reason: this runs
+ * inside the topic subscription, and a throw would end multiplayer for the
+ * session.
+ *
+ * `hit` is read as `=== true` rather than type-checked, because a wrong answer
+ * there costs eight spark particles — not worth dropping a visible bolt over.
+ */
+export function decodeShot(raw: unknown): ShotOp | null {
+  if (!raw || typeof raw !== "object") return null;
+  const candidate = raw as ShotMessage;
+
+  const { fx, fy, fz, tx, ty, tz } = candidate;
+  if (
+    !isFiniteNumber(fx) ||
+    !isFiniteNumber(fy) ||
+    !isFiniteNumber(fz) ||
+    !isFiniteNumber(tx) ||
+    !isFiniteNumber(ty) ||
+    !isFiniteNumber(tz)
+  ) {
+    return null;
+  }
+  if (Math.hypot(tx - fx, ty - fy, tz - fz) > MAX_SHOT_LENGTH) return null;
+
+  return { from: [fx, fy, fz], to: [tx, ty, tz], hit: candidate.hit === true };
+}
+
+/**
+ * The avatar colour out of a peer's presence, for tinting what they fired.
+ *
+ * Separate from `decodePresence` on purpose: that one requires a position and
+ * returns null without one, which is the right answer for drawing an avatar and
+ * the wrong answer for a bolt. A peer can legitimately publish a shot in the
+ * window between joining and their first position — the bolt should still be
+ * drawn, in their colour.
+ */
+export function decodePeerColor(raw: unknown): string | null {
+  if (!raw || typeof raw !== "object") return null;
+  const { color } = raw as { color?: unknown };
+  return typeof color === "string" && color ? color : null;
+}
+
 /** Where one other player is. Mirrors the `world` room's presence entity. */
 export type PeerState = {
   color: string;

@@ -148,6 +148,35 @@ const _schema = i.schema({
            */
           positions: i.string(),
         }),
+        /**
+         * One laser bolt, so everyone in the room sees who is shooting at whom.
+         *
+         * A TOPIC, NOT PRESENCE, and the distinction matters here. Presence is
+         * last-write-wins state that survives until the peer disconnects: two
+         * shots inside one round-trip would collapse into one, and the last bolt
+         * a peer fired would keep being handed to every client that joined
+         * afterwards. A shot is an event with a 90ms lifetime, which is exactly
+         * what a topic is for — the same reason `edit` is one.
+         *
+         * Six flat numbers rather than a JSON string: unlike an edit, a bolt is
+         * always exactly two points, so there is no variable-length list needing
+         * an encoding. No colour field either — `subscribeTopic` hands over the
+         * publisher's presence alongside the event, so the bolt is tinted with
+         * the shooter's own avatar colour without spending bytes on it.
+         */
+        shot: i.entity({
+          /** Muzzle, world space. */
+          fx: i.number(),
+          fy: i.number(),
+          fz: i.number(),
+          /** Where the bolt stopped: an impact point, or the end of its range. */
+          tx: i.number(),
+          ty: i.number(),
+          tz: i.number(),
+          /** Whether the shooter's ray landed on something, so receivers know
+           *  whether to throw sparks at the far end. */
+          hit: i.boolean(),
+        }),
       },
     },
   },

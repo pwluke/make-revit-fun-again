@@ -2,11 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   AVATAR_COLORS,
   MAX_EDIT_POSITIONS,
+  MAX_SHOT_LENGTH,
   decodeEdit,
+  decodePeerColor,
   decodePresence,
+  decodeShot,
   encodeEdit,
+  encodeShot,
   randomAvatarColor,
   type EditOp,
+  type ShotOp,
 } from "./protocol";
 
 const breakOp: EditOp = {
@@ -97,6 +102,82 @@ describe("decodePresence", () => {
   it("rejects a missing colour", () => {
     expect(decodePresence({ x: 1, y: 2, z: 3, yaw: 0 })).toBeNull();
     expect(decodePresence({ color: "", x: 1, y: 2, z: 3, yaw: 0 })).toBeNull();
+  });
+});
+
+describe("encodeShot / decodeShot", () => {
+  const shot: ShotOp = {
+    from: [1.5, 2.25, -3],
+    to: [1.5, 2.25, -12],
+    hit: true,
+  };
+
+  it("round-trips a bolt through the flat topic shape", () => {
+    expect(decodeShot(encodeShot(shot))).toEqual(shot);
+  });
+
+  it("keeps a miss a miss", () => {
+    const miss: ShotOp = { ...shot, hit: false };
+    expect(decodeShot(encodeShot(miss))).toEqual(miss);
+  });
+
+  it("treats a non-boolean hit flag as a miss rather than dropping the bolt", () => {
+    // Being wrong about `hit` costs eight spark particles. Being wrong about the
+    // bolt means a player's shot is invisible, which is the whole feature.
+    const decoded = decodeShot({ ...encodeShot(shot), hit: "yes" });
+    expect(decoded).not.toBeNull();
+    expect(decoded?.hit).toBe(false);
+  });
+
+  it("rejects non-finite endpoints", () => {
+    expect(decodeShot({ ...encodeShot(shot), fy: Number.NaN })).toBeNull();
+    expect(
+      decodeShot({ ...encodeShot(shot), tz: Number.POSITIVE_INFINITY }),
+    ).toBeNull();
+    expect(decodeShot({ ...encodeShot(shot), fx: null })).toBeNull();
+  });
+
+  it("rejects a bolt longer than the cap", () => {
+    // An unbounded length scales the bolt cylinder across the whole scene, and
+    // the bloom pass then blows that out to a white screen.
+    expect(
+      decodeShot(
+        encodeShot({ from: [0, 0, 0], to: [0, 0, MAX_SHOT_LENGTH + 1], hit: false }),
+      ),
+    ).toBeNull();
+  });
+
+  it("accepts a bolt exactly at the cap", () => {
+    expect(
+      decodeShot(
+        encodeShot({ from: [0, 0, 0], to: [0, 0, MAX_SHOT_LENGTH], hit: false }),
+      ),
+    ).not.toBeNull();
+  });
+
+  it("rejects a non-object", () => {
+    expect(decodeShot(null)).toBeNull();
+    expect(decodeShot("pew")).toBeNull();
+  });
+});
+
+describe("decodePeerColor", () => {
+  it("reads the shooter's tint", () => {
+    expect(decodePeerColor({ color: "#5f63df", x: 1 })).toBe("#5f63df");
+  });
+
+  it("accepts a peer with no position yet", () => {
+    // Unlike decodePresence, which needs coordinates to draw an avatar: a peer
+    // can fire in the window before their first position lands, and that bolt
+    // should still be drawn in their colour.
+    expect(decodePeerColor({ color: "#5f63df" })).toBe("#5f63df");
+  });
+
+  it("returns null when there is no usable colour", () => {
+    expect(decodePeerColor({})).toBeNull();
+    expect(decodePeerColor({ color: "" })).toBeNull();
+    expect(decodePeerColor({ color: 0x5f63df })).toBeNull();
+    expect(decodePeerColor(null)).toBeNull();
   });
 });
 

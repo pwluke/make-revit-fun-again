@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useGestureStore } from "@/components/gesture/store";
+import { publishShot } from "@/components/multiplayer/net";
 import { floodState, useFloodStore } from "@/components/world/floodStore";
 import { ALERT_RADIUS, Bots, spookBots } from "./Bots";
 import { useBotArena } from "./botArena";
@@ -124,6 +125,14 @@ function LaserRig() {
       }
       spawnBolt(muzzle, impact);
       playLaserSound();
+      // Same bolt, out to the room. Published before the hit is scored so a
+      // peer sees the shot even if the scoring below decides it was the last
+      // one of the round.
+      publishShot({
+        from: [muzzle.x, muzzle.y, muzzle.z],
+        to: [impact.x, impact.y, impact.z],
+        hit: hit != null,
+      });
 
       const botId = hit?.object.userData.laserBotId as string | undefined;
       if (hit) {

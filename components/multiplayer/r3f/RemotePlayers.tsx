@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { applyRemoteEdit } from "@/components/minecraft/Cube";
+import { applyRemoteShot } from "@/components/lasertag/remoteShots";
 import { peerList } from "../core/peers";
 import { connectWorldRoom } from "../net";
 
@@ -148,7 +149,15 @@ export function RemotePlayers() {
   // Joining is an effect, not render work: it opens a socket. The cleanup leaves
   // the room, so navigating away removes this player from everyone else's world
   // immediately rather than on a presence timeout.
-  useEffect(() => connectWorldRoom(applyRemoteEdit), []);
+  //
+  // This component owns the room, so it also owns the wiring for everything the
+  // room carries — remote edits into the cube store, remote bolts into the laser
+  // FX pools. Neither handler renders anything here; both write into module
+  // state their own frame loop reads.
+  useEffect(
+    () => connectWorldRoom(applyRemoteEdit, applyRemoteShot),
+    [],
+  );
 
   useFrame((_, delta) => {
     const parts = meshes.current;

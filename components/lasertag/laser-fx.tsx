@@ -113,9 +113,17 @@ function getAudioContext() {
   return audioCtx;
 }
 
-/** A short descending zap. */
-export function playLaserSound() {
+/**
+ * A short descending zap.
+ *
+ * `volume` is a 0..1 scale on the peak, for shots that did not come from the
+ * gun in your hand — another player's laser across the arena should not be as
+ * loud as your own. Zero and below is silence rather than a ramp to zero:
+ * `exponentialRampToValueAtTime` throws on a non-positive target.
+ */
+export function playLaserSound(volume = 1) {
   if (typeof window === "undefined") return;
+  if (volume <= 0) return;
   try {
     const ctx = getAudioContext();
     if (!ctx) return;
@@ -126,7 +134,7 @@ export function playLaserSound() {
     osc.frequency.setValueAtTime(1180, t);
     osc.frequency.exponentialRampToValueAtTime(320, t + 0.09);
     gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.05, t + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.05 * volume, t + 0.006);
     gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
     osc.connect(gain).connect(ctx.destination);
     osc.start(t);

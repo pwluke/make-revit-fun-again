@@ -15,7 +15,7 @@ import { LaserTag } from "@/components/lasertag/LaserTag";
 import { LaserTagHud } from "@/components/lasertag/LaserTagHud";
 import FloodHud from "@/components/world/FloodHud";
 import { MinecraftViewport } from "./MinecraftViewport";
-import { MODES, TREASURES } from "./modes";
+import { MODES } from "./modes";
 import { usePlayground } from "./playground-context";
 import { SketchOverlay } from "./SketchOverlay";
 import { StageToolbar } from "./StageToolbar";
@@ -58,8 +58,6 @@ export function ModelStage() {
     spun,
     zoomIn,
     zoomOut,
-    treasures,
-    findTreasure,
   } = usePlayground();
   const config = MODES[mode];
   const control = useControlMode();
@@ -181,20 +179,6 @@ export function ModelStage() {
             centre of this viewport. */}
         <SketchToWorld modeStripClassName="top-14 z-20" />
         <PaletteHUD />
-
-        {TREASURES.map((treasure) => (
-          <button
-            key={treasure.id}
-            type="button"
-            className={`treasure-marker ${treasure.className}${
-              treasures.includes(treasure.id) ? " found" : ""
-            }`}
-            aria-label={treasure.label}
-            onClick={() => findTreasure(treasure.id)}
-          >
-            {treasures.includes(treasure.id) ? "★" : "?"}
-          </button>
-        ))}
 
         <SketchOverlay />
 
