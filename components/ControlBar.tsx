@@ -1,84 +1,57 @@
 "use client";
 
-import { useStore } from "zustand";
-import { useGestureStore } from "@/components/gesture/store";
-import { creationStore } from "@/components/sketch-to-3d/core/creationStore";
-import { sketchStore } from "@/components/sketch3d/core/strokeStore";
+import {
+  setControlMode,
+  useControlMode,
+  visibleControlModes,
+} from "@/components/controls/controlModeStore";
 import { useSketchTools } from "@/components/world/sketchTools";
 
-type Mode = "look" | "crayon" | "draw" | "hands";
+/** Hotkey worth advertising, where one exists. */
+const HOTKEY: Record<string, string> = { pointerlock: "click", draw: "B" };
 
 /**
- * Clickable look / draw / hands switcher.
+ * Clickable switcher for the control modes.
  *
- * Pointer lock hides the cursor, so while you are looking around this is only
- * a display — Esc (or Hands) gives the cursor back, then the buttons work.
- * The three modes share one mouse: Look is FPS pointer-lock (main's default),
- * Draw is the in-world 3D lines (B), Hands is the gesture camera.
+ * Pointer lock hides the cursor, so while you are looking around with the mouse
+ * this is only a display — Esc (or Keys, or Hands) gives the cursor back, then
+ * the buttons work. The modes share one mouse and one camera, which is why
+ * they are radio buttons rather than toggles: see
+ * components/controls/controlModeStore.ts for who takes what.
+ *
+ * Crayon is hidden (not greyed) where there is no 2D surface — /minecraft never
+ * renders one, and advertising a mode that page cannot enter reads as a bug.
+ * Draw is disabled rather than hidden when Sketch-to-3D is off, so the bar
+ * keeps its shape; matches `B` being inert under the same condition.
  */
 export function ControlBar({ onCreate }: { onCreate?: () => void } = {}) {
-  const drawMode = useStore(sketchStore, (state) => state.drawMode);
-  const handsOn = useGestureStore((state) => state.active);
-  // Draw is only offered where Sketch-to-3D is available: always on /minecraft,
-  // and in the playground only in its "Sketch to 3D" mode. Disabled rather than
-  // hidden, so the bar keeps its shape and the player can see the mode exists —
-  // a control that vanishes reads as a bug, one that greys out reads as "not
-  // here". Matches `B` being inert under the same condition.
+  const mode = useControlMode();
   const canDraw = useSketchTools((state) => state.enabled);
-  // Crayon is different: it is HIDDEN where it does not exist rather than
-  // greyed, because /minecraft renders no 2D crayon surface at all. Greying it
-  // there would advertise a mode that page can never enter.
   const hasCrayon = useSketchTools((state) => state.crayonAvailable);
-  const crayonOn = useSketchTools((state) => state.crayon);
-
-  // Priority order matters: exactly one of these is ever true, because setMode
-  // below sets all four together, but deriving rather than storing a fifth copy
-  // of "the mode" keeps the existing stores authoritative.
-  const mode: Mode = handsOn
-    ? "hands"
-    : drawMode
-      ? "draw"
-      : crayonOn
-        ? "crayon"
-        : "look";
 
   return (
     // White rather than the translucent black it started as, matching ThemeHud's
     // swatch strip — the light chrome is what this codebase uses for things you
     // click, and the dark pills for things you only read.
     <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 rounded-full bg-white/90 p-1 font-sans shadow-lg ring-1 ring-slate-900/10 backdrop-blur-sm">
-      <ModeButton
-        label="Look"
-        hotkey="click"
-        active={mode === "look"}
-        onClick={() => setMode("look")}
-      />
-      {hasCrayon ? (
+      {visibleControlModes(hasCrayon).map((item) => (
         <ModeButton
-          label="Crayon"
-          hotkey=""
-          active={mode === "crayon"}
-          title="Draw flat on the picture"
-          onClick={() => setMode("crayon")}
+          key={item.id}
+          label={item.label}
+          hotkey={HOTKEY[item.id] ?? ""}
+          title={
+            item.id === "draw" && !canDraw
+              ? "Switch to Sketch to 3D to draw"
+              : item.help
+          }
+          active={mode === item.id}
+          disabled={item.id === "draw" && !canDraw}
+          onClick={() => setControlMode(item.id)}
         />
-      ) : null}
-      <ModeButton
-        label="Draw"
-        hotkey="B"
-        active={mode === "draw"}
-        disabled={!canDraw}
-        title={canDraw ? undefined : "Switch to Sketch to 3D to draw"}
-        onClick={() => setMode("draw")}
-      />
-      <ModeButton
-        label="Hands"
-        hotkey=""
-        active={mode === "hands"}
-        onClick={() => setMode("hands")}
-      />
+      ))}
 
       {/* `E` is an ACTION, not a mode — it opens the generate overlay and
-          returns you to whatever mode you were in. Hence the divider: the three
+          returns you to whatever mode you were in. Hence the divider: the
           buttons to the left are a radio group, this is a push button.
 
           It lives here because the E/B hint strip was removed and nothing else
@@ -106,48 +79,19 @@ export function ControlBar({ onCreate }: { onCreate?: () => void } = {}) {
   );
 }
 
-/**
- * Enter one input mode and leave the other three.
- *
- * Written as four unconditional assignments rather than a branch per mode: the
- * modes are mutually exclusive by construction, so there is no ordering of
- * partial updates in which two of them are briefly on together. The previous
- * per-branch version had to remember to turn off every other mode in every
- * branch, which is exactly the kind of thing that rots when a fourth is added.
- */
-function setMode(next: Mode) {
-  const bridge = creationStore.getState().bridge;
-
-  sketchStore.getState().setDrawMode(next === "draw");
-  useGestureStore.getState().setActive(next === "hands");
-  useSketchTools.getState().setCrayon(next === "crayon");
-  // Leaving any mode also drops a selection: the bounding box is a fifth thing
-  // that wants the mouse, and it must not survive into Hands or Crayon.
-  creationStore.getState().select(null);
-
-  // Hands and Crayon need a real cursor — the gesture camera drives the view
-  // itself, and the crayon canvas is drawn on with the pointer. Look and Draw
-  // are both pointer-locked, first-person modes.
-  //
-  // For Look this re-locks if the controls are already mounted (Esc'd out).
-  // Coming from Hands, LookLock remounts on the next paint and the following
-  // click on the world is what actually grabs the pointer, same as main.
-  bridge?.setInputEnabled(next === "look" || next === "draw");
-}
-
 function ModeButton({
   label,
   hotkey,
+  title,
   active,
   disabled = false,
-  title,
   onClick,
 }: {
   label: string;
   hotkey: string;
+  title?: string;
   active: boolean;
   disabled?: boolean;
-  title?: string;
   onClick: () => void;
 }) {
   return (

@@ -10,8 +10,21 @@ import { cn } from "@/lib/utils";
  * Swatch strip for the five world themes. Lives in page chrome so it stays
  * clickable after Esc releases pointer lock — clicks on the canvas itself
  * would grab the lock again.
+ *
+ * `creativeToggle` exists because the two hosts disagree about who owns creative
+ * mode. On /minecraft this button is the only way to reach it, so it stays. In
+ * the playground the activity rail owns it — every card is creative except Race
+ * to the Top — so the button is hidden there rather than left to fight the card
+ * the child picked. The `· creative` readout below stays either way: it is the
+ * feedback that says which kind of world you are in.
  */
-export function ThemeHud({ className }: { className?: string }) {
+export function ThemeHud({
+  className,
+  creativeToggle = true,
+}: {
+  className?: string;
+  creativeToggle?: boolean;
+}) {
   const id = useThemeStore((state) => state.id);
   const setTheme = useThemeStore((state) => state.setTheme);
   const fast = useThemeStore((state) => state.fast);
@@ -85,24 +98,26 @@ export function ThemeHud({ className }: { className?: string }) {
         {/* Creative mode. Sits with Fast because they are the same kind of
             control — session settings rather than world appearance — and both
             are toggles rather than a choice among options. */}
-        <button
-          type="button"
-          aria-pressed={creative}
-          title={
-            creative
-              ? "Creative mode on — the water is frozen and you cannot drown"
-              : "Creative mode — stop the water rising so you can build in peace"
-          }
-          onClick={() => setCreative(!creative)}
-          className={cn(
-            "flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] font-bold transition",
-            creative
-              ? "bg-emerald-400 text-emerald-950 ring-2 ring-slate-800"
-              : "bg-slate-200 text-slate-600 ring-2 ring-white hover:bg-slate-300",
-          )}
-        >
-          🛠 Creative
-        </button>
+        {creativeToggle && (
+          <button
+            type="button"
+            aria-pressed={creative}
+            title={
+              creative
+                ? "Creative mode on — the water is frozen and you cannot drown"
+                : "Creative mode — stop the water rising so you can build in peace"
+            }
+            onClick={() => setCreative(!creative)}
+            className={cn(
+              "flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] font-bold transition",
+              creative
+                ? "bg-emerald-400 text-emerald-950 ring-2 ring-slate-800"
+                : "bg-slate-200 text-slate-600 ring-2 ring-white hover:bg-slate-300",
+            )}
+          >
+            🛠 Creative
+          </button>
+        )}
       </div>
       <p className="rounded-full bg-black/40 px-2.5 py-0.5 text-[11px] font-semibold text-white/90 backdrop-blur-sm">
         {current.name}
