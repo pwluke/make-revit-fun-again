@@ -103,7 +103,9 @@
   height: 78px;
   flex: 0 0 78px;
   display: grid;
-  grid-template-columns: 270px 1fr 270px;
+  /* Side columns are fixed so the centre pair stays optically centred
+     whatever the model name is; the centre grew when Upload joined it. */
+  grid-template-columns: 250px 1fr 250px;
   align-items: center;
   padding: 0 28px;
   background: rgba(255, 255, 255, 0.97);
@@ -1171,6 +1173,17 @@
 
 /* Upload + the model dropdown it feeds */
 .playground .model-status { position: relative; }
+/* Centre cell of the header grid: upload on the left, model picker on the
+   right, the pair centred as one unit. `justify-self: center` on the child
+   status block is dropped here — the wrapper does the centring now. */
+.playground .header-centre {
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.playground .header-centre .model-status { justify-self: auto; }
 .playground .upload-control { display: flex; align-items: center; }
 .playground .upload-button {
   display: inline-flex;

@@ -221,3 +221,33 @@ export function playWebZip() {
   thump(t, { freq: 500, sweepTo: 2200, dur: 0.24, gain: 0.05, q: 0.7 });
   blip(t + 0.22, 1200, { type: "triangle", dur: 0.07, gain: 0.07 });
 }
+
+/** Finding a fossil fragment: a hollow bone-y knock, then a bright chime.
+ *  Deliberately different from playPowerUp — a piece of a set, not a power. */
+export function playFragment(index: number, total: number) {
+  const c = audio();
+  if (!c) return;
+  const t = c.currentTime;
+  thump(t, { freq: 620, sweepTo: 240, dur: 0.13, gain: 0.09, q: 1.6 });
+  // The chime climbs a pentatonic step per fragment, so the set audibly
+  // fills up and the last one lands highest.
+  const steps = [523.25, 587.33, 659.25, 783.99, 880, 1046.5];
+  const note = steps[Math.min(index, steps.length - 1)];
+  blip(t + 0.04, note, { type: "triangle", dur: 0.2, gain: 0.12 });
+  blip(t + 0.06, note * 2, { type: "sine", dur: 0.14, gain: 0.05 });
+  if (index + 1 >= total) return; // the reveal fanfare takes over
+}
+
+/** The skeleton is complete: a longer rising flourish under the reveal card. */
+export function playDinoComplete() {
+  const c = audio();
+  if (!c) return;
+  const t = c.currentTime;
+  [392, 523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+    blip(t + i * 0.09, f, { type: "triangle", dur: 0.26, gain: 0.13 });
+    blip(t + i * 0.09 + 0.02, f * 2, { type: "sine", dur: 0.16, gain: 0.05 });
+  });
+  [523.25, 659.25, 783.99, 1046.5].forEach((f) =>
+    blip(t + 0.5, f, { type: "sine", dur: 0.7, gain: 0.07 }),
+  );
+}

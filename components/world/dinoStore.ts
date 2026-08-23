@@ -28,8 +28,18 @@ export type DinoPart = {
   id: DinoPartId;
   /** Shown on the fragment in the world and in the found list. */
   label: string;
-  /** Sliced artwork under /public/dino. */
+  /** Sliced artwork under /public/dino, used on the fragment in the world. */
   src: string;
+  /**
+   * Where this part sits on the assembled animal, as inset percentages
+   * (top, right, bottom, left) of the `whole` image.
+   *
+   * The HUD reveals REGIONS of the assembled picture rather than pasting
+   * the loose cut-outs over it: the sheet draws each piece at its own angle,
+   * so overlaying them made one fragment look like a finished dinosaur.
+   * Clipping the real artwork means a found head lights up exactly the head.
+   */
+  clip: [top: number, right: number, bottom: number, left: number];
 };
 
 export type Dino = {
@@ -55,12 +65,12 @@ export const DINOS: Record<DinoId, Dino> = {
     blurb:
       "The heaviest hunter that ever walked. Twelve metres nose to tail — about as long as this building is tall — with a bite that could crack bone, and arms so short it could not reach its own mouth.",
     parts: [
-      { id: "head", label: "Head", src: "/dino/trex-head.png" },
-      { id: "body", label: "Body", src: "/dino/trex-body.png" },
-      { id: "arms", label: "Arms", src: "/dino/trex-arms.png" },
-      { id: "legs", label: "Legs", src: "/dino/trex-legs.png" },
-      { id: "tail", label: "Tail", src: "/dino/trex-tail.png" },
-      { id: "markings", label: "Spots", src: "/dino/trex-markings.png" },
+      { clip: [0, 48, 58, 0], id: "head", label: "Head", src: "/dino/trex-head.png" },
+      { clip: [30, 28, 20, 22], id: "body", label: "Body", src: "/dino/trex-body.png" },
+      { clip: [48, 52, 32, 22], id: "arms", label: "Arms", src: "/dino/trex-arms.png" },
+      { clip: [66, 26, 0, 22], id: "legs", label: "Legs", src: "/dino/trex-legs.png" },
+      { clip: [38, 0, 22, 66], id: "tail", label: "Tail", src: "/dino/trex-tail.png" },
+      { clip: [8, 14, 30, 40], id: "markings", label: "Spots", src: "/dino/trex-markings.png" },
     ],
   },
   ptero: {
@@ -72,12 +82,12 @@ export const DINOS: Record<DinoId, Dino> = {
     blurb:
       "Not a dinosaur at all, but a flying reptile that shared their sky. It steered with a bony crest on its head and hung from cliffs by its wing-claws, the way a bat hangs from a beam.",
     parts: [
-      { id: "head", label: "Head", src: "/dino/ptero-head.png" },
-      { id: "body", label: "Body", src: "/dino/ptero-body.png" },
-      { id: "arms", label: "Wings", src: "/dino/ptero-arms.png" },
-      { id: "legs", label: "Feet", src: "/dino/ptero-legs.png" },
-      { id: "tail", label: "Tail", src: "/dino/ptero-tail.png" },
-      { id: "markings", label: "Crest", src: "/dino/ptero-markings.png" },
+      { clip: [10, 56, 52, 0], id: "head", label: "Head", src: "/dino/ptero-head.png" },
+      { clip: [38, 34, 12, 30], id: "body", label: "Body", src: "/dino/ptero-body.png" },
+      { clip: [0, 6, 40, 24], id: "arms", label: "Wings", src: "/dino/ptero-arms.png" },
+      { clip: [70, 36, 0, 30], id: "legs", label: "Feet", src: "/dino/ptero-legs.png" },
+      { clip: [52, 0, 16, 74], id: "tail", label: "Tail", src: "/dino/ptero-tail.png" },
+      { clip: [4, 60, 66, 6], id: "markings", label: "Crest", src: "/dino/ptero-markings.png" },
     ],
   },
 };
@@ -87,26 +97,32 @@ export const ACTIVE_DINO: DinoId = "trex";
 
 type DinoState = {
   found: DinoPartId[];
+  /** Fragments waiting for their fly-to-the-corner animation. */
+  pending: DinoPartId[];
   /** True once every part is in and the reveal card is up. */
   revealed: boolean;
   collect: (id: DinoPartId) => void;
+  shiftPending: () => void;
   dismissReveal: () => void;
   restart: () => void;
 };
 
 export const useDinoStore = create<DinoState>((set, get) => ({
   found: [],
+  pending: [],
   revealed: false,
   collect: (id) => {
     if (get().found.includes(id)) return;
     const found = [...get().found, id];
     set({
       found,
+      pending: [...get().pending, id],
       revealed: found.length === DINOS[ACTIVE_DINO].parts.length,
     });
   },
+  shiftPending: () => set((s) => ({ pending: s.pending.slice(1) })),
   dismissReveal: () => set({ revealed: false }),
-  restart: () => set({ found: [], revealed: false }),
+  restart: () => set({ found: [], pending: [], revealed: false }),
 }));
 
 // Console debug hook, matching the project's __-prefixed convention.

@@ -10,7 +10,7 @@ import GestureTracker from "@/components/gesture/GestureTracker";
 import HeroHud from "@/components/world/HeroHud";
 import { AbilityEmblems } from "@/components/world/AbilityEmblems";
 import { DinoFragments } from "@/components/world/DinoFragments";
-import { DinoReveal } from "@/components/world/DinoPanel";
+import { DinoPickup, DinoReveal } from "@/components/world/DinoPanel";
 import { LaserTag } from "@/components/lasertag/LaserTag";
 import { LaserTagHud } from "@/components/lasertag/LaserTagHud";
 import { GesturePanel } from "./GesturePanel";
@@ -181,6 +181,7 @@ export function ModelStage() {
         {mode === "treasure" ? (
           <div className="hero-hud">
             <HeroHud />
+            <DinoPickup />
             <DinoReveal />
           </div>
         ) : null}

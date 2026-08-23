@@ -68,8 +68,11 @@ export function TopBar() {
         </span>
       </a>
 
-      {/* Its own control, separate from the model picker beside it: one adds
-          a project, the other chooses between them. */}
+      {/* Centre column. Two separate controls — one adds a project, the other
+          chooses between them — but they share this cell, because the header
+          grid has exactly three columns and a fourth child would shove the
+          profile area out of its own. */}
+      <div className="header-centre">
       <div className="upload-control">
         <button
           type="button"
@@ -183,6 +186,8 @@ export function TopBar() {
             )}
           </div>
         ) : null}
+      </div>
+
       </div>
 
       <div className="profile-area">

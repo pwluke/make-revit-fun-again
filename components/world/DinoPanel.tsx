@@ -1,13 +1,21 @@
 "use client";
 
-import { ACTIVE_DINO, DINOS, useDinoStore } from "./dinoStore";
+import { useEffect, useState } from "react";
+import { ACTIVE_DINO, DINOS, useDinoStore, type DinoPartId } from "./dinoStore";
+import { playDinoComplete, playFragment } from "./sfx";
+
+/** `clip` is an inset box in percent; CSS wants the same four numbers. */
+const insetOf = (clip: [number, number, number, number]) =>
+  `inset(${clip[0]}% ${clip[1]}% ${clip[2]}% ${clip[3]}%)`;
 
 /**
  * The dinosaur, sitting to the LEFT of the power slots.
  *
- * The whole animal shows from the start as a flat grey ghost — so a player
- * can see there is something to rebuild — and each fragment found paints
- * its own piece back in over the top.
+ * The assembled animal shows from the start as a flat grey ghost, and each
+ * fragment found un-greys ITS OWN REGION of that picture — so one head
+ * lights up a head, not a whole dinosaur. The loose cut-outs are drawn at
+ * their own angles on the sheet, which is why they are used for the
+ * fragments out in the world but not here.
  */
 export function DinoOutline() {
   const found = useDinoStore((s) => s.found);
@@ -17,7 +25,8 @@ export function DinoOutline() {
 
   return (
     <div
-      className="flex h-[62px] w-[62px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl ring-2 transition-colors"
+      id="dino-slot"
+      className="flex h-[62px] w-[62px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl ring-2 ring-transparent transition-colors"
       style={{
         background: started ? "rgba(248,250,252,0.95)" : "rgba(226,232,240,0.7)",
         boxShadow: started ? `0 0 12px ${dino.color}55` : undefined,
@@ -28,27 +37,21 @@ export function DinoOutline() {
           : "Find a fossil fragment to start"
       }
     >
-      <span className="relative block h-8 w-9">
-        {/* Grey ghost of the whole animal, always there. */}
+      <span className="relative block h-9 w-10">
         <img
           src={dino.whole}
           alt=""
-          className="absolute inset-0 h-full w-full object-contain opacity-45"
-          style={{ filter: "grayscale(1) brightness(0.75)" }}
+          className="absolute inset-0 h-full w-full object-contain opacity-40"
+          style={{ filter: "grayscale(1) brightness(0.7)" }}
         />
-        {/* Each found fragment paints back in, laid over the ghost. */}
-        {dino.parts.map((part, i) =>
+        {dino.parts.map((part) =>
           found.includes(part.id) ? (
             <img
               key={part.id}
-              src={part.src}
+              src={dino.whole}
               alt=""
-              className="absolute h-full w-full object-contain"
-              // Fanned very slightly so overlapping pieces stay legible at
-              // 36px — they are separate cut-outs, not a jigsaw that aligns.
-              style={{
-                transform: `translate(${(i % 3) - 1}px, ${((i / 3) | 0) - 0.5}px) scale(0.9)`,
-              }}
+              className="absolute inset-0 h-full w-full object-contain"
+              style={{ clipPath: insetOf(part.clip) }}
             />
           ) : null,
         )}
@@ -63,12 +66,92 @@ export function DinoOutline() {
   );
 }
 
+/**
+ * Fragment pickup feedback: the piece bursts centre-screen, then flies to
+ * the dinosaur slot in the corner — the same two beats the ability unlock
+ * uses, so both collectables behave the same way.
+ */
+export function DinoPickup() {
+  const pending = useDinoStore((s) => s.pending);
+  const found = useDinoStore((s) => s.found);
+  const [phase, setPhase] = useState<"burst" | "fly" | null>(null);
+  const current: DinoPartId | null = pending[0] ?? null;
+  const dino = DINOS[ACTIVE_DINO];
+
+  useEffect(() => {
+    if (!current) return;
+    const index = dino.parts.findIndex((p) => p.id === current);
+    const complete = found.length >= dino.parts.length;
+    if (complete) playDinoComplete();
+    else playFragment(Math.max(index, found.length - 1), dino.parts.length);
+    setPhase("burst");
+    const toFly = setTimeout(() => setPhase("fly"), 750);
+    const done = setTimeout(() => {
+      setPhase(null);
+      useDinoStore.getState().shiftPending();
+    }, 1350);
+    return () => {
+      clearTimeout(toFly);
+      clearTimeout(done);
+    };
+    // `found` is read for the completion check only; re-running on it would
+    // replay the cue when a later fragment lands.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current]);
+
+  if (!current) return null;
+  const part = dino.parts.find((p) => p.id === current);
+  if (!part) return null;
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-20">
+      <style>{`
+        @keyframes frag-burst {
+          0% { transform: scale(0.3) rotate(-14deg); opacity: 0; }
+          45% { transform: scale(1.15) rotate(6deg); opacity: 1; }
+          100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+        @keyframes frag-fly {
+          0% { top: 50%; left: 50%; transform: translate(-50%, -50%) scale(1); opacity: 1; }
+          100% { top: 17%; left: 74%; transform: translate(-50%, -50%) scale(0.18); opacity: 0.25; }
+        }
+      `}</style>
+      <div
+        className="absolute top-1/2 left-1/2"
+        style={
+          phase === "fly"
+            ? { animation: "frag-fly 0.6s ease-in forwards" }
+            : { transform: "translate(-50%, -50%)" }
+        }
+      >
+        <div
+          className="flex flex-col items-center gap-2 rounded-3xl bg-white/95 px-7 py-5 shadow-2xl"
+          style={{
+            border: `4px solid ${dino.color}`,
+            animation: phase === "burst" ? "frag-burst 0.7s ease-out" : undefined,
+          }}
+        >
+          <img src={part.src} alt="" className="h-24 w-auto object-contain" />
+          <span className="text-base font-black text-slate-800">
+            {part.label} found!
+          </span>
+          <span className="text-xs font-bold" style={{ color: dino.color }}>
+            {found.length}/{dino.parts.length} fragments
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** The full-screen reveal once every fragment is in. */
 export function DinoReveal() {
   const revealed = useDinoStore((s) => s.revealed);
+  const pending = useDinoStore((s) => s.pending);
   const dismiss = useDinoStore((s) => s.dismissReveal);
   const dino = DINOS[ACTIVE_DINO];
-  if (!revealed) return null;
+  // Let the last fragment finish flying home before the card covers it.
+  if (!revealed || pending.length > 0) return null;
 
   return (
     <div className="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-slate-900/55 backdrop-blur-sm">
