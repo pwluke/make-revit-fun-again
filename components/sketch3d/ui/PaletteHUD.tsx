@@ -3,6 +3,7 @@
 /** Ring: ui. DOM only — never imports three. */
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
+import { useGestureStore } from "@/components/gesture/store";
 import { PALETTE, WIDTHS, sketchStore } from "../core/strokeStore";
 
 export function PaletteHUD() {
@@ -37,6 +38,10 @@ export function PaletteHUD() {
 
       if (event.code === "KeyB") {
         toggleDrawMode();
+        // Draw and Hands both own the mouse; they cannot run together.
+        if (sketchStore.getState().drawMode) {
+          useGestureStore.getState().setActive(false);
+        }
         return;
       }
       if (!sketchStore.getState().drawMode) return;

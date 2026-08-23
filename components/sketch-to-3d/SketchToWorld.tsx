@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { ControlBar } from "@/components/ControlBar";
 import { ModeStrip } from "@/components/ModeStrip";
 import { creationStore } from "./core/creationStore";
 import { generate } from "./core/falClient";
@@ -195,7 +196,12 @@ export function SketchToWorld() {
           between a 3D model and a 2.5D sprite); B is the separate freehand
           3D-line feature in components/sketch3d, which draws in the world and
           never opens an overlay. Hidden while the overlay is open, as before. */}
-      {!open && <ModeStrip />}
+      {!open && (
+        <>
+          <ModeStrip />
+          <ControlBar />
+        </>
+      )}
       <SketchOverlay open={open} onCancel={handleCancel} onSubmit={handleSubmit} />
     </>
   );

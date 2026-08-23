@@ -49,10 +49,8 @@ export default function MinecraftGame() {
       >
         ← All games
       </Link>
-      <p className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-white/80">
-        Click to look around · WASD to move · Space to jump · Left click to
-        break a cluster · Right click to place one · or press Hands and build
-        with gestures
+      <p className="pointer-events-none absolute bottom-16 left-1/2 -translate-x-1/2 text-xs text-white/80">
+        Click the world to look around · WASD to move · Esc to free the mouse
       </p>
       <GestureTracker />
       <TreasureHud />
