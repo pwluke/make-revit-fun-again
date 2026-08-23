@@ -126,6 +126,13 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     camera.rotation.set(0, 0, 0);
   }, [camera]);
   useFrame((state, delta) => {
+  
+    // Rapier's wasm initialises asynchronously, so on a cold load this loop can
+    // run a frame or two before <RigidBody> has created the body and populated
+    // the ref — which threw "Cannot read properties of null (reading 'linvel')"
+    // on every fresh page load. A warm client-side remount never hit it, since
+    // Rapier is already up by then.
+    if (!ref.current) return;
     const { forward, backward, left, right, jump, crouch } = get();
     const velocity = ref.current.linvel();
     const speed = Math.hypot(velocity.x, velocity.y, velocity.z);
