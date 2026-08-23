@@ -20,6 +20,7 @@ import { MarineGarden } from "../world/MarineGarden";
 import { DesertLandscape } from "../world/DesertLandscape";
 import { EnchantedForest } from "../world/EnchantedForest";
 import { MarsLandscape } from "../world/MarsLandscape";
+import { CircusLandscape } from "../world/CircusLandscape";
 import { StaticShadows } from "../canvas/StaticShadows";
 import { useFastMode, useThemeStore } from "../world/themeStore";
 import { creationStore } from "@/components/sketch-to-3d/core/creationStore";
@@ -126,6 +127,7 @@ export function MinecraftScene({ children }: { children?: ReactNode }) {
       <DesertLandscape />
       <EnchantedForest />
       <MarsLandscape />
+      <CircusLandscape />
       <Flood />
       {/* Also outside <Physics>, and that is the design: other players are
           drawn, not simulated. Each client owns only its own capsule, which is
