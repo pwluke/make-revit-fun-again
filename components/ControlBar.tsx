@@ -21,7 +21,10 @@ export function ControlBar() {
   const mode: Mode = handsOn ? "hands" : drawMode ? "draw" : "look";
 
   return (
-    <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 rounded-full bg-black/55 p-1 font-sans backdrop-blur-sm">
+    // White rather than the translucent black it started as, matching ThemeHud's
+    // swatch strip — the light chrome is what this codebase uses for things you
+    // click, and the dark pills for things you only read.
+    <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 rounded-full bg-white/90 p-1 font-sans shadow-lg ring-1 ring-slate-900/10 backdrop-blur-sm">
       <ModeButton
         label="Look"
         hotkey="click"
@@ -95,11 +98,18 @@ function ModeButton({
       className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
         active
           ? "bg-emerald-600 text-white"
-          : "text-white/80 hover:bg-white/15 hover:text-white"
+          : "text-slate-600 hover:bg-slate-900/10 hover:text-slate-900"
       }`}
     >
+      {/* The keycap has to follow the button, not the bar: the active button is
+          still emerald, so a light cap reads there, while an inactive one now
+          sits on white and needs a dark cap to be legible at all. */}
       {hotkey ? (
-        <kbd className="rounded bg-white/20 px-1.5 py-0.5 font-mono text-[0.65rem] font-bold">
+        <kbd
+          className={`rounded px-1.5 py-0.5 font-mono text-[0.65rem] font-bold ${
+            active ? "bg-white/25 text-white" : "bg-slate-900/10 text-slate-500"
+          }`}
+        >
           {hotkey}
         </kbd>
       ) : null}
