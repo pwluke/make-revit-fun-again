@@ -1,6 +1,7 @@
 "use client";
 
 import { useLaserTagStore } from "@/components/lasertag/laserTagStore";
+import { useFloodStore } from "@/components/world/floodStore";
 import { getMission, MODES } from "./modes";
 import { usePlayground } from "./playground-context";
 import { useCursorLook } from "./use-cursor-look";
@@ -9,6 +10,7 @@ export function MissionPanel() {
   const guideRef = useCursorLook<HTMLDivElement>();
   const botsTagged = useLaserTagStore((s) => s.tagged.length);
   const botTotal = useLaserTagStore((s) => s.total);
+  const waterLevel = useFloodStore((s) => s.level);
   const {
     mode,
     setMode,
@@ -38,6 +40,7 @@ export function MissionPanel() {
     treasures,
     botsTagged,
     botTotal,
+    waterLevel,
   });
   const completed = steps.filter((step) => step.done).length;
   const collected = rewardedModes.includes(mode);

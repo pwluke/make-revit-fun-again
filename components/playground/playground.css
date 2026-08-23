@@ -20,6 +20,10 @@
      as its own thing — and not --gold, which is the focus-ring colour. */
   --violet: #7b52d3;
   --violet-tint: #f1eaff;
+  /* Race to the Top's accent. Water, and distinct from --sky, which Remix owns
+     — the two must not read as the same mode in the rail. */
+  --aqua: #2f9fd6;
+  --aqua-tint: #e6f4fc;
   --mode-color: var(--brand);
   --mode-tint: var(--brand-tint);
   --display: var(--font-fredoka), "Fredoka", "DM Sans", sans-serif;
@@ -96,6 +100,10 @@
 .playground[data-mode="lasertag"] {
   --mode-color: var(--violet);
   --mode-tint: var(--violet-tint);
+}
+.playground[data-mode="race"] {
+  --mode-color: var(--aqua);
+  --mode-tint: var(--aqua-tint);
 }
 
 /* Header */
@@ -1201,6 +1209,10 @@
 /* Its own rule rather than another entry above: Laser Tag shouldn't be able to
    break the adventure's toolbar with a typo in a shared selector. */
 .playground .stage-toolbar[data-mode="lasertag"] .laser-tools {
+  display: flex;
+}
+/* Same again for Race to the Top. */
+.playground .stage-toolbar[data-mode="race"] .race-tools {
   display: flex;
 }
 .playground .tool-chip.static {

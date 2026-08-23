@@ -9,6 +9,7 @@ import {
 import GestureTracker from "@/components/gesture/GestureTracker";
 import { LaserTag } from "@/components/lasertag/LaserTag";
 import { LaserTagHud } from "@/components/lasertag/LaserTagHud";
+import FloodHud from "@/components/world/FloodHud";
 import { GesturePanel } from "./GesturePanel";
 import { MinecraftViewport } from "./MinecraftViewport";
 import {
@@ -107,13 +108,25 @@ export function ModelStage() {
         </MinecraftViewport>
         {pointerLocked ? <div className="crosshair" aria-hidden /> : null}
         {mode === "lasertag" ? <LaserTagHud /> : null}
+        {/* Water depth, breath and the drowned card. Only in the race: every
+            other mode runs creative, where the flood is frozen and there is
+            nothing for this to report. */}
+        {mode === "race" ? <FloodHud /> : null}
 
         <div className={`orbit-hint${spun ? " hidden" : ""}`}>
           <span>↔</span>{" "}
-          {mode === "lasertag" ? "Click to take aim" : "Click to look around"}
+          {mode === "lasertag"
+            ? "Click to take aim"
+            : mode === "race"
+              ? "Click to look, WASD to run"
+              : "Click to look around"}
         </div>
 
-        <ThemeHud className="top-4 left-4 right-auto items-start" />
+        {/* No 🛠 Creative button: the activity rail owns creative mode now. */}
+        <ThemeHud
+          className="top-4 left-4 right-auto items-start"
+          creativeToggle={false}
+        />
 
         {placedItems.map((item) => (
           <span

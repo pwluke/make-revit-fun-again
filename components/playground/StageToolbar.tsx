@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { useLaserTagStore } from "@/components/lasertag/laserTagStore";
+import { useFloodStore } from "@/components/world/floodStore";
 import { FLOORS, INK_COLORS } from "./modes";
 import { usePlayground } from "./playground-context";
 
@@ -90,6 +91,21 @@ export function StageToolbar() {
               count the player picked rather than flashing "0 left". */}
           Bots left: {Math.max(0, (botTotal || botConfigCount) - botsTagged)}
         </span>
+      </div>
+      {/* Race to the Top. Its own rule in the CSS for the same reason Laser Tag
+          has one: a mode outside the five-step adventure must not be able to
+          break the adventure's toolbar. Deliberately just the restart — the
+          depth, the clock and the "higher ground" hint all live in FloodHud
+          over the viewport, and printing them twice invites them to disagree. */}
+      <div className="tool-group race-tools">
+        <span className="tool-label">Run</span>
+        <button
+          type="button"
+          className="tool-chip"
+          onClick={() => useFloodStore.getState().reset()}
+        >
+          Start over
+        </button>
       </div>
     </div>
   );
