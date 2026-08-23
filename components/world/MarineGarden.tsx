@@ -11,6 +11,8 @@ type ReefSpot = {
   position: Vec3;
   color: string;
   accent: string;
+  kelpColor: string;
+  kelpHeight: number;
   scale: number;
   rotation: number;
 };
@@ -25,6 +27,7 @@ type FishSchoolData = {
 
 const CORAL_COLORS = ["#ff7895", "#ff9f68", "#c28cff", "#ef6f88", "#f4c95d"];
 const FISH_COLORS = ["#63d9ef", "#ffd66b", "#ff8eb5", "#7ce0bb", "#ff9568"];
+const KELP_COLORS = ["#238f8c", "#43b88c", "#528bb5", "#8f72bd", "#c59b42"];
 
 /** Mulberry32 keeps the world varied while producing the same layout every load. */
 function seededRandom(seed: number) {
@@ -41,24 +44,30 @@ function createMarineLayout() {
   const random = seededRandom(0xc0a1);
   const reefs: ReefSpot[] = [];
 
-  // A wide, irregular ring leaves the house footprint and its paths open.
-  for (let index = 0; index < 11; index++) {
-    const angle = (index / 11) * Math.PI * 2 + (random() - 0.5) * 0.42;
-    const radius = 17 + random() * 31;
-    reefs.push({
-      position: [Math.cos(angle) * radius, 0.12, -22 + Math.sin(angle) * radius],
-      color: CORAL_COLORS[Math.floor(random() * CORAL_COLORS.length)],
-      accent: CORAL_COLORS[Math.floor(random() * CORAL_COLORS.length)],
-      scale: 0.72 + random() * 0.58,
-      rotation: random() * Math.PI * 2,
-    });
+  // Three irregular reef bands densely fill the visible world while the
+  // innermost radius keeps the house footprint and circulation paths open.
+  for (let band = 0; band < 3; band++) {
+    for (let index = 0; index < 10; index++) {
+      const angle = (index / 10) * Math.PI * 2 + band * 0.21 + (random() - 0.5) * 0.36;
+      const minRadius = 15 + band * 15;
+      const radius = minRadius + random() * 13;
+      reefs.push({
+        position: [Math.cos(angle) * radius, 0.12, -22 + Math.sin(angle) * radius],
+        color: CORAL_COLORS[Math.floor(random() * CORAL_COLORS.length)],
+        accent: CORAL_COLORS[Math.floor(random() * CORAL_COLORS.length)],
+        kelpColor: KELP_COLORS[Math.floor(random() * KELP_COLORS.length)],
+        kelpHeight: 1.4 + random() * 2.4,
+        scale: 0.72 + random() * 0.72,
+        rotation: random() * Math.PI * 2,
+      });
+    }
   }
 
-  const schools: FishSchoolData[] = [reefs[1], reefs[5], reefs[9]].map((reef, index) => ({
-    center: [reef.position[0], 2.4 + random() * 2.8, reef.position[2]],
+  const schools: FishSchoolData[] = [1, 4, 7, 10, 13, 17, 21, 25, 28].map((reefIndex, index) => ({
+    center: [reefs[reefIndex].position[0], 2.1 + random() * 4.8, reefs[reefIndex].position[2]],
     color: FISH_COLORS[Math.floor(random() * FISH_COLORS.length)],
-    count: 3 + Math.floor(random() * 3),
-    radius: 2.3 + random() * 1.8,
+    count: 5 + Math.floor(random() * 5),
+    radius: 2.5 + random() * 2.3,
     phase: index * 1.73 + random(),
   }));
 
@@ -98,11 +107,12 @@ function Coral({ position, color, scale }: { position: Vec3; color: string; scal
   );
 }
 
-function ReefPatch({ position, color, accent, scale, rotation }: ReefSpot) {
+function ReefPatch({ position, color, accent, kelpColor, kelpHeight, scale, rotation }: ReefSpot) {
   return (
     <group position={position} rotation-y={rotation} scale={scale}>
       <Coral position={[0, 0, 0]} color={color} scale={0.9} />
       <Coral position={[1.05, 0, -0.5]} color={accent} scale={0.48} />
+      <Coral position={[-0.9, 0, -0.65]} color={accent} scale={0.36} />
       {([-1.1, -0.55, 0.8] as const).map((x, index) => (
         <mesh
           key={x}
@@ -114,16 +124,16 @@ function ReefPatch({ position, color, accent, scale, rotation }: ReefSpot) {
           <meshStandardMaterial color={index === 1 ? "#7aa9a8" : "#86b8b2"} roughness={0.96} />
         </mesh>
       ))}
-      {([-0.85, -0.25, 0.45, 0.95] as const).map((x, index) => (
+      {([-1.15, -0.85, -0.45, -0.1, 0.35, 0.72, 1.08] as const).map((x, index) => (
         <mesh
           key={x}
           castShadow
-          position={[x, 0.48 + (index % 2) * 0.12, 0.72]}
-          rotation-z={(index - 1.5) * 0.13}
-          scale={[0.055, 0.72 + (index % 2) * 0.2, 0.055]}
+          position={[x, (kelpHeight * (0.62 + (index % 3) * 0.18)) / 2, 0.62 + (index % 2) * 0.28]}
+          rotation-z={(index - 3) * 0.055}
+          scale={[0.045 + (index % 2) * 0.012, kelpHeight * (0.62 + (index % 3) * 0.18), 0.045]}
         >
           <cylinderGeometry args={[0.45, 1, 1, 6]} />
-          <meshStandardMaterial color="#5dc6a0" roughness={0.8} />
+          <meshStandardMaterial color={kelpColor} roughness={0.76} />
         </mesh>
       ))}
     </group>
@@ -188,11 +198,11 @@ function FishSchool({ center, color, count, radius, phase }: FishSchoolData) {
   );
 }
 
-function Turtle({ center }: { center: Vec3 }) {
+function Turtle({ center, phase = 0, scale = 0.8 }: { center: Vec3; phase?: number; scale?: number }) {
   const ref = useRef<THREE.Group>(null);
   useFrame((state) => {
     if (!ref.current) return;
-    const t = state.clock.elapsedTime;
+    const t = state.clock.elapsedTime + phase;
     ref.current.position.set(
       center[0] + Math.sin(t * 0.24) * 2.4,
       center[1] + Math.sin(t * 0.8) * 0.18,
@@ -203,7 +213,7 @@ function Turtle({ center }: { center: Vec3 }) {
   });
 
   return (
-    <group ref={ref} scale={0.8}>
+    <group ref={ref} scale={scale}>
       <mesh castShadow scale={[0.85, 0.3, 0.65]}>
         <sphereGeometry args={[1, 16, 10]} />
         <meshStandardMaterial color="#4fa889" roughness={0.75} />
@@ -224,12 +234,12 @@ function Turtle({ center }: { center: Vec3 }) {
   );
 }
 
-function MantaRay({ center }: { center: Vec3 }) {
+function MantaRay({ center, phase = 0, scale = 0.9 }: { center: Vec3; phase?: number; scale?: number }) {
   const ref = useRef<THREE.Group>(null);
 
   useFrame((state) => {
     if (!ref.current) return;
-    const t = state.clock.elapsedTime * 0.16;
+    const t = state.clock.elapsedTime * 0.16 + phase;
     ref.current.position.set(
       center[0] + Math.cos(t) * 4.5,
       center[1] + Math.sin(t * 2.2) * 0.35,
@@ -240,7 +250,7 @@ function MantaRay({ center }: { center: Vec3 }) {
   });
 
   return (
-    <group ref={ref} scale={0.9}>
+    <group ref={ref} scale={scale}>
       <mesh castShadow rotation-z={Math.PI / 4} scale={[0.9, 0.13, 0.9]}>
         <octahedronGeometry args={[1, 0]} />
         <meshStandardMaterial color="#315f83" roughness={0.48} />
@@ -286,11 +296,11 @@ function Crab({ position }: { position: Vec3 }) {
   );
 }
 
-function Jellyfish({ position }: { position: Vec3 }) {
+function Jellyfish({ position, phase = 0, color = "#b991ff" }: { position: Vec3; phase?: number; color?: string }) {
   const ref = useRef<THREE.Group>(null);
   useFrame((state) => {
     if (!ref.current) return;
-    const t = state.clock.elapsedTime;
+    const t = state.clock.elapsedTime + phase;
     ref.current.position.y = position[1] + Math.sin(t * 0.9) * 0.35;
     ref.current.rotation.y = t * 0.18;
   });
@@ -299,7 +309,7 @@ function Jellyfish({ position }: { position: Vec3 }) {
     <group ref={ref} position={position} scale={0.72}>
       <mesh scale={[0.8, 0.55, 0.8]}>
         <sphereGeometry args={[1, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardMaterial color="#b991ff" emissive="#7046aa" emissiveIntensity={0.35} transparent opacity={0.78} roughness={0.25} side={THREE.DoubleSide} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.25} transparent opacity={0.78} roughness={0.25} side={THREE.DoubleSide} />
       </mesh>
       {([-0.45, -0.15, 0.15, 0.45] as const).map((x, index) => (
         <mesh key={x} position={[x, -0.72 - (index % 2) * 0.18, 0]} scale={[0.045, 0.75, 0.045]}>
@@ -333,7 +343,7 @@ function Starfish({ position, color }: { position: Vec3; color: string }) {
   );
 }
 
-/** Sparse, seeded reef life shown only in the Coral world theme. */
+/** A dense, seeded reef world shown only in the Coral world theme. */
 export function MarineGarden() {
   const isCoralTheme = useThemeStore((state) => state.id === "aquatic");
 
@@ -345,14 +355,51 @@ export function MarineGarden() {
     <group>
       {reefs.map((reef, index) => <ReefPatch key={index} {...reef} />)}
       {schools.map((school, index) => <FishSchool key={index} {...school} />)}
-      <Turtle center={[reefs[3].position[0], 1.7, reefs[3].position[2]]} />
-      <MantaRay center={[reefs[7].position[0], 4.8, reefs[7].position[2]]} />
-      <Crab position={[reefs[0].position[0] + 1.4, 0.08, reefs[0].position[2] - 0.8]} />
-      <Crab position={[reefs[6].position[0] - 1.2, 0.08, reefs[6].position[2] + 0.6]} />
-      <Jellyfish position={[reefs[2].position[0], 4.1, reefs[2].position[2]]} />
-      <Jellyfish position={[reefs[8].position[0], 5.2, reefs[8].position[2]]} />
-      <Starfish position={[reefs[4].position[0] + 1.1, 0.12, reefs[4].position[2]]} color="#ff8b68" />
-      <Starfish position={[reefs[10].position[0] - 0.8, 0.12, reefs[10].position[2] + 0.9]} color="#ffd06a" />
+      {[3, 14, 23].map((reefIndex, index) => (
+        <Turtle
+          key={reefIndex}
+          center={[reefs[reefIndex].position[0], 1.6 + index * 0.65, reefs[reefIndex].position[2]]}
+          phase={index * 3.7}
+          scale={0.72 + index * 0.08}
+        />
+      ))}
+      {[7, 19, 27].map((reefIndex, index) => (
+        <MantaRay
+          key={reefIndex}
+          center={[reefs[reefIndex].position[0], 4.2 + index * 0.85, reefs[reefIndex].position[2]]}
+          phase={index * 2.25}
+          scale={0.78 + index * 0.1}
+        />
+      ))}
+      {[0, 5, 8, 12, 16, 20, 24, 29].map((reefIndex, index) => (
+        <Crab
+          key={reefIndex}
+          position={[
+            reefs[reefIndex].position[0] + (index % 2 ? -1.35 : 1.35),
+            0.08,
+            reefs[reefIndex].position[2] + (index % 3 - 1) * 0.7,
+          ]}
+        />
+      ))}
+      {[2, 6, 11, 15, 18, 22, 26].map((reefIndex, index) => (
+        <Jellyfish
+          key={reefIndex}
+          position={[reefs[reefIndex].position[0], 3.4 + (index % 3) * 1.2, reefs[reefIndex].position[2]]}
+          phase={index * 1.45}
+          color={index % 2 ? "#ff9fc8" : "#b991ff"}
+        />
+      ))}
+      {[4, 9, 13, 17, 21, 25, 28].map((reefIndex, index) => (
+        <Starfish
+          key={reefIndex}
+          position={[
+            reefs[reefIndex].position[0] + (index % 2 ? -0.9 : 1.1),
+            0.12,
+            reefs[reefIndex].position[2] + (index % 3 - 1) * 0.8,
+          ]}
+          color={index % 2 ? "#ffd06a" : "#ff8b68"}
+        />
+      ))}
     </group>
   );
 }
