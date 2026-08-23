@@ -43,6 +43,16 @@ export function TreasureIcon() {
   );
 }
 
+export function LaserTagIcon() {
+  return (
+    <svg viewBox="0 0 48 48">
+      {/* Blocky gun silhouette, plus a reticle for the scan. */}
+      <path d="M6 18h18v9H14l-4 7H6V18Z" />
+      <path d="M24 21h8M33 24a6 6 0 1 0 12 0 6 6 0 1 0-12 0M39 15v-3m0 27v-3m9-9h3m-24 0h3" />
+    </svg>
+  );
+}
+
 export function SoundOnIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -81,4 +91,5 @@ export const ACTIVITY_ICONS = {
   sketch: SketchIcon,
   remix: RemixIcon,
   treasure: TreasureIcon,
+  lasertag: LaserTagIcon,
 } as const;

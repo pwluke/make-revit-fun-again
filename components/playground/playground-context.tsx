@@ -12,6 +12,7 @@ import {
   type RefObject,
 } from "react";
 import { db } from "@/lib/db";
+import { useLaserTagStore } from "@/components/lasertag/laserTagStore";
 import {
   getMission,
   MODE_ORDER,
@@ -120,6 +121,13 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
   const [fullscreen, setFullscreen] = useState(false);
   const [fov, setFov] = useState(45);
   const [sceneEpoch, setSceneEpoch] = useState(0);
+  /**
+   * Read straight from the Laser Tag store rather than mirrored into context:
+   * the mission effect below is the only consumer, and putting it on the
+   * context value would re-render the whole playground on every tag.
+   */
+  const botsTagged = useLaserTagStore((s) => s.tagged.length);
+  const botTotal = useLaserTagStore((s) => s.total);
 
   const { isLoading, error } = db.useQuery({ points: {} });
   const connection: ConnectionStatus = error
@@ -332,6 +340,8 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
       paintedCount: paintedColors.length,
       placedItems: placedItems.map((item) => item.item),
       treasures,
+      botsTagged,
+      botTotal,
     });
     const finished = steps.every((step) => step.done);
     if (!finished || rewardedRef.current.includes(mode)) return;
@@ -342,6 +352,8 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
     showToast("Mission complete!", "You earned 15 stars.");
     tone(760, 0.16);
   }, [
+    botTotal,
+    botsTagged,
     explode,
     floor,
     inkPicked,

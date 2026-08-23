@@ -8,14 +8,16 @@ import { SceneCanvas } from "@/components/canvas/SceneCanvas";
 import { PostFX } from "@/components/canvas/PostFX";
 import { Ground } from "./Ground";
 import { Player } from "./Player";
-import { Cubes } from "./Cube";
+import { Cubes, useCubeStore } from "./Cube";
 import { GestureBuilder } from "./GestureBuilder";
 import { House } from "../world/House";
 import { Stars } from "../world/Stars";
 import { Powerups } from "../world/Powerups";
 import { Flood } from "../world/Flood";
 import { ThemeAtmosphere } from "../world/ThemeAtmosphere";
-import { useFastMode } from "../world/themeStore";
+import { MarineGarden } from "../world/MarineGarden";
+import { StaticShadows } from "../canvas/StaticShadows";
+import { useFastMode, useThemeStore } from "../world/themeStore";
 import { creationStore } from "@/components/sketch-to-3d/core/creationStore";
 import { Creations } from "@/components/sketch-to-3d/r3f/Creations";
 import { RemotePlayers } from "@/components/multiplayer/r3f/RemotePlayers";
@@ -37,7 +39,7 @@ export const minecraftKeyMap = [
   { name: "crouch", keys: ["ShiftLeft", "ShiftRight", "Shift", "c", "C"] },
 ];
 
-export function MinecraftScene() {
+export function MinecraftScene({ children }: { children?: ReactNode }) {
   // Editing a creation needs a real cursor, and PointerLockControls actively
   // prevents one in two ways: it overrides R3F's hit-test compute to always
   // raycast from the SCREEN CENTRE (drei/core/PointerLockControls.js:38-42), so
@@ -47,10 +49,16 @@ export function MinecraftScene() {
   // Unmounting is the only clean answer.
   const selectedId = useStore(creationStore, (state) => state.selectedId);
   const fast = useFastMode();
+  // What makes the shadow map stale: edits to the world, and a theme swap that
+  // moves the key light.
+  const added = useCubeStore((state) => state.added);
+  const removed = useCubeStore((state) => state.removed);
+  const themeId = useThemeStore((state) => state.id);
 
   return (
     <>
       <ThemeAtmosphere />
+      <StaticShadows deps={[added, removed, themeId]} />
       <Physics gravity={[0, -30, 0]}>
         <Ground />
         <Player />
@@ -65,12 +73,17 @@ export function MinecraftScene() {
           timer is what actually threatens you. */}
       <Stars />
       <Powerups />
+      <MarineGarden />
       <Flood />
       {/* Also outside <Physics>, and that is the design: other players are
           drawn, not simulated. Each client owns only its own capsule, which is
           what keeps this free of authority and rollback machinery. It also owns
           the room connection — mounting it is what makes this tab multiplayer. */}
       <RemotePlayers />
+      {/* Slot for a per-mode add-on — see components/lasertag. Out here for the
+          same reason the pickups are: it raycasts and animates, it doesn't
+          collide. Callers that pass nothing render exactly the tree above. */}
+      {children}
       <GestureBuilder />
       {/* Also outside <Physics>: strokes carry no colliders and do not belong in
           the physics world. SketchController is headless (it only reads the

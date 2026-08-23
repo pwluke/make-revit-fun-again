@@ -1,0 +1,203 @@
+using System;
+using System.Collections.Generic;
+using BIM_Boom.Models;
+
+namespace BIM_Boom.Services;
+
+/// <summary>
+/// Turns a triangle mesh into a voxel shell: every cell of a regular lattice
+/// whose centre lies within a threshold of the surface becomes a point, taking
+/// the colour of the nearest triangle.
+///
+/// All coordinates in Revit internal units (feet, Z-up).
+/// </summary>
+public static class VoxelizationService
+{
+    /// <summary>
+    /// Surface voxelization on a <b>global</b> lattice, fast enough for a whole
+    /// building.
+    /// <para>
+    /// This replaced a version that walked the lattice and searched every surface
+    /// point for each cell — O(cells × points), which for a real building is on
+    /// the order of 10^11 distance tests and never finishes. The loop is inverted:
+    /// each triangle scatters into the handful of cells it can reach, which is
+    /// linear in the size of the model.
+    /// </para>
+    /// <para>
+    /// Cell centres sit at <c>(index + 0.5) × cellSize</c> in Revit's own
+    /// coordinates, with no per-layer origin. That matters: every layer has to
+    /// land on the same lattice, or the web app — which infers the voxel pitch
+    /// from the median gap between coordinates across all layers at once — reads
+    /// a muddled pitch and scales the building wrong.
+    /// </para>
+    /// </summary>
+    /// <param name="mesh">Triangle soup in Revit internal units (feet, Z-up).</param>
+    /// <param name="cellSize">Lattice pitch, in feet.</param>
+    /// <param name="threshold">
+    /// How far a cell centre may sit from a triangle and still count. Around
+    /// 0.7 × cellSize gives a shell with no pinholes; much less and thin walls
+    /// come out lacy.
+    /// </param>
+    /// <param name="maxVoxels">Hard cap, so a careless cell size can't exhaust memory.</param>
+    public static List<VoxelData> VoxelizeSurface(
+        MergedMesh mesh, double cellSize, double threshold, int maxVoxels)
+    {
+        var voxels = new List<VoxelData>();
+        if (mesh.Vertices.Count < 3 || cellSize <= 0) return voxels;
+
+        // Cell index -> the nearest triangle found so far, so a voxel takes the
+        // colour of the surface actually closest to it.
+        var best = new Dictionary<(int I, int J, int K), (double Distance, int Triangle)>();
+        int triangleCount = mesh.Vertices.Count / 3;
+
+        for (int t = 0; t < triangleCount; t++)
+        {
+            var v0 = mesh.Vertices[t * 3];
+            var v1 = mesh.Vertices[t * 3 + 1];
+            var v2 = mesh.Vertices[t * 3 + 2];
+
+            int iMin = CellFloor(Math.Min(v0.X, Math.Min(v1.X, v2.X)) - threshold, cellSize);
+            int iMax = CellCeil(Math.Max(v0.X, Math.Max(v1.X, v2.X)) + threshold, cellSize);
+            int jMin = CellFloor(Math.Min(v0.Y, Math.Min(v1.Y, v2.Y)) - threshold, cellSize);
+            int jMax = CellCeil(Math.Max(v0.Y, Math.Max(v1.Y, v2.Y)) + threshold, cellSize);
+            int kMin = CellFloor(Math.Min(v0.Z, Math.Min(v1.Z, v2.Z)) - threshold, cellSize);
+            int kMax = CellCeil(Math.Max(v0.Z, Math.Max(v1.Z, v2.Z)) + threshold, cellSize);
+
+            for (int i = iMin; i <= iMax; i++)
+            {
+                double x = (i + 0.5) * cellSize;
+                for (int j = jMin; j <= jMax; j++)
+                {
+                    double y = (j + 0.5) * cellSize;
+                    for (int k = kMin; k <= kMax; k++)
+                    {
+                        double z = (k + 0.5) * cellSize;
+
+                        double distance = PointTriangleDistance(x, y, z, v0, v1, v2);
+                        if (distance > threshold) continue;
+
+                        var key = (i, j, k);
+                        if (best.TryGetValue(key, out var current))
+                        {
+                            if (distance < current.Distance) best[key] = (distance, t);
+                        }
+                        else
+                        {
+                            if (best.Count >= maxVoxels) continue;
+                            best[key] = (distance, t);
+                        }
+                    }
+                }
+            }
+        }
+
+        foreach (var entry in best)
+        {
+            var color = entry.Value.Triangle >= 0 && entry.Value.Triangle < mesh.TriangleColors.Count
+                ? mesh.TriangleColors[entry.Value.Triangle]
+                : (R: (byte)160, G: (byte)160, B: (byte)160, A: (byte)255);
+
+            voxels.Add(new VoxelData(
+                (entry.Key.I + 0.5) * cellSize,
+                (entry.Key.J + 0.5) * cellSize,
+                (entry.Key.K + 0.5) * cellSize,
+                color.R, color.G, color.B, color.A, cellSize));
+        }
+
+        return voxels;
+    }
+
+    private static int CellFloor(double value, double cellSize)
+    {
+        return (int)Math.Floor(value / cellSize - 0.5);
+    }
+
+    private static int CellCeil(double value, double cellSize)
+    {
+        return (int)Math.Ceiling(value / cellSize - 0.5);
+    }
+
+    /// <summary>
+    /// Exact distance from a point to a triangle: the closest-point-on-triangle
+    /// routine from Ericson, <i>Real-Time Collision Detection</i> §5.1.5. Walks
+    /// the three vertex regions, then the three edge regions, then falls through
+    /// to the face interior.
+    /// </summary>
+    private static double PointTriangleDistance(
+        double px, double py, double pz,
+        (double X, double Y, double Z) a,
+        (double X, double Y, double Z) b,
+        (double X, double Y, double Z) c)
+    {
+        double abX = b.X - a.X, abY = b.Y - a.Y, abZ = b.Z - a.Z;
+        double acX = c.X - a.X, acY = c.Y - a.Y, acZ = c.Z - a.Z;
+        double apX = px - a.X, apY = py - a.Y, apZ = pz - a.Z;
+
+        double d1 = abX * apX + abY * apY + abZ * apZ;
+        double d2 = acX * apX + acY * apY + acZ * apZ;
+        if (d1 <= 0 && d2 <= 0) return Length(apX, apY, apZ);
+
+        double bpX = px - b.X, bpY = py - b.Y, bpZ = pz - b.Z;
+        double d3 = abX * bpX + abY * bpY + abZ * bpZ;
+        double d4 = acX * bpX + acY * bpY + acZ * bpZ;
+        if (d3 >= 0 && d4 <= d3) return Length(bpX, bpY, bpZ);
+
+        double vc = d1 * d4 - d3 * d2;
+        if (vc <= 0 && d1 >= 0 && d3 <= 0)
+        {
+            double v = d1 / (d1 - d3);
+            return Length(apX - abX * v, apY - abY * v, apZ - abZ * v);
+        }
+
+        double cpX = px - c.X, cpY = py - c.Y, cpZ = pz - c.Z;
+        double d5 = abX * cpX + abY * cpY + abZ * cpZ;
+        double d6 = acX * cpX + acY * cpY + acZ * cpZ;
+        if (d6 >= 0 && d5 <= d6) return Length(cpX, cpY, cpZ);
+
+        double vb = d5 * d2 - d1 * d6;
+        if (vb <= 0 && d2 >= 0 && d6 <= 0)
+        {
+            double w = d2 / (d2 - d6);
+            return Length(apX - acX * w, apY - acY * w, apZ - acZ * w);
+        }
+
+        double va = d3 * d6 - d5 * d4;
+        if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0)
+        {
+            double w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+            return Length(
+                px - (b.X + (c.X - b.X) * w),
+                py - (b.Y + (c.Y - b.Y) * w),
+                pz - (b.Z + (c.Z - b.Z) * w));
+        }
+
+        // Inside the face: project onto its plane via barycentric coordinates.
+        double denom = va + vb + vc;
+        if (denom <= 0) return Length(apX, apY, apZ);
+        double s = vb / denom;
+        double u = vc / denom;
+        return Length(
+            apX - (abX * s + acX * u),
+            apY - (abY * s + acY * u),
+            apZ - (abZ * s + acZ * u));
+    }
+
+    private static double Length(double x, double y, double z)
+    {
+        return Math.Sqrt(x * x + y * y + z * z);
+    }
+
+    /// <summary>
+    /// Checks if the smallest bounding box dimension is less than 2x cell size
+    /// (thin members may not register voxels).
+    /// </summary>
+    public static bool HasThinMemberWarning(MergedMesh mesh, double cellSize)
+    {
+        var dx = mesh.BBoxMax.X - mesh.BBoxMin.X;
+        var dy = mesh.BBoxMax.Y - mesh.BBoxMin.Y;
+        var dz = mesh.BBoxMax.Z - mesh.BBoxMin.Z;
+        var minDim = Math.Min(dx, Math.Min(dy, dz));
+        return minDim < 2.0 * cellSize;
+    }
+
+}

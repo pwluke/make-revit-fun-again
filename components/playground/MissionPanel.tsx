@@ -1,11 +1,14 @@
 "use client";
 
+import { useLaserTagStore } from "@/components/lasertag/laserTagStore";
 import { getMission, MODES } from "./modes";
 import { usePlayground } from "./playground-context";
 import { useCursorLook } from "./use-cursor-look";
 
 export function MissionPanel() {
   const guideRef = useCursorLook<HTMLDivElement>();
+  const botsTagged = useLaserTagStore((s) => s.tagged.length);
+  const botTotal = useLaserTagStore((s) => s.total);
   const {
     mode,
     setMode,
@@ -33,6 +36,8 @@ export function MissionPanel() {
     paintedCount: paintedColors.length,
     placedItems: placedItems.map((item) => item.item),
     treasures,
+    botsTagged,
+    botTotal,
   });
   const completed = steps.filter((step) => step.done).length;
   const collected = rewardedModes.includes(mode);
