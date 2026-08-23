@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "dgSpecHash": "N13Qmo5ecWw=",
+  "success": true,
+  "projectFilePath": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\BIM-Boom.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\mromero\\.nuget\\packages\\communitytoolkit.mvvm\\8.4.2\\communitytoolkit.mvvm.8.4.2.nupkg.sha512",
+    "C:\\Users\\mromero\\.nuget\\packages\\jetbrains.annotations\\2026.2.0\\jetbrains.annotations.2026.2.0.nupkg.sha512",
+    "C:\\Users\\mromero\\.nuget\\packages\\nice3point.revit.api.revitapi\\2026.4.10\\nice3point.revit.api.revitapi.2026.4.10.nupkg.sha512",
+    "C:\\Users\\mromero\\.nuget\\packages\\nice3point.revit.api.revitapiui\\2026.4.10\\nice3point.revit.api.revitapiui.2026.4.10.nupkg.sha512",
+    "C:\\Users\\mromero\\.nuget\\packages\\nice3point.revit.extensions\\2026.1.4\\nice3point.revit.extensions.2026.1.4.nupkg.sha512",
+    "C:\\Users\\mromero\\.nuget\\packages\\nice3point.revit.toolkit\\2026.1.0\\nice3point.revit.toolkit.2026.1.0.nupkg.sha512",
+    "C:\\Users\\mromero\\.nuget\\packages\\polyfill\\11.0.1\\polyfill.11.0.1.nupkg.sha512",
+    "C:\\Users\\mromero\\.nuget\\packages\\microsoft.netcore.app.ref\\8.0.30\\microsoft.netcore.app.ref.8.0.30.nupkg.sha512",
+    "C:\\Users\\mromero\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\8.0.30\\microsoft.windowsdesktop.app.ref.8.0.30.nupkg.sha512",
+    "C:\\Users\\mromero\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\8.0.30\\microsoft.aspnetcore.app.ref.8.0.30.nupkg.sha512"
+  ],
+  "logs": []
+}

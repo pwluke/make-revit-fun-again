@@ -1,0 +1,213 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using BIM_Boom.Models;
+using Xbim.Common;
+using Xbim.Common.Geometry;
+using Xbim.Ifc;
+using Xbim.Ifc4.Interfaces;
+using Xbim.ModelGeometry.Scene;
+
+namespace BIM_Boom.Services;
+
+/// <summary>
+/// Parses an IFC file extracting triangle geometry and per-element color (Stage B).
+/// Uses Xbim to iterate geometry and resolve IfcSurfaceStyleShading colors.
+/// This does NOT use the Revit API and can run on a background thread.
+/// </summary>
+public static class IfcParserService
+{
+    private const double MetersToFeet = 3.28084;
+    private static readonly (byte R, byte G, byte B, byte A) FallbackGray = (160, 160, 160, 255);
+
+    /// <summary>
+    /// Parse the IFC file and return a merged mesh with per-triangle colors.
+    /// </summary>
+    /// <returns>A MergedMesh in Revit internal units (feet), plus a count of elements that fell back to gray.</returns>
+    public static (MergedMesh Mesh, int GrayFallbackCount) ParseIfcWithColor(string ifcPath)
+    {
+        var mesh = new MergedMesh();
+        int grayCount = 0;
+
+        double minX = double.MaxValue, minY = double.MaxValue, minZ = double.MaxValue;
+        double maxX = double.MinValue, maxY = double.MinValue, maxZ = double.MinValue;
+
+        using var model = IfcStore.Open(ifcPath);
+        var context = new Xbim3DModelContext(model);
+        context.CreateContext();
+
+        // Build a style-color lookup from IfcStyledItem → IfcSurfaceStyle → IfcColourRgb
+        var styleColors = BuildStyleColorMap(model);
+
+        foreach (var instance in context.ShapeInstances())
+        {
+            var geometry = context.ShapeGeometry(instance);
+            if (geometry == null) continue;
+
+            // Resolve color for this shape instance
+            var color = ResolveColor(model, instance, styleColors, ref grayCount);
+
+            // Get the transformation matrix
+            var transform = instance.Transformation;
+
+            // Parse triangulated mesh from the geometry data
+            var triangles = ReadTriangles(geometry, transform);
+
+            foreach (var (v0, v1, v2) in triangles)
+            {
+                // Convert from meters to feet
+                var p0 = ToFeet(v0);
+                var p1 = ToFeet(v1);
+                var p2 = ToFeet(v2);
+
+                mesh.Vertices.Add(p0);
+                mesh.Vertices.Add(p1);
+                mesh.Vertices.Add(p2);
+                mesh.TriangleColors.Add(color);
+
+                // Update bounds
+                UpdateBounds(p0, ref minX, ref minY, ref minZ, ref maxX, ref maxY, ref maxZ);
+                UpdateBounds(p1, ref minX, ref minY, ref minZ, ref maxX, ref maxY, ref maxZ);
+                UpdateBounds(p2, ref minX, ref minY, ref minZ, ref maxX, ref maxY, ref maxZ);
+            }
+        }
+
+        mesh.BBoxMin = (minX, minY, minZ);
+        mesh.BBoxMax = (maxX, maxY, maxZ);
+
+        return (mesh, grayCount);
+    }
+
+    private static Dictionary<int, (byte R, byte G, byte B, byte A)> BuildStyleColorMap(IModel model)
+    {
+        var map = new Dictionary<int, (byte, byte, byte, byte)>();
+
+        foreach (var styledItem in model.Instances.OfType<IIfcStyledItem>())
+        {
+            foreach (var style in styledItem.Styles)
+            {
+                if (style is IIfcPresentationStyleAssignment psa)
+                {
+                    foreach (var s in psa.Styles)
+                    {
+                        if (s is IIfcSurfaceStyle surfStyle)
+                        {
+                            ExtractColorFromSurfaceStyle(surfStyle, styledItem.EntityLabel, map);
+                        }
+                    }
+                }
+                else if (style is IIfcSurfaceStyle directSurfStyle)
+                {
+                    ExtractColorFromSurfaceStyle(directSurfStyle, styledItem.EntityLabel, map);
+                }
+            }
+        }
+
+        return map;
+    }
+
+    private static void ExtractColorFromSurfaceStyle(
+        IIfcSurfaceStyle surfStyle,
+        int entityLabel,
+        Dictionary<int, (byte, byte, byte, byte)> map)
+    {
+        foreach (var rendering in surfStyle.Styles)
+        {
+            if (rendering is IIfcSurfaceStyleShading shading)
+            {
+                var c = shading.SurfaceColour;
+                if (c != null)
+                {
+                    var r = (byte)(c.Red * 255);
+                    var g = (byte)(c.Green * 255);
+                    var b = (byte)(c.Blue * 255);
+                    byte a = 255;
+                    if (shading.Transparency.HasValue)
+                        a = (byte)((1.0 - shading.Transparency.Value) * 255);
+                    map[entityLabel] = (r, g, b, a);
+                }
+                break;
+            }
+        }
+    }
+
+    private static (byte R, byte G, byte B, byte A) ResolveColor(
+        IModel model,
+        XbimShapeInstance instance,
+        Dictionary<int, (byte R, byte G, byte B, byte A)> styleColors,
+        ref int grayCount)
+    {
+        // Try to find a style color for this instance's style label
+        if (instance.StyleLabel > 0 && styleColors.TryGetValue(instance.StyleLabel, out var c))
+            return c;
+
+        // Try via the Xbim style label directly (it stores color info)
+        if (instance.StyleLabel > 0)
+        {
+            var styleEntity = model.Instances[instance.StyleLabel];
+            if (styleEntity is IIfcSurfaceStyle ss)
+            {
+                foreach (var rendering in ss.Styles)
+                {
+                    if (rendering is IIfcSurfaceStyleShading shading && shading.SurfaceColour != null)
+                    {
+                        var col = shading.SurfaceColour;
+                        return ((byte)(col.Red * 255), (byte)(col.Green * 255), (byte)(col.Blue * 255), 255);
+                    }
+                }
+            }
+        }
+
+        grayCount++;
+        return FallbackGray;
+    }
+
+    private static List<((double, double, double), (double, double, double), (double, double, double))> ReadTriangles(
+        IXbimShapeGeometryData geometry,
+        XbimMatrix3D transform)
+    {
+        var triangles = new List<((double, double, double), (double, double, double), (double, double, double))>();
+
+        // Use Xbim's built-in triangulation reading
+        var triangulation = XbimShapeTriangulation.FromBinaryStream(geometry.ShapeData);
+        if (triangulation == null) return triangles;
+
+        foreach (var face in triangulation.Faces)
+        {
+            var indices = face.Indices;
+            for (int i = 0; i < indices.Count; i += 3)
+            {
+                var p0 = TransformPoint(triangulation.Vertices[indices[i]], transform);
+                var p1 = TransformPoint(triangulation.Vertices[indices[i + 1]], transform);
+                var p2 = TransformPoint(triangulation.Vertices[indices[i + 2]], transform);
+                triangles.Add((p0, p1, p2));
+            }
+        }
+
+        return triangles;
+    }
+
+    private static (double, double, double) TransformPoint(XbimPoint3D pt, XbimMatrix3D m)
+    {
+        var transformed = m.Transform(pt);
+        return (transformed.X, transformed.Y, transformed.Z);
+    }
+
+    private static (double X, double Y, double Z) ToFeet((double X, double Y, double Z) pt)
+    {
+        return (pt.X * MetersToFeet, pt.Y * MetersToFeet, pt.Z * MetersToFeet);
+    }
+
+    private static void UpdateBounds(
+        (double X, double Y, double Z) pt,
+        ref double minX, ref double minY, ref double minZ,
+        ref double maxX, ref double maxY, ref double maxZ)
+    {
+        if (pt.X < minX) minX = pt.X;
+        if (pt.Y < minY) minY = pt.Y;
+        if (pt.Z < minZ) minZ = pt.Z;
+        if (pt.X > maxX) maxX = pt.X;
+        if (pt.Y > maxY) maxY = pt.Y;
+        if (pt.Z > maxZ) maxZ = pt.Z;
+    }
+}

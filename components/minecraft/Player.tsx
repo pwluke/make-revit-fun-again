@@ -14,6 +14,7 @@ import { useGestureStore } from "../gesture/store";
 import { hitBlockCenter } from "./GestureBuilder";
 import { powerupState, usePowerupStore } from "../world/powerupStore";
 import { useFloodStore } from "../world/floodStore";
+import { laserTagState } from "../lasertag/laserTagStore";
 import { playerOrigin } from "./player-origin";
 import { TARGET_BLOCK_SIZE } from "@/lib/use-grid-points";
 
@@ -241,7 +242,9 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
       headWasTracked.current = false;
     }
     orbitWas.current = orbiting;
-    // update axe
+    // update axe — hidden while Laser Tag holds the world, so the diamond axe
+    // doesn't float alongside the laser gun.
+    axe.current.visible = !laserTagState.active;
     axe.current.children[0].rotation.x = lerp(
       axe.current.children[0].rotation.x,
       Math.sin(+(speed > 1) * state.clock.elapsedTime * 10) / 6,

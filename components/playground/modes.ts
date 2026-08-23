@@ -1,4 +1,10 @@
-export type ModeId = "explore" | "explode" | "sketch" | "remix" | "treasure";
+export type ModeId =
+  | "explore"
+  | "explode"
+  | "sketch"
+  | "remix"
+  | "treasure"
+  | "lasertag";
 export type FloorId = "all" | "roof" | "upper" | "ground";
 export type ItemId = "chair" | "plant" | "lamp" | "sketch";
 export type ConnectionStatus = "live" | "syncing" | "offline";
@@ -23,6 +29,16 @@ export const MODE_ORDER: ModeId[] = [
   "remix",
   "treasure",
 ];
+
+/**
+ * Modes that sit in the rail but outside the five-step adventure. Kept out of
+ * MODE_ORDER on purpose — appending there would make `nextMode` stop wrapping
+ * from treasure back to explore, which is what "Play the adventure again"
+ * promises. Being absent leaves indexOf at -1, which lands harmlessly: the
+ * announce tone drops a step and `nextMode` resolves to explore, exactly right
+ * for a mode you step out of the sequence to play.
+ */
+export const EXTRA_MODES: ModeId[] = ["lasertag"];
 
 export const MODES: Record<ModeId, ModeConfig> = {
   explore: {
@@ -89,6 +105,19 @@ export const MODES: Record<ModeId, ModeConfig> = {
     activityTitle: "Treasure Hunt",
     activitySubtitle: "Find hidden surprises",
   },
+  lasertag: {
+    pill: "Laser tag scan",
+    title: "Scan-bots are loose in the school!",
+    guideName: "Volt",
+    guide:
+      "Click the model to take aim, then click to fire. Sweep the courtyards—they wander!",
+    companion: "\u{1F47E}",
+    mission: "Tag every scan-bot",
+    next: "Back to free explore",
+    color: "#7b52d3",
+    activityTitle: "Laser Tag Scan",
+    activitySubtitle: "Tag wandering bots",
+  },
 };
 
 export const ITEM_EMOJI: Record<ItemId, string> = {
@@ -147,6 +176,9 @@ export type PlayProgress = {
   paintedCount: number;
   placedItems: ItemId[];
   treasures: number[];
+  /** Scan-bots tagged this Laser Tag round, and how many the player chose. */
+  botsTagged: number;
+  botTotal: number;
 };
 
 export function getMission(mode: ModeId, progress: PlayProgress): MissionStep[] {
@@ -206,6 +238,29 @@ export function getMission(mode: ModeId, progress: PlayProgress): MissionStep[] 
         title: "Use your own idea",
         detail: "Place your Sketch to 3D creation",
         done: progress.placedItems.includes("sketch"),
+      },
+    ];
+  }
+
+  if (mode === "lasertag") {
+    return [
+      {
+        title: "Grab the scanner",
+        detail: "Click the model to look around",
+        done: progress.spun,
+      },
+      {
+        title: "Tag your first bot",
+        detail: "Line up the crosshair and click",
+        done: progress.botsTagged >= 1,
+      },
+      {
+        // The count is the player's choice on the setup card, so the step has
+        // to read off it rather than assuming a full five.
+        title:
+          progress.botTotal === 1 ? "Tag the bot" : `Tag all ${progress.botTotal}`,
+        detail: "Sweep the whole building",
+        done: progress.botTotal > 0 && progress.botsTagged >= progress.botTotal,
       },
     ];
   }

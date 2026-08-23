@@ -41,7 +41,7 @@ export function Flood() {
   useFrame((state, delta) => {
     const drowned = useFloodStore.getState().drowned;
 
-    if (!drowned) {
+    if (!drowned && !floodState.paused) {
       floodState.elapsed += delta;
       floodState.level = Math.min(
         MAX_LEVEL,
@@ -60,7 +60,7 @@ export function Flood() {
     const submerged = state.camera.position.y < floodState.level;
     floodState.submerged = submerged;
 
-    if (!drowned) {
+    if (!drowned && !floodState.paused) {
       floodState.breath = THREE.MathUtils.clamp(
         submerged
           ? floodState.breath - delta / BREATH_SECONDS
