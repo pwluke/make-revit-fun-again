@@ -16,8 +16,8 @@
   --sky: #568dc9;
   --sky-tint: #eaf2fb;
   --gold: #f3b939;
-  /* Laser Tag's accent. A new hue rather than a reused one, so the bonus game
-     reads as its own thing — and not --gold, which is the focus-ring colour. */
+  /* Laser Tag's accent. A new hue rather than a reused one, so the mode reads
+     as its own thing — and not --gold, which is the focus-ring colour. */
   --violet: #7b52d3;
   --violet-tint: #f1eaff;
   --mode-color: var(--brand);
@@ -677,23 +677,6 @@
   border-top: 1px solid var(--line);
 }
 
-/* Bonus game list — a second rail nav, below the five-step adventure. */
-.playground .extra-list {
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
-}
-.playground .extra-list .eyebrow {
-  padding: 0 7px 6px;
-}
-/* The adventure's step number would restart at 1 here, and this isn't step 1
-   of anything — swap the badge for a bonus mark. */
-.playground .extra-list .activity-card::after {
-  content: "\2726";
-  color: var(--violet);
-  font-size: 9px;
-}
-
 /* Laser Tag scoreboard */
 .playground .laser-hud {
   pointer-events: none;
@@ -1215,8 +1198,8 @@
 .playground .stage-toolbar[data-mode="sketch"] .sketch-tools {
   display: flex;
 }
-/* Its own rule rather than another entry above: the bonus game shouldn't be
-   able to break the adventure's toolbar by a typo in a shared selector. */
+/* Its own rule rather than another entry above: Laser Tag shouldn't be able to
+   break the adventure's toolbar with a typo in a shared selector. */
 .playground .stage-toolbar[data-mode="lasertag"] .laser-tools {
   display: flex;
 }

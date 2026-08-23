@@ -31,12 +31,12 @@ export const MODE_ORDER: ModeId[] = [
 ];
 
 /**
- * Bonus games: in the rail, but outside the five-step adventure. Kept out of
+ * Modes that sit in the rail but outside the five-step adventure. Kept out of
  * MODE_ORDER on purpose — appending there would make `nextMode` stop wrapping
  * from treasure back to explore, which is what "Play the adventure again"
  * promises. Being absent leaves indexOf at -1, which lands harmlessly: the
  * announce tone drops a step and `nextMode` resolves to explore, exactly right
- * for a bonus game you leave to rejoin the sequence.
+ * for a mode you step out of the sequence to play.
  */
 export const EXTRA_MODES: ModeId[] = ["lasertag"];
 
@@ -107,16 +107,16 @@ export const MODES: Record<ModeId, ModeConfig> = {
   },
   lasertag: {
     pill: "Laser tag scan",
-    title: "Five scan-bots are loose in the school!",
+    title: "Scan-bots are loose in the school!",
     guideName: "Volt",
     guide:
       "Click the model to take aim, then click to fire. Sweep the courtyards—they wander!",
     companion: "\u{1F47E}",
-    mission: "Tag all five scan-bots",
+    mission: "Tag every scan-bot",
     next: "Back to free explore",
     color: "#7b52d3",
     activityTitle: "Laser Tag Scan",
-    activitySubtitle: "Tag five wandering bots",
+    activitySubtitle: "Tag wandering bots",
   },
 };
 

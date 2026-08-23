@@ -5,8 +5,8 @@ import { ACTIVITY_ICONS } from "./icons";
 import { EXTRA_MODES, MODE_ORDER, MODES, type ModeId } from "./modes";
 import { usePlayground } from "./playground-context";
 
-/** One rail card. Extracted verbatim so the bonus list below renders the same
- *  markup as the five-step adventure above it. */
+/** One rail card. Extracted verbatim so every entry in the rail renders the
+ *  same markup, whether or not it is part of the five-step adventure. */
 function ActivityCard({ id }: { id: ModeId }) {
   const { mode, setMode } = usePlayground();
   const config = MODES[id];
@@ -47,15 +47,11 @@ export function ActivityRail() {
         </h1>
       </div>
 
+      {/* One list. EXTRA_MODES stays separate from MODE_ORDER because that
+          array drives the five-step adventure's `nextMode` wrapping — but it
+          renders on the end of the same nav, so the rail reads as one list. */}
       <nav className="activity-list">
-        {MODE_ORDER.map((id) => (
-          <ActivityCard key={id} id={id} />
-        ))}
-      </nav>
-
-      <nav className="activity-list extra-list" aria-label="Bonus game">
-        <span className="eyebrow">Bonus game</span>
-        {EXTRA_MODES.map((id) => (
+        {[...MODE_ORDER, ...EXTRA_MODES].map((id) => (
           <ActivityCard key={id} id={id} />
         ))}
       </nav>
