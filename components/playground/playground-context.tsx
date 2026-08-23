@@ -13,6 +13,10 @@ import {
 } from "react";
 import { db } from "@/lib/db";
 import { useLaserTagStore } from "@/components/lasertag/laserTagStore";
+import { useGestureStore } from "@/components/gesture/store";
+import { sketchStore } from "@/components/sketch3d/core/strokeStore";
+import { creationStore } from "@/components/sketch-to-3d/core/creationStore";
+import { SANDBOX_TOOLS, useSketchTools } from "@/components/world/sketchTools";
 import { useFloodStore } from "@/components/world/floodStore";
 import {
   getMission,
@@ -182,6 +186,48 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
     },
     [showToast, tone],
   );
+
+  /**
+   * Entering an activity. Activities do not overlap, so this is the single
+   * place that says what that means: every input sub-mode from the previous
+   * activity is torn down, then this one is configured.
+   *
+   * Without it a mode inherits whatever the last one left running — drawing
+   * still armed during the treasure hunt, the gesture camera still holding the
+   * mouse in laser tag, a half-resized creation floating over the remix
+   * palette. The teardown is unconditional rather than "only when leaving mode
+   * X": the rule is cheaper to hold in your head, and each call is already a
+   * no-op when that sub-mode is not active.
+   *
+   * An effect rather than a branch inside setMode, so it also covers the
+   * initial mount — `mode` starts at "explore" and setMode has not run.
+   */
+  useEffect(() => {
+    const sketching = mode === "sketch";
+
+    sketchStore.getState().setDrawMode(false);
+    useGestureStore.getState().setActive(false);
+    creationStore.getState().select(null);
+    // Also on the way IN to laser tag, which is what makes the setup card
+    // appear rather than dropping the player into a stale finished round.
+    useLaserTagStore.getState().backToSetup();
+
+    // Sketch-to-3D — E, B, editing a creation, and the 2D crayon surface — is
+    // available in its own mode and nowhere else. Crayon is the surface the
+    // mode opens on, preserving the "pick a crayon → draw → save" mission; the
+    // player switches to Draw or Look from the control bar.
+    useSketchTools.getState().configure({
+      enabled: sketching,
+      crayonAvailable: sketching,
+      crayon: sketching,
+    });
+  }, [mode]);
+
+  // Restore the permissive defaults when the playground unmounts. These are
+  // module-level stores, so without this a client-side navigation from / to
+  // /minecraft would carry this page's restrictions onto the sandbox, silently
+  // killing E and B on a page that has no mode rail to turn them back on.
+  useEffect(() => () => useSketchTools.getState().configure(SANDBOX_TOOLS), []);
 
   const setFloor = useCallback(
     (next: FloorId) => {

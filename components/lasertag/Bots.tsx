@@ -48,6 +48,18 @@ const POP_SPEED = 4;
 /** Close enough to the target cell to pick the next one. */
 const ARRIVE_EPSILON = 0.06;
 
+/**
+ * Site PPE. These sit more saturated than the PASTEL range on purpose: a hard
+ * hat that reads as pastel reads as a hat-shaped blob, and the whole point is
+ * that a bot looks like someone who wandered onto site. It also helps the game
+ * — a yellow hat is the easiest thing to pick out down a corridor.
+ */
+const HARD_HAT = "#f7c22b";
+const HARD_HAT_BRIM = "#e0ad1f";
+const VEST = "#e9ee5c";
+/** Reflective banding. Cool and near-white, so it reads against the yellow. */
+const VEST_BAND = "#eef1f7";
+
 /** Bot eye height above its body centre, for line-of-sight and muzzle origin. */
 const BOT_EYE = 0.36;
 /**
@@ -273,7 +285,9 @@ export function Bots({
 
         if (bot.losIn <= 0) {
           bot.losIn = LOS_INTERVAL;
-          bot.hasLos = distance <= preset.range && hasLineOfSight(bot, state, sight);
+          muzzle.copy(bot.pos).setY(bot.pos.y + BOT_EYE);
+          bot.hasLos =
+            distance <= preset.range && hasLineOfSight(muzzle, state, sight);
         }
         if (bot.hasLos) {
           bot.sighted += dt;
@@ -371,9 +385,41 @@ export function Bots({
             <boxGeometry args={[0.34, 0.46, 0.26]} />
             <meshStandardMaterial color={PASTEL.sky} roughness={0.5} />
           </mesh>
+          {/* Hi-vis vest over the torso, with the classic banding. Each layer
+              is a shade larger than the one under it rather than coplanar with
+              it, so nothing z-fights at distance. */}
+          <mesh position={[0, 0.05, 0]} castShadow>
+            <boxGeometry args={[0.375, 0.3, 0.295]} />
+            <meshStandardMaterial color={VEST} roughness={0.55} />
+          </mesh>
+          <mesh position={[0, 0.0, 0]}>
+            <boxGeometry args={[0.385, 0.05, 0.305]} />
+            <meshStandardMaterial color={VEST_BAND} roughness={0.3} metalness={0.2} />
+          </mesh>
+          <mesh position={[-0.1, 0.05, 0.151]}>
+            <boxGeometry args={[0.055, 0.3, 0.006]} />
+            <meshStandardMaterial color={VEST_BAND} roughness={0.3} metalness={0.2} />
+          </mesh>
+          <mesh position={[0.1, 0.05, 0.151]}>
+            <boxGeometry args={[0.055, 0.3, 0.006]} />
+            <meshStandardMaterial color={VEST_BAND} roughness={0.3} metalness={0.2} />
+          </mesh>
           <mesh position={[0, 0.36, 0]} castShadow>
             <sphereGeometry args={[0.15, 16, 16]} />
             <meshStandardMaterial color={PASTEL.lilac} roughness={0.45} />
+          </mesh>
+          {/* Hard hat. Brim at 0.445 clears the visor at 0.38 — the visor is
+              the "I can see you" tell and must stay readable — and the dome is
+              squashed to 0.72 so its crown stops below the antenna tip at 0.61,
+              which is the bloom marker that makes a bot findable at range.
+              Both of those are why the hat is not simply a bigger sphere. */}
+          <mesh position={[0, 0.445, 0]} castShadow>
+            <cylinderGeometry args={[0.205, 0.205, 0.022, 20]} />
+            <meshStandardMaterial color={HARD_HAT_BRIM} roughness={0.4} />
+          </mesh>
+          <mesh position={[0, 0.44, 0]} scale={[1, 0.72, 1]} castShadow>
+            <sphereGeometry args={[0.16, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
+            <meshStandardMaterial color={HARD_HAT} roughness={0.35} />
           </mesh>
           {/* Visor — the one warm accent, so a bot reads as a face-on target,
               and the frame loop's channel for "I can see you". */}
@@ -419,24 +465,25 @@ export function Bots({
 }
 
 /**
- * Can this bot see the player? A ray from its visor to the camera, blocked by
+ * Can something at `from` see the player? A ray to the camera, blocked by
  * anything that isn't another bot. Walls stop bots shooting through the school,
  * the same way they stop the player — and for the same reason it has to be a
  * scene raycast rather than a rapier one: colliders only exist within 4 units
  * of the player.
+ *
+ * Exported for the Inspector, who does the same check from the roof.
  */
-function hasLineOfSight(
-  bot: BotRuntime,
+export function hasLineOfSight(
+  from: THREE.Vector3,
   state: { scene: THREE.Scene; camera: THREE.Camera },
   sight: THREE.Raycaster,
 ) {
-  muzzle.copy(bot.pos).setY(bot.pos.y + BOT_EYE);
-  toPlayer.subVectors(state.camera.position, muzzle);
+  toPlayer.subVectors(state.camera.position, from);
   const distance = toPlayer.length();
   if (distance < 0.001) return true;
   toPlayer.divideScalar(distance);
 
-  sight.set(muzzle, toPlayer);
+  sight.set(from, toPlayer);
   sight.far = distance;
   const blocking = sight
     .intersectObjects(state.scene.children, true)

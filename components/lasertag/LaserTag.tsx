@@ -7,6 +7,7 @@ import { useGestureStore } from "@/components/gesture/store";
 import { floodState, useFloodStore } from "@/components/world/floodStore";
 import { ALERT_RADIUS, Bots, spookBots } from "./Bots";
 import { useBotArena } from "./botArena";
+import { Inspector } from "./Inspector";
 import { DebugArena } from "./DebugArena";
 import { LASER_TINT, LaserGun, MUZZLE_OFFSET } from "./LaserGun";
 import {
@@ -208,9 +209,10 @@ function LaserRig() {
 export function LaserTag() {
   const roundToken = useLaserTagStore((s) => s.roundToken);
   const setTotal = useLaserTagStore((s) => s.setTotal);
+  const setBossPresent = useLaserTagStore((s) => s.setBossPresent);
   const phase = useLaserTagStore((s) => s.phase);
   const config = useLaserTagStore((s) => s.config);
-  const { roam, cells, spots } = useBotArena(roundToken, config.botCount);
+  const { roam, cells, spots, roof } = useBotArena(roundToken, config.botCount);
   const playing = phase !== "setup";
 
   // Claim the shared world for the duration. `active` gates the voxel-breaking
@@ -240,9 +242,12 @@ export function LaserTag() {
   // count — is empty for the first moment. Same reason Stars tracks its total.
   // Only while playing: a stale total from the last round would let the setup
   // card's win check fire before any bot exists.
+  // The Inspector counts toward the total, so the round is not won until the
+  // roof is clear too — the same check in publishLaserTag, no special case.
   useEffect(() => {
-    if (playing) setTotal(spots.length);
-  }, [playing, spots.length, setTotal]);
+    setBossPresent(roof != null);
+    if (playing) setTotal(spots.length + (roof ? 1 : 0));
+  }, [playing, spots.length, roof, setTotal, setBossPresent]);
 
   return (
     <>
@@ -256,6 +261,16 @@ export function LaserTag() {
             returnFire={config.returnFire}
             difficulty={config.difficulty}
           />
+          {/* After <Bots/>, deliberately: r3f runs frame callbacks in
+              subscription order, and the Inspector only fills in the HUD's
+              nearest-target hint once Bots has left it empty. */}
+          {roof ? (
+            <Inspector
+              roof={roof}
+              returnFire={config.returnFire}
+              difficulty={config.difficulty}
+            />
+          ) : null}
           <LaserRig />
         </>
       ) : null}

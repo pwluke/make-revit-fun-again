@@ -20,6 +20,7 @@ import { useThree } from "@react-three/fiber";
 import { creationStore } from "../core/creationStore";
 import { handleWasJustInteracted } from "./SelectionBox";
 import { sketchStore } from "@/components/sketch3d/core/strokeStore";
+import { toolsEnabled } from "@/components/world/sketchTools";
 
 const raycaster = new THREE.Raycaster();
 /** Dead centre of the screen, in normalised device coordinates. */
@@ -47,6 +48,14 @@ export function SelectionController() {
       if (sketchStore.getState().drawMode) return;
 
       const { selectedId, select, bridge } = creationStore.getState();
+
+      // Editing a creation is part of Sketch-to-3D, so it lives behind the same
+      // gate as `E` and `B`. Checked AFTER reading the store, and only for
+      // *acquiring* a selection: if the gate closes while something is selected
+      // — the player switches activity mid-edit — the deselect path below must
+      // still run, or the bounding box would strand with pointer lock released
+      // and no way to dismiss it.
+      if (!selectedId && !toolsEnabled()) return;
 
       // While something is selected the pointer is unlocked and the bounding box
       // owns the mouse. A click that a handle already claimed is a drag, not a

@@ -14,8 +14,11 @@ export default function PowerupHud() {
   const fraction = Math.max(0, Math.min(1, remaining / def.seconds));
 
   return (
-    // Above the controls strip, clear of both HUD corners and the crosshair.
-    <div className="pointer-events-none absolute bottom-14 left-1/2 z-20 -translate-x-1/2">
+    // The bottom centre is a stack, measured from the bottom edge up: control
+    // bar 16-54px, controls hint 64-80px, brush palette 96-132px. This sits
+    // above all of them, because a powerup can be running while draw mode is on
+    // and at the old bottom-14 the two pills were drawn over each other.
+    <div className="pointer-events-none absolute bottom-36 left-1/2 z-20 -translate-x-1/2">
       <div
         className={
           "flex items-center gap-2 rounded-full px-4 py-1.5 shadow-lg ring-1 " +
