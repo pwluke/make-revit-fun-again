@@ -15,28 +15,22 @@ export function MissionPanel() {
     mode,
     setMode,
     nextMode,
-    explode,
     spun,
     floor,
     inkPicked,
     sketchDrawn,
     sketchSaved,
-    paintedColors,
-    placedItems,
     treasures,
     rewardedModes,
   } = usePlayground();
 
   const config = MODES[mode];
   const steps = getMission(mode, {
-    explode,
     spun,
     floor,
     inkPicked,
     sketchDrawn,
     sketchSaved,
-    paintedCount: paintedColors.length,
-    placedItems: placedItems.map((item) => item.item),
     treasures,
     botsTagged,
     botTotal,

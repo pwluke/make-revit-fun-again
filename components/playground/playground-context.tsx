@@ -20,17 +20,9 @@ import {
   MODES,
   type ConnectionStatus,
   type FloorId,
-  type ItemId,
   type ModeId,
 } from "./modes";
 import { playTone } from "./play-tone";
-
-export type PlacedItem = {
-  id: string;
-  item: ItemId;
-  left: string;
-  top: string;
-};
 
 export type ToastCopy = {
   title: string;
@@ -46,8 +38,6 @@ type PlaygroundContextValue = {
   toggleSound: () => void;
   floor: FloorId;
   setFloor: (floor: FloorId) => void;
-  explode: number;
-  setExplode: (value: number) => void;
   spun: boolean;
   markSpun: () => void;
   ink: string;
@@ -59,10 +49,6 @@ type PlaygroundContextValue = {
   saveSketch: () => void;
   clearSketch: () => void;
   sketchVersion: number;
-  paintedColors: string[];
-  paintColor: (color: string) => void;
-  placedItems: PlacedItem[];
-  placeItem: (item: ItemId) => void;
   treasures: number[];
   findTreasure: (id: number) => void;
   rewardedModes: ModeId[];
@@ -101,15 +87,12 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
   const [stars, setStars] = useState(128);
   const [sound, setSound] = useState(true);
   const [floor, setFloorState] = useState<FloorId>("all");
-  const [explode, setExplodeState] = useState(0);
   const [spun, setSpun] = useState(false);
   const [ink, setInkState] = useState("#f05d72");
   const [inkPicked, setInkPicked] = useState(false);
   const [sketchDrawn, setSketchDrawn] = useState(false);
   const [sketchSaved, setSketchSaved] = useState(false);
   const [sketchVersion, setSketchVersion] = useState(0);
-  const [paintedColors, setPaintedColors] = useState<string[]>([]);
-  const [placedItems, setPlacedItems] = useState<PlacedItem[]>([]);
   const [treasures, setTreasures] = useState<number[]>([]);
   const treasuresRef = useRef<number[]>([]);
   const [rewardedModes, setRewardedModes] = useState<ModeId[]>([]);
@@ -188,10 +171,6 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
     [tone],
   );
 
-  const setExplode = useCallback((value: number) => {
-    setExplodeState(Math.min(100, Math.max(0, value)));
-  }, []);
-
   const markSpun = useCallback(() => {
     setSpun(true);
   }, []);
@@ -218,7 +197,7 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
       return;
     }
     setSketchSaved(true);
-    showToast("Idea saved!", "Your sketch is waiting in the Remix inventory.");
+    showToast("Idea saved!", "Your sketch is part of the model now.");
     tone(720, 0.13);
   }, [showToast, sketchDrawn, tone]);
 
@@ -227,49 +206,6 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
     setSketchSaved(false);
     setSketchVersion((version) => version + 1);
   }, []);
-
-  const paintColor = useCallback(
-    (color: string) => {
-      setPaintedColors((colors) =>
-        colors.includes(color) ? colors : [...colors, color],
-      );
-      tone(560);
-    },
-    [tone],
-  );
-
-  const placeItem = useCallback(
-    (item: ItemId) => {
-      if (item === "sketch" && !sketchSaved) {
-        showToast(
-          "Save a sketch first",
-          "Visit Sketch to 3D, draw an idea, and save it.",
-        );
-        return;
-      }
-
-      setPlacedItems((items) => [
-        ...items,
-        {
-          id: `${item}-${items.length}-${Date.now()}`,
-          item,
-          left: `${22 + ((items.length * 17) % 56)}%`,
-          top: `${30 + ((items.length * 13) % 38)}%`,
-        },
-      ]);
-      const label =
-        item === "chair"
-          ? "Chair"
-          : item === "plant"
-            ? "Plant"
-            : item === "lamp"
-              ? "Lamp"
-              : "My idea";
-      showToast(`${label} added!`, "Your room is becoming one of a kind.");
-      tone(660);
-    },
-    [showToast, sketchSaved, tone],
-  );
 
   const findTreasure = useCallback(
     (id: number) => {
@@ -294,7 +230,6 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
 
   const resetView = useCallback(() => {
     setFloorState("all");
-    setExplodeState(0);
     setFov(45);
     setSceneEpoch((epoch) => epoch + 1);
     showToast("Ready to explore", "The model is back to its starting view.");
@@ -357,14 +292,11 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const steps = getMission(mode, {
-      explode,
       spun,
       floor,
       inkPicked,
       sketchDrawn,
       sketchSaved,
-      paintedCount: paintedColors.length,
-      placedItems: placedItems.map((item) => item.item),
       treasures,
       botsTagged,
       botTotal,
@@ -381,12 +313,9 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
   }, [
     botTotal,
     botsTagged,
-    explode,
     floor,
     inkPicked,
     mode,
-    paintedColors.length,
-    placedItems,
     showToast,
     sketchDrawn,
     sketchSaved,
@@ -408,8 +337,6 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
       toggleSound,
       floor,
       setFloor,
-      explode,
-      setExplode,
       spun,
       markSpun,
       ink,
@@ -421,10 +348,6 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
       saveSketch,
       clearSketch,
       sketchVersion,
-      paintedColors,
-      paintColor,
-      placedItems,
-      placeItem,
       treasures,
       findTreasure,
       rewardedModes,
@@ -448,7 +371,6 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
       clearSketch,
       connection,
       connectionText,
-      explode,
       findTreasure,
       floor,
       fov,
@@ -460,15 +382,10 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
       mode,
       modelName,
       nextMode,
-      paintColor,
-      paintedColors,
-      placeItem,
-      placedItems,
       resetView,
       rewardedModes,
       saveSketch,
       sceneEpoch,
-      setExplode,
       setFloor,
       setInk,
       setMode,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import {
   ExitFullscreenIcon,
   FullscreenIcon,
@@ -10,15 +10,8 @@ import GestureTracker from "@/components/gesture/GestureTracker";
 import { LaserTag } from "@/components/lasertag/LaserTag";
 import { LaserTagHud } from "@/components/lasertag/LaserTagHud";
 import FloodHud from "@/components/world/FloodHud";
-import { GesturePanel } from "./GesturePanel";
 import { MinecraftViewport } from "./MinecraftViewport";
-import {
-  INVENTORY,
-  ITEM_EMOJI,
-  MODES,
-  PAINT_COLORS,
-  TREASURES,
-} from "./modes";
+import { MODES, TREASURES } from "./modes";
 import { usePlayground } from "./playground-context";
 import { SketchOverlay } from "./SketchOverlay";
 import { StageToolbar } from "./StageToolbar";
@@ -60,17 +53,12 @@ export function ModelStage() {
     spun,
     zoomIn,
     zoomOut,
-    paintedColors,
-    paintColor,
-    placedItems,
-    placeItem,
     treasures,
     findTreasure,
   } = usePlayground();
   const config = MODES[mode];
   const control = useControlMode();
   const [pointerLocked, setPointerLocked] = useState(false);
-  const wallColor = paintedColors[paintedColors.length - 1];
 
   useEffect(() => {
     const onLock = () => {
@@ -87,13 +75,6 @@ export function ModelStage() {
       ref={stageRef}
       className="model-stage"
       aria-label="Interactive architectural model"
-      style={
-        wallColor
-          ? ({
-              "--wall-light": wallColor,
-            } as CSSProperties)
-          : undefined
-      }
     >
       <div className="stage-top">
         <div>
@@ -171,9 +152,9 @@ export function ModelStage() {
 
             All of these are `absolute`, so they land inside .model-viewport
             (position: relative) rather than over the playground chrome. */}
-        {/* The stars/water pills stack in the bottom-left of the viewport. Two
-            modes park a panel in that same corner, so playground.css lifts the
-            stack clear of them — see .world-hud-* there. */}
+        {/* The stars/water pills stack in the bottom-left of the viewport, at
+            the offsets the components carry themselves — nothing else parks in
+            that corner now. */}
         <TreasureHud className="world-hud-stars" />
         <PowerupHud />
         <FloodHud className="world-hud-water" />
@@ -181,17 +162,6 @@ export function ModelStage() {
             centre of this viewport. */}
         <SketchToWorld modeStripClassName="top-14 z-20" />
         <PaletteHUD />
-
-        {placedItems.map((item) => (
-          <span
-            key={item.id}
-            className="placed-item"
-            aria-hidden="true"
-            style={{ left: item.left, top: item.top }}
-          >
-            {ITEM_EMOJI[item.item]}
-          </span>
-        ))}
 
         {TREASURES.map((treasure) => (
           <button
@@ -209,39 +179,9 @@ export function ModelStage() {
 
         <SketchOverlay />
 
-        <div className="remix-palette" aria-label="Room color choices">
-          <span>Paint the walls</span>
-          {PAINT_COLORS.map((color) => (
-            <button
-              key={color.value}
-              type="button"
-              style={{ "--swatch": color.value } as CSSProperties}
-              aria-label={color.label}
-              onClick={() => paintColor(color.value)}
-            />
-          ))}
-        </div>
-
-        <div className="remix-inventory" aria-label="Room item inventory">
-          <span>Tap to add</span>
-          {INVENTORY.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              aria-label={`Add ${item.label === "My idea" ? "your sketch" : `a ${item.label.toLowerCase()}`}`}
-              onClick={() => placeItem(item.id)}
-            >
-              <b>{ITEM_EMOJI[item.id]}</b>
-              <small>{item.label}</small>
-            </button>
-          ))}
-        </div>
-
-        <GesturePanel />
-
         {/* Camera hand/head control for the Minecraft scene. The tracker owns
             its own Hands button, so it must live inside the viewport (the same
-            box the scene fills) on every mode, not just explode. */}
+            box the scene fills) on every mode. */}
         <div className="gesture-tracker">
           <GestureTracker />
         </div>

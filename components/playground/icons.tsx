@@ -7,29 +7,11 @@ export function ExploreIcon() {
   );
 }
 
-export function ExplodeIcon() {
-  return (
-    <svg viewBox="0 0 48 48">
-      <path d="m9 18 15-8 15 8-15 8-15-8Z" />
-      <path d="m9 31 15 8 15-8M24 27v11M8 24H3m42 0h-5M24 6V2" />
-    </svg>
-  );
-}
-
 export function SketchIcon() {
   return (
     <svg viewBox="0 0 48 48">
       <path d="m11 36 3-10L31 9l8 8-17 17-11 2Z" />
       <path d="m27 13 8 8M14 27l7 7" />
-    </svg>
-  );
-}
-
-export function RemixIcon() {
-  return (
-    <svg viewBox="0 0 48 48">
-      <path d="M8 36V18l16-9 16 9v18L24 44 8 36Z" />
-      <path d="m8 18 16 9 16-9M24 27v17M17 23l15-9" />
     </svg>
   );
 }
@@ -98,9 +80,7 @@ export function ExitFullscreenIcon() {
 
 export const ACTIVITY_ICONS = {
   explore: ExploreIcon,
-  explode: ExplodeIcon,
   sketch: SketchIcon,
-  remix: RemixIcon,
   treasure: TreasureIcon,
   lasertag: LaserTagIcon,
   race: RaceIcon,

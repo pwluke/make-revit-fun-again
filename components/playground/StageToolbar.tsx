@@ -20,8 +20,6 @@ export function StageToolbar() {
     mode,
     floor,
     setFloor,
-    explode,
-    setExplode,
     ink,
     setInk,
     clearSketch,
@@ -40,7 +38,7 @@ export function StageToolbar() {
           scrollable when it does not. */}
       <div className="toolbar-inner">
         {/* The one group that is not mode-specific — how you drive the world is
-            a setting, not an activity, so it shows in all seven. On /minecraft
+            a setting, not an activity, so it shows in all five. On /minecraft
             the same four modes are reached by clicking, by `B`, and by the Hands
             button; the playground has no room for that folklore, hence buttons.
 
@@ -83,20 +81,6 @@ export function StageToolbar() {
               {item.label}
             </button>
           ))}
-        </div>
-        <div className="tool-group explode-tools">
-          <span className="tool-label">Pull apart</span>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={explode}
-            aria-label="Pull model layers apart"
-            onChange={(event) => setExplode(Number(event.target.value))}
-          />
-          <span className="range-icon" aria-hidden="true">
-            ✦
-          </span>
         </div>
         <div className="tool-group sketch-tools">
           <span className="tool-label">Draw with</span>
