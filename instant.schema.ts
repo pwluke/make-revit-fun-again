@@ -105,7 +105,52 @@ const _schema = i.schema({
       },
     },
   },
-  rooms: {},
+  rooms: {
+    /**
+     * Live multiplayer. Everything here is EPHEMERAL — Instant rooms are a
+     * pub/sub channel, not a table, so none of this is persisted and none of it
+     * needs a rule in instant.perms.ts.
+     *
+     * The consequence worth knowing: a player who joins late sees the base world
+     * from the `_voxels.json` files, not the blocks everyone else has already
+     * broken. Durable edits would mean writing an entity and replaying it on
+     * join; that is deliberately out of scope here.
+     */
+    world: {
+      /**
+       * Where each player is, republished ~10x a second. Presence is
+       * last-write-wins per peer and is dropped when they disconnect, which is
+       * exactly the lifetime an avatar wants — no explicit "player left" event.
+       */
+      presence: i.entity({
+        /** Avatar tint. Random per tab: there are no accounts and no names. */
+        color: i.string(),
+        x: i.number(),
+        y: i.number(),
+        z: i.number(),
+        /** Camera yaw in radians, so the avatar faces where the player looks. */
+        yaw: i.number(),
+      }),
+      topics: {
+        /**
+         * One world edit, broadcast as INTENT ("add at x,y,z") rather than as
+         * resulting state. `useCubeStore`'s actions are idempotent and, for
+         * disjoint coordinates, commutative, so replaying intent on every client
+         * converges without any reconciliation pass.
+         */
+        edit: i.entity({
+          /** "add" | "remove". Validated on receipt — see core/protocol.ts. */
+          kind: i.string(),
+          /**
+           * JSON `[[x,y,z], ...]`. A string for the same reason `creations.spawn`
+           * is one: Instant entities are flat, so a list of coordinate triples
+           * has no native representation here.
+           */
+          positions: i.string(),
+        }),
+      },
+    },
+  },
 });
 
 // This helps TypeScript display nicer intellisense

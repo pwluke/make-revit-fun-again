@@ -23,6 +23,11 @@ import { playerOrigin } from "./player-origin";
 import { THEMES, type LayerId } from "@/lib/themes";
 import { useSceneTheme, useThemeStore } from "../world/themeStore";
 import { sketchStore } from "../sketch3d/core/strokeStore";
+import {
+  applyWithoutBroadcast,
+  publishLocalEdit,
+} from "../multiplayer/core/editBus";
+import type { EditOp } from "../multiplayer/core/protocol";
 
 // How far the player can reach to break or place, in world units. Also caps the
 // per-frame raycast, so a block across the map can't be edited by aiming at it.
@@ -56,10 +61,17 @@ type CubeStore = {
 
 // Exported so gesture-driven building (GestureBuilder) can queue cubes
 // without going through a pointer event.
+// Every action announces itself on the edit bus after applying, so the network
+// layer can mirror it to the other players. The announcement is deliberately
+// AFTER the `set` and outside the updater: zustand updaters are expected to be
+// pure, and a side effect inside one fires again on any future replay.
+//
+// `publishLocalEdit` is a no-op with nothing subscribed, so single-player
+// behaviour and every existing test are unchanged.
 export const useCubeStore = create<CubeStore>((set) => ({
   added: [],
   removed: new Set<string>(),
-  addCube: (x, y, z) =>
+  addCube: (x, y, z) => {
     set((state) => {
       const key = keyOf(x, y, z);
       // Placing where something was broken un-breaks it, rather than stacking a
@@ -71,10 +83,41 @@ export const useCubeStore = create<CubeStore>((set) => ({
         removed,
         added: already ? state.added : [...state.added, [x, y, z]],
       };
-    }),
-  removeCube: (x, y, z) => set((state) => maskRemoved(state, [[x, y, z]])),
-  removeCubes: (positions) => set((state) => maskRemoved(state, positions)),
+    });
+    publishLocalEdit({ kind: "add", positions: [[x, y, z]] });
+  },
+  removeCube: (x, y, z) => {
+    set((state) => maskRemoved(state, [[x, y, z]]));
+    publishLocalEdit({ kind: "remove", positions: [[x, y, z]] });
+  },
+  removeCubes: (positions) => {
+    set((state) => maskRemoved(state, positions));
+    publishLocalEdit({ kind: "remove", positions });
+  },
 }));
+
+/**
+ * Replay an edit that another player made.
+ *
+ * Goes through the ordinary store actions rather than writing state directly,
+ * which is what makes this safe without any merge logic: `addCube` already
+ * no-ops on a coordinate that exists, and `removed` is a Set, so applying the
+ * same edit twice — or applying two players' edits in different orders on
+ * different machines — lands everyone in the same state.
+ *
+ * Broadcasting is suppressed for the duration; without that, receiving an edit
+ * would rebroadcast it and the room would amplify a single click forever.
+ */
+export function applyRemoteEdit(op: EditOp) {
+  applyWithoutBroadcast(() => {
+    const { addCube, removeCubes } = useCubeStore.getState();
+    if (op.kind === "add") {
+      for (const [x, y, z] of op.positions) addCube(x, y, z);
+    } else {
+      removeCubes(op.positions);
+    }
+  });
+}
 
 function maskRemoved(state: CubeStore, positions: CubeCoords[]) {
   const removed = new Set(state.removed);

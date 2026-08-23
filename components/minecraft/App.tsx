@@ -18,6 +18,7 @@ import { ThemeAtmosphere } from "../world/ThemeAtmosphere";
 import { useFastMode } from "../world/themeStore";
 import { creationStore } from "@/components/sketch-to-3d/core/creationStore";
 import { Creations } from "@/components/sketch-to-3d/r3f/Creations";
+import { RemotePlayers } from "@/components/multiplayer/r3f/RemotePlayers";
 import { GroundGuide } from "@/components/sketch3d/r3f/GroundGuide";
 import { SketchController } from "@/components/sketch3d/r3f/SketchController";
 import { Strokes } from "@/components/sketch3d/r3f/Strokes";
@@ -65,6 +66,11 @@ export function MinecraftScene() {
       <Stars />
       <Powerups />
       <Flood />
+      {/* Also outside <Physics>, and that is the design: other players are
+          drawn, not simulated. Each client owns only its own capsule, which is
+          what keeps this free of authority and rollback machinery. It also owns
+          the room connection — mounting it is what makes this tab multiplayer. */}
+      <RemotePlayers />
       <GestureBuilder />
       {/* Also outside <Physics>: strokes carry no colliders and do not belong in
           the physics world. SketchController is headless (it only reads the

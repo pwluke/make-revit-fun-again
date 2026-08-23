@@ -15,6 +15,7 @@ import { hitBlockCenter } from "./GestureBuilder";
 import { powerupState, usePowerupStore } from "../world/powerupStore";
 import { useFloodStore } from "../world/floodStore";
 import { playerOrigin } from "./player-origin";
+import { publishSelf } from "../multiplayer/net";
 import { TARGET_BLOCK_SIZE } from "@/lib/use-grid-points";
 
 type Controls =
@@ -68,6 +69,9 @@ const direction = new THREE.Vector3();
 const frontVector = new THREE.Vector3();
 const sideVector = new THREE.Vector3();
 const rotation = new THREE.Vector3();
+/** Scratch for the yaw sent to other players. Its own vector rather than
+ *  reusing `rotation`, which the axe placement consumes mid-frame. */
+const netFacing = new THREE.Vector3();
 
 // Gesture input tuning. Steering uses the same YXZ order as
 // PointerLockControls so both inputs can share the camera.
@@ -394,6 +398,24 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
       jumpLockout.current = JUMP_LOCKOUT;
       ref.current.setLinvel({ x: direction.x, y: JUMP_SPEED, z: direction.z }, true);
     }
+
+    // Tell the other players where we are. Last thing in the frame on purpose:
+    // the gesture paths above (orbit, head-look) rewrite the camera, so reading
+    // facing any earlier would broadcast a yaw that was superseded this frame.
+    //
+    // Called unconditionally every frame — `publishSelf` self-throttles to
+    // ~10Hz, and keeping the rate limit in one place beats scattering timers.
+    // Yaw comes from the world direction rather than `camera.rotation.y`
+    // because the gesture paths write a quaternion from a YXZ euler, and reading
+    // `.y` back off the default XYZ-order rotation mixes pitch into yaw.
+    state.camera.getWorldDirection(netFacing);
+    publishSelf(
+      playerOrigin.x,
+      playerOrigin.y,
+      playerOrigin.z,
+      Math.atan2(-netFacing.x, -netFacing.z),
+      state.clock.elapsedTime * 1000,
+    );
   });
   return (
     <>
