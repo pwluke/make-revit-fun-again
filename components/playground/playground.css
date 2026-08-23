@@ -153,24 +153,16 @@
   line-height: 0.82;
   transform: rotate(-1deg);
 }
-.playground .brand-wordmark small {
-  grid-column: 1 / -1;
-  margin: 0 0 3px 2px;
-  color: var(--coral);
-  font-size: 0.47rem;
-  font-weight: 700;
-  letter-spacing: 0.31em;
-}
 .playground .brand-wordmark strong {
   font-size: 1.25rem;
   letter-spacing: -0.06em;
 }
 .playground .brand-wordmark em {
   color: var(--brand);
-  font-size: 0.68rem;
+  font-size: 1.1rem;
+  letter-spacing: -0.04em;
   font-style: normal;
   font-weight: 700;
-  transform: rotate(-3deg) translateY(-1px);
 }
 
 .playground .model-status {
@@ -1701,9 +1693,6 @@
 @media (max-width: 650px) {
   .playground .topbar {
     padding: 0 12px;
-  }
-  .playground .brand-wordmark em {
-    display: none;
   }
   .playground .brand-mark {
     width: 31px;

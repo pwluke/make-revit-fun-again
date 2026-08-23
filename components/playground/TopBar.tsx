@@ -50,7 +50,7 @@ export function TopBar() {
       <a
         className="brand"
         href="/"
-        aria-label="Make Revit Fun Again home"
+        aria-label="BIM Blocks home"
         onClick={(event) => {
           event.preventDefault();
           setMode("explore", true);
@@ -62,9 +62,8 @@ export function TopBar() {
           <span />
         </span>
         <span className="brand-wordmark">
-          <small>MAKE</small>
-          <strong>REVIT</strong>
-          <em>FUN AGAIN!</em>
+          <strong>BIM</strong>
+          <em>BLOCKS</em>
         </span>
       </a>
 
