@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect } from "react";
+import { useLayoutEffect, type ReactNode } from "react";
 import { useThree } from "@react-three/fiber";
 import { SceneCanvas } from "@/components/canvas/SceneCanvas";
 import {
@@ -24,10 +24,14 @@ export function MinecraftViewport({
   fov,
   sceneEpoch,
   onPlay,
+  children,
 }: {
   fov: number;
   sceneEpoch: number;
   onPlay: () => void;
+  /** Per-mode scene add-on. Deliberately not part of `key` — mounting one
+   *  should reconcile inside the live canvas, not reload the model. */
+  children?: ReactNode;
 }) {
   return (
     <div className="scene-canvas-wrap" onPointerDown={onPlay}>
@@ -37,7 +41,7 @@ export function MinecraftViewport({
           camera={{ fov, position: [0, 10, 0] }}
         >
           <CameraFov fov={fov} />
-          <MinecraftScene />
+          <MinecraftScene>{children}</MinecraftScene>
         </SceneCanvas>
       </MinecraftControls>
     </div>

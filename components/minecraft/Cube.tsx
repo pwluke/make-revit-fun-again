@@ -18,6 +18,7 @@ import {
 } from "@/lib/use-grid-points";
 import { SCENE } from "@/lib/palette";
 import { useGestureStore } from "../gesture/store";
+import { laserTagState } from "../lasertag/laserTagStore";
 import { BreakDebris, playBreakSound, spawnBreakDebris } from "./break-fx";
 import { playerOrigin } from "./player-origin";
 import { THEMES, type LayerId } from "@/lib/themes";
@@ -29,6 +30,9 @@ import { sketchStore } from "../sketch3d/core/strokeStore";
 const REACH = 8;
 /** Extra bricks removed with the one you aim at. */
 const BREAK_NEIGHBORS = 10;
+/** Seconds between crosshair re-picks. The highlight only has to keep up with
+ *  the eye; breaking forces a fresh pick regardless. */
+const PICK_INTERVAL = 0.1;
 
 const dummy = new THREE.Object3D();
 const tint = new THREE.Color();
@@ -93,6 +97,57 @@ function maskRemoved(state: CubeStore, positions: CubeCoords[]) {
   };
 }
 
+/**
+ * Pack a lattice cell into one number so the occupancy set can be a Set<number>
+ * rather than a Set<string>. Interior culling does six lookups per cube across
+ * ~317k cubes; building two million strings for that is most of the cost.
+ *
+ * ±32k cells per axis, which is far more than the model needs, and the packed
+ * value stays well inside the 2^53 range doubles represent exactly.
+ */
+const CELL_BIAS = 32768;
+const CELL_SPAN = CELL_BIAS * 2;
+const cellKey = (ix: number, iy: number, iz: number) =>
+  (ix + CELL_BIAS) * CELL_SPAN * CELL_SPAN + (iy + CELL_BIAS) * CELL_SPAN + (iz + CELL_BIAS);
+
+/**
+ * Drop cubes that are completely surrounded — they can never be seen, but they
+ * are drawn, shadowed, raycast and collided against like any other.
+ *
+ * The model is a voxelised building, so most of its volume is interior: this is
+ * the cheapest large win available, and it compounds with everything else
+ * (fewer instances makes the crosshair raycast proportionally cheaper too).
+ *
+ * Errors here are one-sided by construction. A cell key that fails to match its
+ * neighbour — floating point drift along the lattice, say — makes a cube look
+ * *exposed*, so it is kept and drawn. The failure mode is a cube too many, not
+ * a hole in the wall.
+ */
+function cullEnclosed(cubes: CubeInstance[], size: CubeCoords): CubeInstance[] {
+  const [sx, sy, sz] = size;
+  if (!sx || !sy || !sz) return cubes;
+
+  const cellOf = (p: CubeCoords) =>
+    [Math.round(p[0] / sx), Math.round(p[1] / sy), Math.round(p[2] / sz)] as const;
+
+  const occupied = new Set<number>();
+  for (const cube of cubes) occupied.add(cellKey(...cellOf(cube.position)));
+
+  const visible: CubeInstance[] = [];
+  for (const cube of cubes) {
+    const [ix, iy, iz] = cellOf(cube.position);
+    const enclosed =
+      occupied.has(cellKey(ix + 1, iy, iz)) &&
+      occupied.has(cellKey(ix - 1, iy, iz)) &&
+      occupied.has(cellKey(ix, iy + 1, iz)) &&
+      occupied.has(cellKey(ix, iy - 1, iz)) &&
+      occupied.has(cellKey(ix, iy, iz + 1)) &&
+      occupied.has(cellKey(ix, iy, iz - 1));
+    if (!enclosed) visible.push(cube);
+  }
+  return visible;
+}
+
 function breakCluster(
   origin: CubeInstance,
   cubes: CubeInstance[],
@@ -132,8 +187,10 @@ export const Cubes = () => {
       push(point.position, themed);
     }
     for (const coords of added) push(coords, theme.playerBlock);
-    return out;
-  }, [data?.points, added, removed, theme]);
+    // Recomputed whenever the world changes, so breaking a wall re-exposes the
+    // cubes behind it on the same pass that removed the wall.
+    return cullEnclosed(out, blockSize);
+  }, [data?.points, added, removed, theme, blockSize]);
 
   return (
     <>
@@ -198,6 +255,7 @@ function InstancedCubes({
   // frame behind, so the authoritative copy lives in a ref. `hovered` exists
   // only to drive the highlight render.
   const hit = useRef<{ index: number; normal: THREE.Vector3 } | null>(null);
+  const pickCooldown = useRef(0);
 
   const clearHit = useCallback(() => {
     hit.current = null;
@@ -228,21 +286,36 @@ function InstancedCubes({
     [removeCubes],
   );
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     // Consumed up front, even when nothing is under the crosshair: a queued
     // break that missed should be dropped, not held until the player happens to
     // aim at a block later.
     const breakQueued = useGestureStore.getState().consumeBreak();
     const mesh = meshRef.current;
     if (!mesh || mesh.count === 0) return clearHit();
-    picker.setFromCamera(CROSSHAIR, camera);
-    const [first] = picker.intersectObject(mesh, false);
-    if (!first || first.instanceId == null || !first.face) return clearHit();
-    hit.current = { index: first.instanceId, normal: first.face.normal };
-    setHovered((current) =>
-      current === first.instanceId ? current : first.instanceId!,
-    );
-    if (breakQueued) breakAt(first.instanceId);
+
+    // Repicking is throttled because InstancedMesh.raycast is O(instances): once
+    // the ray is inside the batch's bounding sphere it tests every cube on the
+    // CPU, and the voxel layers put ~317k of them in there. Running that every
+    // frame cost more than the entire GPU frame. A break needs the pick to be
+    // current, so it forces one.
+    pickCooldown.current -= delta;
+    const mustPick = breakQueued || pickCooldown.current <= 0;
+    if (mustPick) {
+      pickCooldown.current = PICK_INTERVAL;
+      picker.setFromCamera(CROSSHAIR, camera);
+      const [first] = picker.intersectObject(mesh, false);
+      if (!first || first.instanceId == null || !first.face) return clearHit();
+      hit.current = { index: first.instanceId, normal: first.face.normal };
+      setHovered((current) =>
+        current === first.instanceId ? current : first.instanceId!,
+      );
+    }
+
+    // Laser Tag owns breaking while a round is live — same gate as pointerdown.
+    if (breakQueued && hit.current && !laserTagState.active) {
+      breakAt(hit.current.index);
+    }
   });
 
   useEffect(() => {
@@ -260,6 +333,10 @@ function InstancedCubes({
       // (Selection needs no guard here: it releases pointer lock, so the check
       // above has already returned.)
       if (sketchStore.getState().drawMode) return;
+      // Laser Tag owns the left button while it is running — a shot must not
+      // also demolish the arena you are hunting in. Right-click placement goes
+      // with it, which is what you want mid-round.
+      if (laserTagState.active) return;
       const current = hit.current;
       if (!current) return;
       const target = cubesRef.current[current.index];

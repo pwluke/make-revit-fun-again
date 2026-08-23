@@ -1,0 +1,277 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using BIM_Boom.Handlers;
+using BIM_Boom.Models;
+using BIM_Boom.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+namespace BIM_Boom.ViewModels;
+
+public sealed partial class BIM_BoomViewModel : ObservableObject
+{
+    private readonly Autodesk.Revit.UI.UIDocument _uidoc;
+    private readonly Document _doc;
+    private readonly VoxelDirectContext3DServer _dc3dServer;
+    private readonly DelegateExternalEventHandler _handler;
+    private readonly Autodesk.Revit.UI.ExternalEvent _externalEvent;
+
+    /// <summary>
+    /// The UI thread this view model was built on. Voxelizing runs on a worker,
+    /// and the command's enabled state has to be flipped back from there —
+    /// raising CanExecuteChanged off the UI thread can be dropped, which would
+    /// leave the button greyed out for good.
+    /// </summary>
+    private readonly System.Windows.Threading.Dispatcher _dispatcher =
+        System.Windows.Threading.Dispatcher.CurrentDispatcher;
+
+    private List<VoxelData> _currentVoxels = [];
+
+    /// <summary>
+    /// 1.4 ft matches the pitch of the model the game currently ships, so an
+    /// export at this size drops in with the same proportions: the web app
+    /// normalises one voxel to 1/3 of a world unit, which puts the player's eye
+    /// at a bit over 5 ft. Halving it doubles the building relative to the
+    /// player — and multiplies the export time by about eight.
+    /// </summary>
+    [ObservableProperty] private double _cellSize = 1.4;
+
+    /// <summary>
+    /// How close a cell centre has to be to a surface to become a voxel, as a
+    /// multiple of the cell size.
+    /// <para>
+    /// 0.7 is the usable window and it is narrow at both ends. Below it the
+    /// shell develops pinholes — walls you can shoot and walk through. At 1.0 or
+    /// above, a floor slab grows a voxel layer a full cell <i>above</i> its top
+    /// face, which at this lattice lands 0.5 world units up: inside the
+    /// knee-to-head band the game treats as an obstruction
+    /// (<c>components/lasertag/botArena.ts</c>). The whole floor then reads as a
+    /// wall, no cell is walkable, and the bots have nowhere to stand.
+    /// </para>
+    /// </summary>
+    [ObservableProperty] private double _distanceThreshold = 0.7;
+
+    /// <summary>
+    /// Per-layer cap, not a total. A whole building at 1.4 ft comes to a few
+    /// hundred thousand points across the ten layers; the shipped model is
+    /// ~374,000, with the biggest single layer around 118,000.
+    /// </summary>
+    [ObservableProperty] private int _maxVoxels = 150000;
+
+    [ObservableProperty] private string _statusText =
+        "Ready. Click 'Export model for the game' — the whole model, or just the current selection.";
+    [ObservableProperty] private int _voxelCount;
+
+    /// <summary>Where the ten *_voxels.json files get written.</summary>
+    [ObservableProperty] private string _outputFolder = DefaultOutputFolder();
+
+    /// <summary>
+    /// True while an export is running. Drives the button's enabled state, so a
+    /// long voxelization doesn't look like a button that ignored the click.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ExportGameJsonCommand))]
+    private bool _isExporting;
+
+    private bool CanExport() => !IsExporting;
+
+    /// <summary>Flip the exporting flag on the UI thread, wherever we are.</summary>
+    private void SetExporting(bool value)
+    {
+        if (_dispatcher.CheckAccess()) IsExporting = value;
+        else _dispatcher.Invoke(() => IsExporting = value);
+    }
+
+    public BIM_BoomViewModel(Autodesk.Revit.UI.UIDocument uidoc, VoxelDirectContext3DServer dc3dServer,
+        DelegateExternalEventHandler handler, Autodesk.Revit.UI.ExternalEvent externalEvent)
+    {
+        _uidoc = uidoc;
+        _doc = uidoc.Document;
+        _dc3dServer = dc3dServer;
+        _handler = handler;
+        _externalEvent = externalEvent;
+    }
+
+    private static string DefaultOutputFolder()
+    {
+        return System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+            "bim-boom-voxels");
+    }
+
+    /// <summary>
+    /// The button. Reads the model, voxelises it layer by layer, and writes the
+    /// ten *_voxels.json files the web game loads out of its public/ folder.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanExport))]
+    private void ExportGameJson()
+    {
+        if (IsExporting) return;
+        IsExporting = true;
+        StatusText = "Reading the model...";
+
+        _handler.SetAction(uiApp =>
+        {
+            try
+            {
+                var uidoc = uiApp.ActiveUIDocument;
+                var doc = uidoc.Document;
+
+                // A selection narrows the export; with nothing selected we take
+                // the whole model, which is what feeding the game usually means.
+                var ids = uidoc.Selection.GetElementIds();
+                var scope = ids.Count > 0 ? $"{ids.Count} selected elements" : "the whole model";
+                StatusText = $"Extracting geometry from {scope}...";
+
+                // Geometry extraction has to happen on the Revit API thread.
+                var (layers, elementCount, grayCount) =
+                    RevitGeometryExtractor.ExtractByLayer(doc, ids.Count > 0 ? ids : null);
+
+                if (elementCount == 0)
+                {
+                    StatusText = ids.Count > 0
+                        ? "Nothing in the selection belongs to a game layer (walls, floors, roofs, ceilings, columns, stairs, foundations, railings, ramps, generic models)."
+                        : "No elements found in the game's categories. Is the model empty?";
+                    SetExporting(false);
+                    return;
+                }
+
+                var note = grayCount > 0 ? $" ({grayCount} without a material — using grey)" : "";
+                StatusText = $"Read {elementCount} elements{note}. Voxelizing {GameLayers.All.Length} layers...";
+
+                // Voxelizing and writing are CPU- and disk-bound: off the API thread.
+                var folder = OutputFolder;
+                Task.Run(() => RunExportBackground(layers, folder));
+            }
+            catch (Exception ex)
+            {
+                StatusText = $"Export failed: {ex.Message}";
+                SetExporting(false);
+            }
+        });
+
+        _externalEvent.Raise();
+    }
+
+    private void RunExportBackground(Dictionary<string, MergedMesh> layers, string folder)
+    {
+        try
+        {
+            var threshold = DistanceThreshold * CellSize;
+            var byLayer = new Dictionary<string, List<VoxelData>>();
+            int total = 0;
+
+            foreach (var layer in GameLayers.All)
+            {
+                var mesh = layers[layer.Id];
+                var voxels = VoxelizationService.VoxelizeSurface(
+                    mesh, CellSize, threshold, MaxVoxels);
+                byLayer[layer.Id] = voxels;
+                total += voxels.Count;
+                StatusText = $"{layer.Id}: {voxels.Count} voxels ({total} so far)...";
+            }
+
+            if (total == 0)
+            {
+                StatusText = "Voxelizing produced nothing — try a smaller cell size.";
+                return;
+            }
+
+            StatusText = $"Writing {total} points to {folder}...";
+            var written = GameJsonExporter.WriteLayers(folder, byLayer);
+
+            // Lowest point in the export decides where the app drops the model
+            // relative to its ground plane — see RecommendedBuildingYOffset.
+            double lowestZ = double.MaxValue;
+            foreach (var voxels in byLayer.Values)
+            {
+                foreach (var voxel in voxels)
+                {
+                    if (voxel.Z < lowestZ) lowestZ = voxel.Z;
+                }
+            }
+            var offset = GameJsonExporter.RecommendedBuildingYOffset(CellSize, lowestZ);
+
+            var summary = new System.Text.StringBuilder();
+            summary.Append($"Exported {total} points to {folder}. ");
+            foreach (var result in written)
+            {
+                if (result.PointCount > 0) summary.Append($"{result.Id}:{result.PointCount} ");
+            }
+            summary.Append("— copy these into the web app's public/ folder, then set ");
+            summary.Append($"BUILDING_Y_OFFSET = {offset.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)} ");
+            summary.Append("in lib/use-grid-points.ts so level 0 sits on the ground plane.");
+            StatusText = summary.ToString();
+
+            VoxelCount = total;
+            _currentVoxels = FlattenForPreview(byLayer, PreviewCap);
+            ShowPreview();
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Export failed: {ex.Message}";
+        }
+        finally
+        {
+            SetExporting(false);
+        }
+    }
+
+    /// <summary>
+    /// DirectContext3D draws every voxel as a box each frame, so the in-Revit
+    /// preview gets a slice of the export rather than all of it.
+    /// </summary>
+    private const int PreviewCap = 30000;
+
+    /// <summary>
+    /// The in-Revit preview draws one flat list, and it is a preview — cap it
+    /// rather than handing DirectContext3D a whole building.
+    /// </summary>
+    private static List<VoxelData> FlattenForPreview(
+        Dictionary<string, List<VoxelData>> byLayer, int cap)
+    {
+        var flat = new List<VoxelData>();
+        foreach (var voxels in byLayer.Values)
+        {
+            foreach (var voxel in voxels)
+            {
+                if (flat.Count >= cap) return flat;
+                flat.Add(voxel);
+            }
+        }
+        return flat;
+    }
+
+    private void ShowPreview()
+    {
+        _handler.SetAction(uiApp =>
+        {
+            _dc3dServer.UpdateVoxels(_currentVoxels);
+            uiApp.ActiveUIDocument?.UpdateAllOpenViews();
+            uiApp.ActiveUIDocument?.RefreshActiveView();
+        });
+        _externalEvent.Raise();
+    }
+
+    [RelayCommand]
+    private void BrowseOutputFolder()
+    {
+        // SaveFileDialog rather than a folder picker: OpenFolderDialog is WPF on
+        // .NET 8+ only, and this add-in still builds for the .NET Framework
+        // Revit versions. The file name is discarded — only its folder is kept.
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Pick the folder for the *_voxels.json files",
+            FileName = "voxels-go-here",
+            Filter = "Folder|*.*",
+            InitialDirectory = System.IO.Directory.Exists(OutputFolder) ? OutputFolder : null
+        };
+        if (dialog.ShowDialog() != true) return;
+        var folder = System.IO.Path.GetDirectoryName(dialog.FileName);
+        if (!string.IsNullOrEmpty(folder)) OutputFolder = folder!;
+    }
+
+}

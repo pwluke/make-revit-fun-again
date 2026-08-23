@@ -14,6 +14,7 @@ import { useGestureStore } from "../gesture/store";
 import { hitBlockCenter } from "./GestureBuilder";
 import { powerupState, usePowerupStore } from "../world/powerupStore";
 import { useFloodStore } from "../world/floodStore";
+import { laserTagState } from "../lasertag/laserTagStore";
 import { playerOrigin } from "./player-origin";
 import { TARGET_BLOCK_SIZE } from "@/lib/use-grid-points";
 
@@ -241,7 +242,9 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
       headWasTracked.current = false;
     }
     orbitWas.current = orbiting;
-    // update axe
+    // update axe — hidden while Laser Tag holds the world, so the diamond axe
+    // doesn't float alongside the laser gun.
+    axe.current.visible = !laserTagState.active;
     // children[0] is whatever HeldItem rendered — the axe, or the player's
     // newest creation. It is momentarily ABSENT while a creation's GLB
     // downloads and Suspense swaps the subtree, and an unguarded read throws

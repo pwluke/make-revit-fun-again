@@ -1,10 +1,14 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import { useLaserTagStore } from "@/components/lasertag/laserTagStore";
 import { FLOORS, INK_COLORS } from "./modes";
 import { usePlayground } from "./playground-context";
 
 export function StageToolbar() {
+  const botsTagged = useLaserTagStore((s) => s.tagged.length);
+  const botTotal = useLaserTagStore((s) => s.total);
+  const botConfigCount = useLaserTagStore((s) => s.config.botCount);
   const {
     mode,
     floor,
@@ -64,6 +68,28 @@ export function StageToolbar() {
         <button type="button" className="tool-chip save-sketch" onClick={saveSketch}>
           Save my idea
         </button>
+      </div>
+      <div className="tool-group laser-tools">
+        <span className="tool-label">Round</span>
+        <button
+          type="button"
+          className="tool-chip"
+          onClick={() => useLaserTagStore.getState().backToSetup()}
+        >
+          Change settings
+        </button>
+        <button
+          type="button"
+          className="tool-chip"
+          onClick={() => useLaserTagStore.getState().playAgain()}
+        >
+          New round
+        </button>
+        <span className="tool-chip static">
+          {/* `total` is 0 until the voxel layers land, so fall back to the
+              count the player picked rather than flashing "0 left". */}
+          Bots left: {Math.max(0, (botTotal || botConfigCount) - botsTagged)}
+        </span>
       </div>
     </div>
   );

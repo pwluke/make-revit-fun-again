@@ -1,0 +1,190 @@
+using System;
+using System.Collections.Generic;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.DirectContext3D;
+using Autodesk.Revit.DB.ExternalService;
+
+namespace BIM_Boom.Services;
+
+/// <summary>
+/// DirectContext3D server that renders colored voxel cubes in the Revit viewport (Stage E).
+/// All voxels are batched into a single draw call for performance.
+/// Must be registered/unregistered on the Revit API thread.
+/// </summary>
+public class VoxelDirectContext3DServer : IDirectContext3DServer
+{
+    private readonly Guid _serverId = Guid.NewGuid();
+    private readonly Document _document;
+    private List<Models.VoxelData> _voxels = [];
+    private bool _isRegistered;
+
+    public VoxelDirectContext3DServer(Document document)
+    {
+        _document = document;
+    }
+
+    public void UpdateVoxels(List<Models.VoxelData> voxels)
+    {
+        _voxels = voxels ?? [];
+    }
+
+    public void Register()
+    {
+        if (_isRegistered) return;
+        var service = ExternalServiceRegistry.GetService(ExternalServices.BuiltInExternalServices.DirectContext3DService);
+        if (service is MultiServerService multiService)
+        {
+            multiService.AddServer(this);
+
+            // Activate the server so Revit actually calls RenderScene
+            var activeIds = multiService.GetActiveServerIds();
+            activeIds.Add(_serverId);
+            multiService.SetActiveServers(activeIds);
+
+            _isRegistered = true;
+        }
+    }
+
+    public void Unregister()
+    {
+        if (!_isRegistered) return;
+        var service = ExternalServiceRegistry.GetService(ExternalServices.BuiltInExternalServices.DirectContext3DService);
+        if (service is MultiServerService multiService)
+        {
+            multiService.RemoveServer(_serverId);
+            _isRegistered = false;
+        }
+    }
+
+    #region IDirectContext3DServer
+
+    public Guid GetServerId() => _serverId;
+    public string GetVendorId() => "BIM-Boom";
+    public string GetName() => "Voxel Preview";
+    public string GetDescription() => "Colored voxel shell preview";
+    public ExternalServiceId GetServiceId() => ExternalServices.BuiltInExternalServices.DirectContext3DService;
+    public string GetSourceId() => string.Empty;
+
+    public bool CanExecute(View dBView) => dBView.Document.PathName == _document.PathName && _voxels.Count > 0;
+
+    public bool UseInTransparentPass(View dBView) => true;
+
+    public string GetApplicationId() => string.Empty;
+
+    public bool UsesHandles() => false;
+
+    public Outline GetBoundingBox(View dBView)
+    {
+        if (_voxels.Count == 0)
+            return new Outline(XYZ.Zero, XYZ.Zero);
+
+        double minX = double.MaxValue, minY = double.MaxValue, minZ = double.MaxValue;
+        double maxX = double.MinValue, maxY = double.MinValue, maxZ = double.MinValue;
+
+        foreach (var v in _voxels)
+        {
+            var h = v.Size / 2.0;
+            if (v.X - h < minX) minX = v.X - h;
+            if (v.Y - h < minY) minY = v.Y - h;
+            if (v.Z - h < minZ) minZ = v.Z - h;
+            if (v.X + h > maxX) maxX = v.X + h;
+            if (v.Y + h > maxY) maxY = v.Y + h;
+            if (v.Z + h > maxZ) maxZ = v.Z + h;
+        }
+
+        return new Outline(new XYZ(minX, minY, minZ), new XYZ(maxX, maxY, maxZ));
+    }
+
+    public void RenderScene(View dBView, DisplayStyle displayStyle)
+    {
+        if (_voxels.Count == 0) return;
+
+        // Each voxel: 6 faces × 4 vertices = 24 vertices per voxel
+        int vertsPerVoxel = 24;
+        int trisPerVoxel = 12;
+        int totalVerts = _voxels.Count * vertsPerVoxel;
+        int totalTris = _voxels.Count * trisPerVoxel;
+
+        var vertexBuffer = new VertexBuffer(totalVerts * VertexPositionNormalColored.GetSizeInFloats());
+        vertexBuffer.Map(totalVerts * VertexPositionNormalColored.GetSizeInFloats());
+
+        var indexBuffer = new IndexBuffer(totalTris * IndexTriangle.GetSizeInShortInts());
+        indexBuffer.Map(totalTris * IndexTriangle.GetSizeInShortInts());
+
+        int vertexOffset = 0;
+
+        var vStream = vertexBuffer.GetVertexStreamPositionNormalColored();
+        var iStream = indexBuffer.GetIndexStreamTriangle();
+
+        foreach (var voxel in _voxels)
+        {
+            var color = new ColorWithTransparency((uint)voxel.R, (uint)voxel.G, (uint)voxel.B, 0);
+            AddCubeToBuffers(vStream, iStream, voxel.X, voxel.Y, voxel.Z, voxel.Size, color, ref vertexOffset);
+        }
+
+        vertexBuffer.Unmap();
+        indexBuffer.Unmap();
+
+        var vFormat = new VertexFormat(VertexFormatBits.PositionNormalColored);
+        var effect = new EffectInstance(VertexFormatBits.PositionNormalColored);
+
+        DrawContext.FlushBuffer(vertexBuffer, totalVerts, indexBuffer, totalTris * 3,
+            vFormat, effect, PrimitiveType.TriangleList, 0, totalTris * 3);
+    }
+
+    private static void AddCubeToBuffers(
+        VertexStreamPositionNormalColored vStream,
+        IndexStreamTriangle iStream,
+        double cx, double cy, double cz, double size,
+        ColorWithTransparency color,
+        ref int vertexOffset)
+    {
+        double h = size / 2.0;
+
+        // 8 corner points
+        var corners = new XYZ[]
+        {
+            new(cx - h, cy - h, cz - h), // 0: near-bottom-left
+            new(cx + h, cy - h, cz - h), // 1: near-bottom-right
+            new(cx + h, cy + h, cz - h), // 2: near-top-right
+            new(cx - h, cy + h, cz - h), // 3: near-top-left
+            new(cx - h, cy - h, cz + h), // 4: far-bottom-left
+            new(cx + h, cy - h, cz + h), // 5: far-bottom-right
+            new(cx + h, cy + h, cz + h), // 6: far-top-right
+            new(cx - h, cy + h, cz + h), // 7: far-top-left
+        };
+
+        // 6 faces: indices into corners + normal
+        var faces = new (int A, int B, int C, int D, XYZ Normal)[]
+        {
+            (0, 1, 2, 3, new XYZ(0, 0, -1)),  // -Z face
+            (4, 7, 6, 5, new XYZ(0, 0, 1)),   // +Z face
+            (0, 3, 7, 4, new XYZ(-1, 0, 0)),  // -X face
+            (1, 5, 6, 2, new XYZ(1, 0, 0)),   // +X face
+            (0, 4, 5, 1, new XYZ(0, -1, 0)),  // -Y face
+            (3, 2, 6, 7, new XYZ(0, 1, 0)),   // +Y face
+        };
+
+        foreach (var (a, b, c, d, normal) in faces)
+        {
+            // 4 vertices per face (for flat shading with correct normals)
+            var vA = new VertexPositionNormalColored(corners[a], normal, color);
+            var vB = new VertexPositionNormalColored(corners[b], normal, color);
+            var vC = new VertexPositionNormalColored(corners[c], normal, color);
+            var vD = new VertexPositionNormalColored(corners[d], normal, color);
+
+            vStream.AddVertex(vA);
+            vStream.AddVertex(vB);
+            vStream.AddVertex(vC);
+            vStream.AddVertex(vD);
+
+            // Two triangles: ABC, ACD
+            iStream.AddTriangle(new IndexTriangle(vertexOffset, vertexOffset + 1, vertexOffset + 2));
+            iStream.AddTriangle(new IndexTriangle(vertexOffset, vertexOffset + 2, vertexOffset + 3));
+
+            vertexOffset += 4;
+        }
+    }
+
+    #endregion
+}
