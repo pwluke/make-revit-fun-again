@@ -79,6 +79,7 @@ export function House() {
               (brick.y0 + brick.y1 + 1) / 2,
               (brick.z0 + brick.z1 + 1) / 2,
             ]}
+            friction={0}
           />
         ))}
       </RigidBody>

@@ -9,6 +9,7 @@ import {
 import { useFrame, useThree } from "@react-three/fiber";
 import { CuboidCollider, RigidBody } from "@react-three/rapier";
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { create } from "zustand";
 import {
   neighborPosition,
@@ -16,6 +17,12 @@ import {
   useGridPoints,
   type CubeCoords,
 } from "@/lib/use-grid-points";
+import {
+  BreakDebris,
+  playBreakSound,
+  spawnBreakDebris,
+} from "./break-fx";
+import { playerOrigin } from "./player-origin";
 
 /** Warm clay for blocks the player places, against the pastel point layers. */
 const PLAYER_BLOCK_COLOR = "#d9a07a";
@@ -23,9 +30,43 @@ const PLAYER_BLOCK_COLOR = "#d9a07a";
 // How far the player can reach to break or place, in world units. Also caps the
 // per-frame raycast, so a block across the map can't be edited by aiming at it.
 const REACH = 8;
+/** Extra bricks removed with the one you aim at. */
+const BREAK_NEIGHBORS = 10;
 
 const dummy = new THREE.Object3D();
 const tint = new THREE.Color();
+/** Slightly proud of the brick faces so the mortar lines don't z-fight. */
+const EDGE_SCALE = 1.004;
+
+function cubeCageGeometry(size: CubeCoords) {
+  const [sx, sy, sz] = size;
+  const t = Math.min(sx, sy, sz) * 0.055;
+  const hx = sx / 2;
+  const hy = sy / 2;
+  const hz = sz / 2;
+  const bars: THREE.BufferGeometry[] = [];
+  const bar = (w: number, h: number, d: number, x: number, y: number, z: number) => {
+    const geometry = new THREE.BoxGeometry(w, h, d);
+    geometry.translate(x, y, z);
+    bars.push(geometry);
+  };
+  bar(sx, t, t, 0, -hy, -hz);
+  bar(sx, t, t, 0, -hy, hz);
+  bar(sx, t, t, 0, hy, -hz);
+  bar(sx, t, t, 0, hy, hz);
+  bar(t, sy, t, -hx, 0, -hz);
+  bar(t, sy, t, hx, 0, -hz);
+  bar(t, sy, t, -hx, 0, hz);
+  bar(t, sy, t, hx, 0, hz);
+  bar(t, t, sz, -hx, -hy, 0);
+  bar(t, t, sz, hx, -hy, 0);
+  bar(t, t, sz, -hx, hy, 0);
+  bar(t, t, sz, hx, hy, 0);
+  const merged = mergeGeometries(bars);
+  for (const geometry of bars) geometry.dispose();
+  if (!merged) throw new Error("cube cage merge failed");
+  return merged;
+}
 // Pointer lock freezes the mouse, so every pick is from the screen centre —
 // i.e. the crosshair the page draws over the canvas.
 const CROSSHAIR = new THREE.Vector2(0, 0);
@@ -44,6 +85,7 @@ type CubeStore = {
   removed: ReadonlySet<string>;
   addCube: (x: number, y: number, z: number) => void;
   removeCube: (x: number, y: number, z: number) => void;
+  removeCubes: (positions: CubeCoords[]) => void;
 };
 
 // Exported so gesture-driven building (GestureBuilder) can queue cubes
@@ -65,17 +107,44 @@ export const useCubeStore = create<CubeStore>((set) => ({
       };
     }),
   removeCube: (x, y, z) =>
-    set((state) => {
-      const key = keyOf(x, y, z);
-      return {
-        added: state.added.filter((coords) => keyOf(...coords) !== key),
-        // Seeded cubes arrive from the loaded point files, so they can't be
-        // spliced out at the source. Deletion is recorded as a mask instead,
-        // and the merge step subtracts it.
-        removed: new Set(state.removed).add(key),
-      };
-    }),
+    set((state) => maskRemoved(state, [[x, y, z]])),
+  removeCubes: (positions) => set((state) => maskRemoved(state, positions)),
 }));
+
+function maskRemoved(state: CubeStore, positions: CubeCoords[]) {
+  const removed = new Set(state.removed);
+  const keys = new Set<string>();
+  for (const coords of positions) {
+    const key = keyOf(...coords);
+    keys.add(key);
+    // Seeded cubes arrive from the loaded point files, so they can't be
+    // spliced out at the source. Deletion is recorded as a mask instead,
+    // and the merge step subtracts it.
+    removed.add(key);
+  }
+  return {
+    added: state.added.filter((coords) => !keys.has(keyOf(...coords))),
+    removed,
+  };
+}
+
+function breakCluster(
+  origin: CubeInstance,
+  cubes: CubeInstance[],
+  extra: number,
+): CubeInstance[] {
+  const scored: { cube: CubeInstance; distanceSq: number }[] = [];
+  for (const cube of cubes) {
+    const dx = cube.position[0] - origin.position[0];
+    const dy = cube.position[1] - origin.position[1];
+    const dz = cube.position[2] - origin.position[2];
+    const distanceSq = dx * dx + dy * dy + dz * dz;
+    if (distanceSq === 0) continue;
+    scored.push({ cube, distanceSq });
+  }
+  scored.sort((a, b) => a.distanceSq - b.distanceSq);
+  return [origin, ...scored.slice(0, extra).map(({ cube }) => cube)];
+}
 
 export const Cubes = () => {
   const added = useCubeStore((state) => state.added);
@@ -98,7 +167,12 @@ export const Cubes = () => {
     return out;
   }, [data?.points, added, removed]);
 
-  return <InstancedCubes cubes={cubes} size={blockSize} />;
+  return (
+    <>
+      <InstancedCubes cubes={cubes} size={blockSize} />
+      <BreakDebris size={blockSize} />
+    </>
+  );
 };
 
 function InstancedCubes({
@@ -109,14 +183,17 @@ function InstancedCubes({
   size: CubeCoords;
 }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
+  const edgesRef = useRef<THREE.InstancedMesh>(null);
   const cubesRef = useRef(cubes);
   cubesRef.current = cubes;
   const sizeRef = useRef(size);
   sizeRef.current = size;
+  const cage = useMemo(() => cubeCageGeometry(size), [size]);
+  useEffect(() => () => cage.dispose(), [cage]);
 
   const camera = useThree((state) => state.camera);
   const addCube = useCubeStore((state) => state.addCube);
-  const removeCube = useCubeStore((state) => state.removeCube);
+  const removeCubes = useCubeStore((state) => state.removeCubes);
   const [hovered, setHovered] = useState<number | null>(null);
 
   // The instance buffer only ever grows; shrinking it would remount the mesh on
@@ -127,16 +204,27 @@ function InstancedCubes({
 
   useLayoutEffect(() => {
     const mesh = meshRef.current;
+    const edges = edgesRef.current;
     if (!mesh) return;
     for (let i = 0; i < cubes.length; i++) {
       dummy.position.set(...cubes[i].position);
+      dummy.scale.set(1, 1, 1);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
       mesh.setColorAt(i, tint.set(cubes[i].color));
+      dummy.scale.setScalar(EDGE_SCALE);
+      dummy.updateMatrix();
+      edges?.setMatrixAt(i, dummy.matrix);
     }
+    dummy.scale.set(1, 1, 1);
     mesh.count = cubes.length;
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    if (edges) {
+      edges.count = cubes.length;
+      edges.instanceMatrix.needsUpdate = true;
+      edges.computeBoundingSphere();
+    }
     // InstancedMesh.raycast rejects against the instance bounding sphere first,
     // so it has to be refreshed or newly-placed cubes become unpickable.
     mesh.computeBoundingSphere();
@@ -183,14 +271,19 @@ function InstancedCubes({
       if (!document.pointerLockElement) return;
       const current = hit.current;
       if (!current) return;
-      const coords = cubesRef.current[current.index]?.position;
-      if (!coords) return;
+      const target = cubesRef.current[current.index];
+      if (!target) return;
       if (e.button === 0) {
-        removeCube(...coords);
+        const cluster = breakCluster(target, cubesRef.current, BREAK_NEIGHBORS);
+        removeCubes(cluster.map((cube) => cube.position));
+        spawnBreakDebris(cluster, sizeRef.current);
+        playBreakSound(cluster.length);
       } else if (e.button === 2) {
         // Instances are translation-only, so the local face normal is already
         // the world-space unit axis pointing out of the face that was hit.
-        addCube(...neighborPosition(coords, current.normal, sizeRef.current));
+        addCube(
+          ...neighborPosition(target.position, current.normal, sizeRef.current),
+        );
       }
     };
     // Only while the scene holds the mouse — otherwise this would swallow the
@@ -204,7 +297,7 @@ function InstancedCubes({
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("contextmenu", onContextMenu);
     };
-  }, [addCube, removeCube]);
+  }, [addCube, removeCubes]);
 
   const hoverPos = hovered != null ? cubes[hovered]?.position : undefined;
   const half: CubeCoords = [size[0] / 2, size[1] / 2, size[2] / 2];
@@ -222,7 +315,22 @@ function InstancedCubes({
         receiveShadow
       >
         <boxGeometry args={size} />
-        <meshStandardMaterial roughness={0.55} metalness={0.05} />
+        <meshStandardMaterial
+          roughness={0.55}
+          metalness={0.05}
+          polygonOffset
+          polygonOffsetFactor={1}
+          polygonOffsetUnits={1}
+        />
+      </instancedMesh>
+      <instancedMesh
+        key={`edges-${capacity}`}
+        ref={edgesRef}
+        args={[cage, undefined, capacity]}
+        frustumCulled={false}
+        raycast={() => {}}
+      >
+        <meshBasicMaterial color="#2c2118" />
       </instancedMesh>
       <NearbyColliders cubes={cubes} half={half} />
       {hoverPos && (
@@ -244,9 +352,13 @@ function InstancedCubes({
 // seeds thousands of cubes, and mounting a collider for every one of them cost
 // ~1.2s of blocked main thread at load. Only blocks the player can actually
 // walk into need to exist to Rapier — the rest are scenery.
-const COLLIDER_RADIUS = 10; // world units; ignore anything further out
-const MAX_COLLIDERS = 512; // hard cap, so a dense grid can't blow the budget
-const REBUILD_DISTANCE = 2; // player units of travel before reselecting
+/** Horizontal reach around the capsule — a 10-unit sphere around the camera
+ *  let a dense wall eat the whole budget, then stairs underfoot had no
+ *  collider until one popped in around the body. */
+const COLLIDER_RADIUS = 4;
+const COLLIDER_HEIGHT = 3;
+const MAX_COLLIDERS = 1024;
+const REBUILD_DISTANCE = 1.2;
 
 function NearbyColliders({
   cubes,
@@ -268,8 +380,10 @@ function NearbyColliders({
         const dx = coords[0] - origin.x;
         const dy = coords[1] - origin.y;
         const dz = coords[2] - origin.z;
-        const distanceSq = dx * dx + dy * dy + dz * dz;
-        if (distanceSq <= radiusSq) inRange.push({ coords, distanceSq });
+        if (Math.abs(dy) > COLLIDER_HEIGHT) continue;
+        const planarSq = dx * dx + dz * dz;
+        if (planarSq > radiusSq) continue;
+        inRange.push({ coords, distanceSq: planarSq + dy * dy });
       }
       // Nearest-first, so the cap trims the blocks least able to be reached
       // before the next rebuild.
@@ -288,16 +402,14 @@ function NearbyColliders({
     builtAt.current.set(Infinity, Infinity, Infinity);
   }, [cubes]);
 
-  useFrame(({ camera }) => {
-    // Player.tsx copies the rigid body's translation onto the camera every
-    // frame, so the camera *is* the player position — no cross-module ref.
+  useFrame(() => {
     if (
-      camera.position.distanceToSquared(builtAt.current) <
+      playerOrigin.distanceToSquared(builtAt.current) <
       REBUILD_DISTANCE * REBUILD_DISTANCE
     ) {
       return;
     }
-    rebuild(camera.position);
+    rebuild(playerOrigin);
   });
 
   if (nearby.length === 0) return null;
@@ -312,6 +424,7 @@ function NearbyColliders({
           key={keyOf(...coords)}
           args={half}
           position={coords}
+          friction={0}
         />
       ))}
     </RigidBody>

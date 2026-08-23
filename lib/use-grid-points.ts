@@ -48,7 +48,7 @@ export const POINT_LAYERS: PointLayer[] = [
 export const TARGET_BLOCK_SIZE = 1 / 3;
 
 /** Extra world-Y shift after the grid is sat on the ground. Negative = down. */
-export const BUILDING_Y_OFFSET = -2;
+export const BUILDING_Y_OFFSET = -4;
 
 const DEFAULT_BLOCK_SIZE: CubeCoords = [
   TARGET_BLOCK_SIZE,
