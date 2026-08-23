@@ -86,6 +86,10 @@ const FLY_CLIMB_SPEED = 9;
 const DOUBLE_TAP_MS = 320;
 /** Seconds after a jump during which "grounded" is ignored, so the body still
  *  resting on the floor doesn't immediately refill the jump count. */
+/** A leap trades a little height for a real shove along the heading —
+ *  enough to clear a stair landing you cannot simply step up onto. */
+const LEAP_FORWARD = 6;
+const LEAP_UP_FACTOR = 0.85;
 const JUMP_LOCKOUT = 0.2;
 /** Standing eye height from the original [0.75, 0.5] capsule (its centre). */
 const EYE_HEIGHT = 0.75 + 0.5;
@@ -106,6 +110,7 @@ function eyeLift(shape: [number, number], small: boolean) {
 const slideDir = new THREE.Vector3();
 const SLIDE_PROBE_HEIGHTS = [0.15, -0.2];
 const climbDir = new THREE.Vector3();
+const leapDir = new THREE.Vector3();
 const wallNormal = new THREE.Vector3();
 const wallRight = new THREE.Vector3();
 // Scratch for building the camera basis on a wall.
@@ -384,66 +389,8 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     // gesture input (merged with mouse + keyboard)
     const gesture = useGestureStore.getState();
     const gestureOn = gesture.status === "on";
-    const orbiting = gestureOn && gesture.orbiting;
-    if (orbiting) {
-      if (!orbitWas.current) {
-        // Fist just closed: lock the target under the crosshair. A cube
-        // orbits around its center, the ground around the hit point, an
-        // empty crosshair around a point straight ahead.
-        orbitRay.setFromCamera(orbitCenter, state.camera);
-        const hit = orbitRay
-          .intersectObjects(scene.children, true)
-          .find((h) => {
-            const mesh = h.object as THREE.Mesh;
-            return (
-              h.distance > 1.6 &&
-              h.distance < ORBIT_MAX_TARGET_DIST &&
-              mesh.isMesh &&
-              (mesh.geometry.type === "BoxGeometry" || mesh.geometry.type === "PlaneGeometry")
-            );
-          });
-        if (hit && (hit.object as THREE.Mesh).geometry.type === "BoxGeometry") {
-          hitBlockCenter(hit, orbitTarget.current);
-        } else if (hit) {
-          orbitTarget.current.copy(hit.point);
-        } else {
-          state.camera.getWorldDirection(orbitPos);
-          orbitTarget.current.copy(state.camera.position).addScaledVector(orbitPos, ORBIT_FALLBACK_DIST);
-        }
-        orbitPos.copy(state.camera.position).sub(orbitTarget.current);
-        orbitRadius.current = Math.max(orbitPos.length(), ORBIT_MIN_RADIUS);
-        orbitAz.current = Math.atan2(orbitPos.x, orbitPos.z);
-        orbitEl.current = THREE.MathUtils.clamp(
-          Math.asin(orbitPos.y / orbitRadius.current),
-          ORBIT_EL_MIN,
-          ORBIT_EL_MAX,
-        );
-      }
-      // Dragging the fist swings the camera around the target on a sphere
-      // of fixed radius — like walking around a model on a table.
-      const drag = gesture.consumeOrbit();
-      orbitAz.current += drag.x * ORBIT_YAW_SPEED;
-      orbitEl.current = THREE.MathUtils.clamp(
-        orbitEl.current - drag.y * ORBIT_PITCH_SPEED,
-        ORBIT_EL_MIN,
-        ORBIT_EL_MAX,
-      );
-      orbitPos
-        .set(
-          Math.sin(orbitAz.current) * Math.cos(orbitEl.current),
-          Math.sin(orbitEl.current),
-          Math.cos(orbitAz.current) * Math.cos(orbitEl.current),
-        )
-        .multiplyScalar(orbitRadius.current)
-        .add(orbitTarget.current);
-      if (orbitPos.y < 1.2) orbitPos.y = 1.2;
-      ref.current.setTranslation(orbitPos, true);
-      ref.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
-      state.camera.position.copy(orbitPos);
-      state.camera.lookAt(orbitTarget.current);
-      // Head-look re-adopts the view when the fist opens.
-      headWasTracked.current = false;
-    } else if (gestureOn && gesture.faceTracking) {
+    const orbiting = false;
+    if (gestureOn && gesture.faceTracking) {
       const yawOffset =
         THREE.MathUtils.clamp(gesture.headYaw, -HEAD_SYNC_RANGE, HEAD_SYNC_RANGE) * HEAD_YAW_GAIN;
       if (!headWasTracked.current) {
@@ -466,7 +413,6 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     } else {
       headWasTracked.current = false;
     }
-    orbitWas.current = orbiting;
     // update axe — hidden while Laser Tag holds the world, so the diamond axe
     // doesn't float alongside the laser gun.
     axe.current.visible = !laserTagState.active;
@@ -803,7 +749,33 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     }
     if (climbing || flying.current) jumpsUsed.current = 0;
 
-    if (!orbiting && !flying.current && pressedJump && jumpsUsed.current < maxJumps) {
+    // LEAP: the walking hand and a thumb up together. Lower than a straight
+    // jump but with a real shove along the heading, so it lands you ON the
+    // next landing rather than against its riser.
+    const wantLeap = gestureOn && gesture.consumeLeap();
+    if (!orbiting && !flying.current && wantLeap && jumpsUsed.current < maxJumps) {
+      jumpsUsed.current += 1;
+      jumpLockout.current = JUMP_LOCKOUT;
+      // Along the camera's horizontal facing: a leap goes where you look,
+      // not where the last walk vector happened to point.
+      state.camera.getWorldDirection(leapDir);
+      leapDir.y = 0;
+      if (leapDir.lengthSq() < 1e-6) leapDir.set(0, 0, -1);
+      leapDir.normalize().multiplyScalar(LEAP_FORWARD);
+      ref.current.setLinvel(
+        {
+          x: leapDir.x,
+          y: JUMP_SPEED * LEAP_UP_FACTOR * jumpMultiplier,
+          z: leapDir.z,
+        },
+        true,
+      );
+    } else if (
+      !orbiting &&
+      !flying.current &&
+      pressedJump &&
+      jumpsUsed.current < maxJumps
+    ) {
       jumpsUsed.current += 1;
       jumpLockout.current = JUMP_LOCKOUT;
       ref.current.setLinvel(
