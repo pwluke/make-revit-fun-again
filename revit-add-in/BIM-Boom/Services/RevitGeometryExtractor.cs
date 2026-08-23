@@ -52,6 +52,105 @@ public static class RevitGeometryExtractor
         return (mesh, grayCount);
     }
 
+    /// <summary>
+    /// Extract one mesh per game layer, so each layer can be voxelised and
+    /// written to its own file. Elements the game has no use for — doors,
+    /// windows, annotation, MEP — are skipped, and every layer gets an entry
+    /// even when nothing in the model lands on it: the web app fetches all ten
+    /// files in one Promise.all and a single 404 fails the whole model load.
+    /// </summary>
+    /// <param name="doc">The document to read.</param>
+    /// <param name="elementIds">
+    /// Elements to consider, or null for the whole model.
+    /// </param>
+    public static (Dictionary<string, MergedMesh> Layers, int Elements, int GrayFallbackCount)
+        ExtractByLayer(Document doc, ICollection<ElementId>? elementIds)
+    {
+        var layers = new Dictionary<string, MergedMesh>();
+        foreach (var layer in GameLayers.All) layers[layer.Id] = new MergedMesh();
+
+        var bounds = new Dictionary<string, Bounds>();
+        foreach (var layer in GameLayers.All) bounds[layer.Id] = Bounds.Empty();
+
+        var options = new Options
+        {
+            ComputeReferences = false,
+            DetailLevel = ViewDetailLevel.Fine
+        };
+
+        var elements = CollectElements(doc, elementIds);
+        int grayCount = 0;
+        int used = 0;
+
+        foreach (var element in elements)
+        {
+            var layer = GameLayers.LayerFor(element);
+            if (layer == null) continue;
+
+            var geomElement = element.get_Geometry(options);
+            if (geomElement == null) continue;
+
+            var color = GetElementColor(doc, element, ref grayCount);
+            var mesh = layers[layer.Id];
+            var box = bounds[layer.Id];
+
+            ExtractGeometryElement(geomElement, color, mesh,
+                ref box.MinX, ref box.MinY, ref box.MinZ,
+                ref box.MaxX, ref box.MaxY, ref box.MaxZ);
+
+            bounds[layer.Id] = box;
+            used++;
+        }
+
+        foreach (var layer in GameLayers.All)
+        {
+            var box = bounds[layer.Id];
+            layers[layer.Id].BBoxMin = (box.MinX, box.MinY, box.MinZ);
+            layers[layer.Id].BBoxMax = (box.MaxX, box.MaxY, box.MaxZ);
+        }
+
+        return (layers, used, grayCount);
+    }
+
+    private static IEnumerable<Element> CollectElements(
+        Document doc, ICollection<ElementId>? elementIds)
+    {
+        if (elementIds != null && elementIds.Count > 0)
+        {
+            var selected = new List<Element>();
+            foreach (var id in elementIds)
+            {
+                var element = doc.GetElement(id);
+                if (element != null) selected.Add(element);
+            }
+            return selected;
+        }
+
+        // Whole model: one collector pass over just the categories a layer wants,
+        // rather than every element in the document. The BuiltInCategory overload
+        // avoids `new ElementId(BuiltInCategory)`, which is Revit 2024+ only.
+        return new FilteredElementCollector(doc)
+            .WhereElementIsNotElementType()
+            .WherePasses(new ElementMulticategoryFilter(GameLayers.AllCategories()))
+            .ToElements();
+    }
+
+    /// <summary>Mutable bbox accumulator, so each layer tracks its own extent.</summary>
+    private struct Bounds
+    {
+        public double MinX, MinY, MinZ, MaxX, MaxY, MaxZ;
+
+        public static Bounds Empty() => new()
+        {
+            MinX = double.MaxValue,
+            MinY = double.MaxValue,
+            MinZ = double.MaxValue,
+            MaxX = double.MinValue,
+            MaxY = double.MinValue,
+            MaxZ = double.MinValue
+        };
+    }
+
     private static void ExtractGeometryElement(
         GeometryElement geomElement,
         (byte R, byte G, byte B, byte A) color,
