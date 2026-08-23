@@ -147,7 +147,8 @@ export function Powerups() {
             }}
             position={spot.pos}
           >
-            <mesh geometry={geometries[spot.kind]} castShadow>
+            {/* No castShadow — see the note in Stars.tsx: cached shadow map. */}
+            <mesh geometry={geometries[spot.kind]}>
               <meshStandardMaterial
                 color={def.color}
                 emissive={def.emissive}

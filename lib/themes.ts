@@ -119,7 +119,12 @@ export const THEMES: Record<ThemeId, SceneTheme> = {
       color: "#ffffff",
       intensity: 0.8 * Math.PI,
       position: [100, 100, 100],
-      point: true,
+      // Was a point light, which is omnidirectional: three.js renders the whole
+      // scene into all six faces of a cube shadow map, so every cube batch was
+      // drawn 7x per frame. Measured at 26.9ms of the 65ms frame once the voxel
+      // layers took the world to 317k cubes. A directional light from the same
+      // corner looks near-identical at this distance and needs one pass.
+      point: false,
     },
   },
   forest: {

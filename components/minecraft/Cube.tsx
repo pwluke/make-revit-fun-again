@@ -28,6 +28,9 @@ import { useSceneTheme, useThemeStore } from "../world/themeStore";
 const REACH = 8;
 /** Extra bricks removed with the one you aim at. */
 const BREAK_NEIGHBORS = 10;
+/** Seconds between crosshair re-picks. The highlight only has to keep up with
+ *  the eye; breaking forces a fresh pick regardless. */
+const PICK_INTERVAL = 0.1;
 
 const dummy = new THREE.Object3D();
 const tint = new THREE.Color();
@@ -197,6 +200,7 @@ function InstancedCubes({
   // frame behind, so the authoritative copy lives in a ref. `hovered` exists
   // only to drive the highlight render.
   const hit = useRef<{ index: number; normal: THREE.Vector3 } | null>(null);
+  const pickCooldown = useRef(0);
 
   const clearHit = useCallback(() => {
     hit.current = null;
@@ -227,21 +231,33 @@ function InstancedCubes({
     [removeCubes],
   );
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     // Consumed up front, even when nothing is under the crosshair: a queued
     // break that missed should be dropped, not held until the player happens to
     // aim at a block later.
     const breakQueued = useGestureStore.getState().consumeBreak();
     const mesh = meshRef.current;
     if (!mesh || mesh.count === 0) return clearHit();
-    picker.setFromCamera(CROSSHAIR, camera);
-    const [first] = picker.intersectObject(mesh, false);
-    if (!first || first.instanceId == null || !first.face) return clearHit();
-    hit.current = { index: first.instanceId, normal: first.face.normal };
-    setHovered((current) =>
-      current === first.instanceId ? current : first.instanceId!,
-    );
-    if (breakQueued) breakAt(first.instanceId);
+
+    // Repicking is throttled because InstancedMesh.raycast is O(instances): once
+    // the ray is inside the batch's bounding sphere it tests every cube on the
+    // CPU, and the voxel layers put ~317k of them in there. Running that every
+    // frame cost more than the entire GPU frame. A break needs the pick to be
+    // current, so it forces one.
+    pickCooldown.current -= delta;
+    const mustPick = breakQueued || pickCooldown.current <= 0;
+    if (mustPick) {
+      pickCooldown.current = PICK_INTERVAL;
+      picker.setFromCamera(CROSSHAIR, camera);
+      const [first] = picker.intersectObject(mesh, false);
+      if (!first || first.instanceId == null || !first.face) return clearHit();
+      hit.current = { index: first.instanceId, normal: first.face.normal };
+      setHovered((current) =>
+        current === first.instanceId ? current : first.instanceId!,
+      );
+    }
+
+    if (breakQueued && hit.current) breakAt(hit.current.index);
   });
 
   useEffect(() => {
