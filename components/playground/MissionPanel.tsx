@@ -3,6 +3,7 @@
 import { useLaserTagStore } from "@/components/lasertag/laserTagStore";
 import { useHeroStore } from "@/components/world/store";
 import { ACTIVE_DINO, DINOS, useDinoStore } from "@/components/world/dinoStore";
+import { useFloodStore } from "@/components/world/floodStore";
 import { getMission, MODES } from "./modes";
 import { usePlayground } from "./playground-context";
 import { useCursorLook } from "./use-cursor-look";
@@ -16,6 +17,7 @@ export function MissionPanel() {
   const powersUsed = useHeroStore((s) => s.everUsed.length);
   const fossilsFound = useDinoStore((s) => s.found.length);
   const fossilsTotal = DINOS[ACTIVE_DINO].parts.length;
+  const waterLevel = useFloodStore((s) => s.level);
   const {
     mode,
     setMode,
@@ -50,6 +52,7 @@ export function MissionPanel() {
     powersUsed,
     fossilsFound,
     fossilsTotal,
+    waterLevel,
   });
   const completed = steps.filter((step) => step.done).length;
   const collected = rewardedModes.includes(mode);

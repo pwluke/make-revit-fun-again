@@ -1,8 +1,9 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { useLayoutEffect, useState, type ReactNode } from "react";
 import { PointerLockControls, KeyboardControls } from "@react-three/drei";
 import { Physics } from "@react-three/rapier";
+import { useThree } from "@react-three/fiber";
 import { useStore } from "zustand";
 import { SceneCanvas } from "@/components/canvas/SceneCanvas";
 import { PostFX } from "@/components/canvas/PostFX";
@@ -15,23 +16,70 @@ import { Powerups } from "../world/Powerups";
 import { Flood } from "../world/Flood";
 import { ThemeAtmosphere } from "../world/ThemeAtmosphere";
 import { MarineGarden } from "../world/MarineGarden";
+import { DesertLandscape } from "../world/DesertLandscape";
+import { EnchantedForest } from "../world/EnchantedForest";
+import { MarsLandscape } from "../world/MarsLandscape";
+import { CircusLandscape } from "../world/CircusLandscape";
 import { StaticShadows } from "../canvas/StaticShadows";
 import { useFastMode, useThemeStore } from "../world/themeStore";
 import { creationStore } from "@/components/sketch-to-3d/core/creationStore";
 import { Creations } from "@/components/sketch-to-3d/r3f/Creations";
+import { RemotePlayers } from "@/components/multiplayer/r3f/RemotePlayers";
+import { ArrowLook } from "@/components/controls/ArrowLook";
+import { locksTheMouse, useControlMode } from "@/components/controls/controlModeStore";
 import { GroundGuide } from "@/components/sketch3d/r3f/GroundGuide";
 import { SketchController } from "@/components/sketch3d/r3f/SketchController";
 import { Strokes } from "@/components/sketch3d/r3f/Strokes";
 
 // The original was made by Maksim Ivanow: https://www.youtube.com/watch?v=Lc2JvBXMesY&t=124s
 // This example needs pointer-lock, that works only if you open it in a new window
-// Controls: WASD + left click, or the camera gestures behind the Hands button
+// Controls: WASD walks and the arrow keys look, on top of one of four input
+// modes — see components/controls/controlModeStore.ts.
 
+/**
+ * Click-to-look, bound to the canvas wrapper rather than a page-level id.
+ *
+ * Main's bare `<PointerLockControls />` listens on `document`, so any click
+ * anywhere locks — including the sketch overlay and the Hands camera. This
+ * branch scoped that to `#game-surface`, but drei uses `querySelectorAll`:
+ * if the id is missing (playground, World.tsx, any host that forgot the
+ * wrapper) it attaches NO listener and click-to-look is dead.
+ *
+ * Tagging the R3F canvas parent always exists inside <Canvas>, so every host
+ * gets lock. Overlay / HUD clicks are siblings of that parent, so they do
+ * not re-lock. Keyboard mode, Hands and creation-edit unmount this so the
+ * cursor stays free.
+ */
+function LookLock({ enabled }: { enabled: boolean }) {
+  const gl = useThree((state) => state.gl);
+  const [selector, setSelector] = useState<string | null>(null);
+
+  useLayoutEffect(() => {
+    const host = gl.domElement.parentElement;
+    if (!host) return;
+    host.setAttribute("data-look-lock", "");
+    setSelector("[data-look-lock]");
+  }, [gl]);
+
+  useLayoutEffect(() => {
+    if (!enabled && document.pointerLockElement) document.exitPointerLock();
+  }, [enabled]);
+
+  if (!enabled || !selector) return null;
+  return <PointerLockControls makeDefault selector={selector} />;
+}
+
+/**
+ * WASD walks. The arrow keys deliberately do NOT appear here any more: they are
+ * the look controls now (components/controls/ArrowLook.tsx), which is what makes
+ * keyboard mode a mode rather than "mouse-look with no mouse". Aliasing them
+ * back onto movement would give four keys two jobs at once.
+ */
 export const minecraftKeyMap = [
-  { name: "forward", keys: ["ArrowUp", "w", "W"] },
-  { name: "backward", keys: ["ArrowDown", "s", "S"] },
-  { name: "left", keys: ["ArrowLeft", "a", "A"] },
-  { name: "right", keys: ["ArrowRight", "d", "D"] },
+  { name: "forward", keys: ["w", "W"] },
+  { name: "backward", keys: ["s", "S"] },
+  { name: "left", keys: ["a", "A"] },
+  { name: "right", keys: ["d", "D"] },
   { name: "jump", keys: ["Space"] },
   { name: "zip", keys: ["g", "G"] },
   // Only used by the fly powerup — the descend key. Harmless otherwise.
@@ -47,6 +95,9 @@ export function MinecraftScene({ children }: { children?: ReactNode }) {
   // three-stdlib's disconnect() leaves domElement set, so lock() still fires.
   // Unmounting is the only clean answer.
   const selectedId = useStore(creationStore, (state) => state.selectedId);
+  // Which of the four control modes is live. Hands used to be read straight off
+  // the gesture store here; the mode covers that case and the three others.
+  const mode = useControlMode();
   const fast = useFastMode();
   // What makes the shadow map stale: edits to the world, and a theme swap that
   // moves the key light.
@@ -72,7 +123,16 @@ export function MinecraftScene({ children }: { children?: ReactNode }) {
           timer is what actually threatens you. */}
       <Powerups />
       <MarineGarden />
+      <DesertLandscape />
+      <EnchantedForest />
+      <MarsLandscape />
+      <CircusLandscape />
       <Flood />
+      {/* Also outside <Physics>, and that is the design: other players are
+          drawn, not simulated. Each client owns only its own capsule, which is
+          what keeps this free of authority and rollback machinery. It also owns
+          the room connection — mounting it is what makes this tab multiplayer. */}
+      <RemotePlayers />
       {/* Slot for a per-mode add-on — see components/lasertag. Out here for the
           same reason the pickups are: it raycasts and animates, it doesn't
           collide. Callers that pass nothing render exactly the tree above. */}
@@ -88,24 +148,19 @@ export function MinecraftScene({ children }: { children?: ReactNode }) {
       {/* Shows where the invisible drawing plane meets the ground. Only visible
           in draw mode, and it freezes with the plane the moment a stroke starts. */}
       <GroundGuide />
-      {/* Both props are load-bearing, and were RE-ADDED during the merge with
-          main, which had reverted to a bare <PointerLockControls />. Do not
-          simplify this back.
-
-          `selector`: without it drei attaches a DOCUMENT-level click listener
-          that re-locks the pointer on any click anywhere on the page (see
-          node_modules/@react-three/drei/core/PointerLockControls.js:60-63) —
-          including clicks inside the sketch overlay, hiding the cursor mid-draw.
-
-          `makeDefault`: also how Player reaches these controls to switch
-          them off while wall-walking, where the camera is driven from the
-          wall's frame instead of world Y-up. Publishes the controls into
-          R3F's store so
-          `useThree((s) => s.controls)` resolves. Without it the SceneBridge binds
-          to null and setInputEnabled becomes a silent no-op, so neither the
-          drawing overlay nor creation selection can release the pointer — which
-          reads as "the cursor never appears", with no error anywhere. */}
-      {!selectedId && <PointerLockControls makeDefault selector="#game-surface" />}
+      {/* `makeDefault` is load-bearing: it publishes the controls into R3F's
+          store so `useThree((s) => s.controls)` resolves. Without it the
+          SceneBridge binds to null and setInputEnabled is a silent no-op —
+          the sketch overlay and creation selection cannot release the
+          pointer, which reads as "the cursor never appears". It is also
+          how Player reaches the controls to switch them off while
+          wall-walking, where the camera is driven from the wall's frame
+          rather than world Y-up. */}
+      <LookLock enabled={!selectedId && locksTheMouse(mode)} />
+      {/* Arrow keys look around, in every mode but Hands. Mounted next to
+          LookLock because it is the other half of the same job: the two write
+          the same camera quaternion, and in mouse mode they compose. */}
+      <ArrowLook />
       {/* The post chain is seven full-screen passes and by far the most
           expensive thing in the frame. Fast mode drops it entirely — see the
           ⚡ Fast button in ThemeHud. Unmounted rather than disabled so the

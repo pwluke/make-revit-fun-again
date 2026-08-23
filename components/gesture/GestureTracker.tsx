@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useGestureStore, type GestureLabel } from "./store";
+import { sketchStore } from "@/components/sketch3d/core/strokeStore";
 import {
   PINCH_CLOSE,
   PINCH_OPEN,
@@ -396,7 +397,10 @@ export default function GestureTracker() {
   if (!active) {
     return (
       <button
-        onClick={() => setActive(true)}
+        onClick={() => {
+          sketchStore.getState().setDrawMode(false);
+          setActive(true);
+        }}
         className="absolute right-4 bottom-4 z-10 flex items-center gap-2 rounded-full bg-white/90 px-4 py-2.5 text-sm font-bold text-slate-700 shadow-lg ring-1 ring-slate-900/10 transition hover:bg-amber-200"
       >
         <GoIcon className="h-5 w-5" />

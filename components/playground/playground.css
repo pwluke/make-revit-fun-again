@@ -20,6 +20,10 @@
      as its own thing — and not --gold, which is the focus-ring colour. */
   --violet: #7b52d3;
   --violet-tint: #f1eaff;
+  /* Race to the Top's accent. Water, and distinct from --sky, which Remix owns
+     — the two must not read as the same mode in the rail. */
+  --aqua: #2f9fd6;
+  --aqua-tint: #e6f4fc;
   --mode-color: var(--brand);
   --mode-tint: var(--brand-tint);
   --display: var(--font-fredoka), "Fredoka", "DM Sans", sans-serif;
@@ -96,6 +100,10 @@
 .playground[data-mode="lasertag"] {
   --mode-color: var(--violet);
   --mode-tint: var(--violet-tint);
+}
+.playground[data-mode="race"] {
+  --mode-color: var(--aqua);
+  --mode-tint: var(--aqua-tint);
 }
 
 /* Header */
@@ -971,6 +979,13 @@
 .playground .model-viewport.mode-sketch .sketch-canvas {
   display: block;
 }
+/* The Draw control mode is the in-world 3D pen, and it needs the pointer lock —
+   which it cannot get through this overlay, a SIBLING of the look-lock element
+   that intercepts the click first. Picking Draw therefore swaps flat marks for
+   real ribbons; picking Mouse again brings the flat canvas back. */
+.playground .model-viewport[data-control="draw"] .sketch-canvas {
+  display: none;
+}
 
 .playground .remix-palette {
   display: none;
@@ -1090,6 +1105,34 @@
 .playground .model-viewport.mode-explode .gesture-panel {
   display: grid;
 }
+
+/* World HUD pills — the star count and the water readout, stacked in the
+   bottom-left of the viewport (their default offsets are Tailwind classes on the
+   components themselves, shared with /minecraft, where that corner is empty).
+
+   Two modes park a panel in that same corner and would be drawn straight over,
+   since the pills sit at z-10 and both panels below them: measured against the
+   viewport's bottom edge, the remix palette's top is 141px up and the explode
+   gesture panel's is 103px. Lift the stack clear in exactly those two modes and
+   leave it low everywhere else — the pills move when the panel that crowds them
+   appears, which reads as making room rather than as drift.
+
+   Unlayered, so these beat the components' own Tailwind `bottom-*` utilities
+   without needing !important — the same mechanism the Hands button relies on
+   further down this file. */
+.playground .model-viewport.mode-remix .world-hud-stars {
+  bottom: 152px;
+}
+.playground .model-viewport.mode-remix .world-hud-water {
+  bottom: 192px;
+}
+.playground .model-viewport.mode-explode .world-hud-stars {
+  bottom: 114px;
+}
+.playground .model-viewport.mode-explode .world-hud-water {
+  bottom: 154px;
+}
+
 .playground .camera-preview {
   width: 88px;
   height: 65px;
@@ -1303,14 +1346,44 @@
   min-height: 76px;
   flex: 0 0 76px;
   display: flex;
-  justify-content: center;
+  /* flex-start, with the centring done by `margin: auto` on .toolbar-inner —
+     see the comment on that element in StageToolbar.tsx. The control buttons
+     made this row wide enough to overflow a narrow stage, and a centred flex
+     row that overflows cannot be scrolled back to its left edge. */
+  justify-content: flex-start;
   align-items: center;
   padding: 10px 20px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.playground .toolbar-inner {
+  min-width: max-content;
+  margin: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 .playground .tool-group {
   display: none;
   align-items: center;
   gap: 7px;
+}
+/* The control group is the exception to the rule below: it is a setting rather
+   than an activity, so it shows in every mode. The divider always has something
+   on its right — all seven modes contribute exactly one group. */
+.playground .control-tools {
+  display: flex;
+  padding-right: 16px;
+  border-right: 1px solid var(--line);
+}
+.playground .control-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.playground .control-chip b {
+  font-size: 13px;
+  line-height: 1;
 }
 .playground .stage-toolbar[data-mode="explore"] .floor-tools,
 .playground .stage-toolbar[data-mode="treasure"] .floor-tools,
@@ -1322,6 +1395,10 @@
 /* Its own rule rather than another entry above: Laser Tag shouldn't be able to
    break the adventure's toolbar with a typo in a shared selector. */
 .playground .stage-toolbar[data-mode="lasertag"] .laser-tools {
+  display: flex;
+}
+/* Same again for Race to the Top. */
+.playground .stage-toolbar[data-mode="race"] .race-tools {
   display: flex;
 }
 .playground .tool-chip.static {
@@ -1353,8 +1430,11 @@
   background: var(--mode-tint);
   color: var(--mode-color);
 }
+/* A viewport unit rather than a percentage: .toolbar-inner is sized to
+   max-content, so a percentage width here has nothing definite to resolve
+   against. */
 .playground .explode-tools {
-  width: min(360px, 80%);
+  width: min(360px, 45vw);
 }
 .playground .explode-tools input {
   flex: 1;
@@ -1933,13 +2013,13 @@
   .playground .stage-toolbar {
     min-height: 67px;
     flex-basis: 67px;
-    justify-content: flex-start;
     padding: 8px;
-    overflow-x: auto;
   }
-  .playground .tool-group {
-    min-width: max-content;
-    margin: auto;
+  .playground .toolbar-inner {
+    gap: 10px;
+  }
+  .playground .control-tools {
+    padding-right: 10px;
   }
   .playground .tool-label {
     display: none;

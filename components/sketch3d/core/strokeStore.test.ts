@@ -138,6 +138,16 @@ describe("tool selection", () => {
     store.getState().toggleDrawMode();
     expect(store.getState().active).toBeNull();
   });
+
+  it("setDrawMode is a no-op when the flag is already that value", () => {
+    store.getState().setDrawMode(false);
+    expect(store.getState().drawMode).toBe(false);
+    store.getState().setDrawMode(true);
+    expect(store.getState().drawMode).toBe(true);
+    store.getState().beginStroke(plane);
+    store.getState().setDrawMode(true);
+    expect(store.getState().active).not.toBeNull();
+  });
 });
 
 describe("clear", () => {

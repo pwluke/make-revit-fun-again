@@ -13,6 +13,7 @@ import {
 } from "react";
 import { db } from "@/lib/db";
 import { useLaserTagStore } from "@/components/lasertag/laserTagStore";
+import { useFloodStore } from "@/components/world/floodStore";
 import {
   getMission,
   MODE_ORDER,
@@ -131,6 +132,9 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
    */
   const botsTagged = useLaserTagStore((s) => s.tagged.length);
   const botTotal = useLaserTagStore((s) => s.total);
+  /** Same reasoning as the Laser Tag counts: only the mission effect reads it,
+   *  and it changes as the water climbs. */
+  const waterLevel = useFloodStore((s) => s.level);
 
   const { isLoading, error } = db.useQuery({ points: {} });
   const connection: ConnectionStatus = error
@@ -341,6 +345,28 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
     setFov((current) => Math.min(75, current + 6));
   }, []);
 
+  /**
+   * The rail owns creative mode. Every activity is a place to build and look
+   * around, so the flood is frozen in all of them — except Race to the Top,
+   * which is the flood game itself. That is why the 🛠 Creative button is
+   * hidden inside the playground (see `ThemeHud`'s `creativeToggle`): with the
+   * mode driving the toggle, pressing it would only fight the card the child
+   * just picked, and it would be re-overwritten by this effect anyway.
+   *
+   * Depending on the boolean rather than `mode` is deliberate: moving between
+   * two creative modes must not restart anything.
+   */
+  const creative = MODES[mode].creative;
+  useEffect(() => {
+    const flood = useFloodStore.getState();
+    flood.setCreative(creative);
+    // Entering the race starts a fresh run: water back to its starting level
+    // and — via `respawnToken` — the player back on the grass. Without this the
+    // race would begin wherever the frozen water happened to be left, which for
+    // a child who explored for a while is already over their head.
+    if (!creative) flood.reset();
+  }, [creative]);
+
   useEffect(() => {
     const steps = getMission(mode, {
       explode,
@@ -359,6 +385,7 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
       powersUsed,
       fossilsFound,
       fossilsTotal,
+      waterLevel,
     });
     const finished = steps.every((step) => step.done);
     if (!finished || rewardedRef.current.includes(mode)) return;
@@ -388,6 +415,7 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
     spun,
     tone,
     treasures,
+    waterLevel,
   ]);
 
   const nextMode = MODE_ORDER[(MODE_ORDER.indexOf(mode) + 1) % MODE_ORDER.length];

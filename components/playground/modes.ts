@@ -1,10 +1,13 @@
+import { HIGH_GROUND } from "@/components/world/floodStore";
+
 export type ModeId =
   | "explore"
   | "explode"
   | "sketch"
   | "remix"
   | "treasure"
-  | "lasertag";
+  | "lasertag"
+  | "race";
 export type FloorId = "all" | "roof" | "upper" | "ground";
 export type ItemId = "chair" | "plant" | "lamp" | "sketch";
 export type ConnectionStatus = "live" | "syncing" | "offline";
@@ -20,6 +23,16 @@ export type ModeConfig = {
   color: string;
   activityTitle: string;
   activitySubtitle: string;
+  /**
+   * Whether the mode runs with the flood in creative mode — water frozen,
+   * drowning off. This is the single source of truth for that toggle now: the
+   * rail owns it, `PlaygroundProvider` pushes it into the flood store on every
+   * mode change, and the 🛠 Creative button is hidden in the playground because
+   * a child pressing it would be fighting the mode they picked.
+   *
+   * Every mode here is creative except `race`, which IS the flood game.
+   */
+  creative: boolean;
 };
 
 export const MODE_ORDER: ModeId[] = [
@@ -38,7 +51,7 @@ export const MODE_ORDER: ModeId[] = [
  * announce tone drops a step and `nextMode` resolves to explore, exactly right
  * for a mode you step out of the sequence to play.
  */
-export const EXTRA_MODES: ModeId[] = ["lasertag"];
+export const EXTRA_MODES: ModeId[] = ["lasertag", "race"];
 
 export const MODES: Record<ModeId, ModeConfig> = {
   explore: {
@@ -52,6 +65,7 @@ export const MODES: Record<ModeId, ModeConfig> = {
     color: "#5f63df",
     activityTitle: "Explore",
     activitySubtitle: "Look around the model",
+    creative: true,
   },
   explode: {
     pill: "Layer explorer",
@@ -65,6 +79,7 @@ export const MODES: Record<ModeId, ModeConfig> = {
     color: "#2cae87",
     activityTitle: "Pull It Apart",
     activitySubtitle: "See how it is built",
+    creative: true,
   },
   sketch: {
     pill: "Sketch to 3D",
@@ -78,6 +93,7 @@ export const MODES: Record<ModeId, ModeConfig> = {
     color: "#f09b3d",
     activityTitle: "Sketch to 3D",
     activitySubtitle: "Draw your big idea",
+    creative: true,
   },
   remix: {
     pill: "Room remix",
@@ -91,6 +107,7 @@ export const MODES: Record<ModeId, ModeConfig> = {
     color: "#568dc9",
     activityTitle: "Remix a Room",
     activitySubtitle: "Make the space yours",
+    creative: true,
   },
   treasure: {
     pill: "Final adventure",
@@ -104,6 +121,7 @@ export const MODES: Record<ModeId, ModeConfig> = {
     color: "#e85675",
     activityTitle: "Treasure Hunt",
     activitySubtitle: "Find hidden surprises",
+    creative: true,
   },
   lasertag: {
     pill: "Laser tag scan",
@@ -117,6 +135,22 @@ export const MODES: Record<ModeId, ModeConfig> = {
     color: "#7b52d3",
     activityTitle: "Laser Tag Scan",
     activitySubtitle: "Tag wandering bots",
+    creative: true,
+  },
+  race: {
+    pill: "Race to the top",
+    title: "The water is rising—get high!",
+    guideName: "Splash",
+    guide:
+      "The flood is coming and it does not stop. Climb the stairs to the upper floor, then out to the roof terrace!",
+    companion: "\u{1F30A}",
+    mission: "Race to the top",
+    next: "Back to free explore",
+    color: "#2f9fd6",
+    activityTitle: "Race to the Top",
+    activitySubtitle: "Outclimb the flood",
+    // The one mode with creative off — this IS the flood game.
+    creative: false,
   },
 };
 
@@ -186,6 +220,8 @@ export type PlayProgress = {
   powersUsed: number;
   fossilsFound: number;
   fossilsTotal: number;
+  /** Flood surface height, in world units. Drives the Race to the Top steps. */
+  waterLevel: number;
 };
 
 export function getMission(mode: ModeId, progress: PlayProgress): MissionStep[] {
@@ -268,6 +304,35 @@ export function getMission(mode: ModeId, progress: PlayProgress): MissionStep[] 
           progress.botTotal === 1 ? "Tag the bot" : `Tag all ${progress.botTotal}`,
         detail: "Sweep the whole building",
         done: progress.botTotal > 0 && progress.botsTagged >= progress.botTotal,
+      },
+    ];
+  }
+
+  if (mode === "race") {
+    /**
+     * Read off the water, not the player. The flood only climbs while you are
+     * alive — drowning freezes it and a restart drops it back to the start — so
+     * "the water reached the roof" and "you outclimbed it to the roof" are the
+     * same fact, and the steps un-tick on a death without any extra bookkeeping.
+     * Thresholds come from HIGH_GROUND so they cannot drift from the floors the
+     * flood HUD points the player at.
+     */
+    const [plinth, upper, roof] = HIGH_GROUND;
+    return [
+      {
+        title: "Beat it to the plinth",
+        detail: "Get off the grass before the water does",
+        done: progress.waterLevel >= plinth.level,
+      },
+      {
+        title: "Climb to the upper floor",
+        detail: "Take the indoor stairs",
+        done: progress.waterLevel >= upper.level,
+      },
+      {
+        title: "Make the roof terrace",
+        detail: "Up the outdoor stair—that is the top",
+        done: progress.waterLevel >= roof.level,
       },
     ];
   }
