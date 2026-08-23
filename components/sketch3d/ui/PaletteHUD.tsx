@@ -97,9 +97,9 @@ export function PaletteHUD() {
     };
   }, []);
 
-  // Renders nothing at rest: <ModeStrip/> (mounted by both hosts of the scene —
-  // app/minecraft/page.js and the playground's ModelStage) already advertises
-  // `B`, and three features sharing one screen cannot each keep a
+  // Renders nothing at rest. Advertising `B` is somebody else's job — it was
+  // <ModeStrip/>'s until that strip was cut, and is moving to a dedicated UI
+  // element — and three features sharing one screen cannot each keep a
   // permanent pill up. Everything below is draw-mode-only, including the clear
   // confirm — which previously survived toggling draw mode off.
   if (!drawMode) return null;

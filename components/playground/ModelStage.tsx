@@ -131,11 +131,12 @@ export function ModelStage() {
 
             All of these are `absolute`, so they land inside .model-viewport
             (position: relative) rather than over the playground chrome. */}
-        {/* top-26, not the default top-16: ThemeHud is left-aligned on this
-            page and its theme-name pill runs to roughly 72px. */}
-        <TreasureHud className="top-26" />
+        {/* The stars/water pills stack in the bottom-left of the viewport. Two
+            modes park a panel in that same corner, so playground.css lifts the
+            stack clear of them — see .world-hud-* there. */}
+        <TreasureHud className="world-hud-stars" />
         <PowerupHud />
-        <FloodHud />
+        <FloodHud className="world-hud-water" />
         {/* top-14 rather than the default top-4: the orbit hint owns the top
             centre of this viewport. */}
         <SketchToWorld modeStripClassName="top-14 z-20" />

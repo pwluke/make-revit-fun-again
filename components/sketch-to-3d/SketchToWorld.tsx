@@ -203,11 +203,11 @@ export function SketchToWorld({
           {lastError}
         </div>
       )}
-      {/* Three creation modes now share this world, so the hint lists all of
-          them rather than just this one. E opens the overlay below (which picks
-          between a 3D model and a 2.5D sprite); B is the separate freehand
-          3D-line feature in components/sketch3d, which draws in the world and
-          never opens an overlay. Hidden while the overlay is open, as before. */}
+      {/* ModeStrip no longer advertises E/B/click — <ControlBar/> is the
+          dedicated UI element that discovery moved to, so the strip was cut back
+          to the creation-edit help it also carried (resize/move controls, and
+          why pointer lock just released). Both stay gated on `open`: the overlay
+          covers the world, so nothing behind it can be acted on while it is up. */}
       {!open && (
         <>
           <ModeStrip className={modeStripClassName} />
