@@ -23,6 +23,7 @@ import {
   spawnBreakDebris,
 } from "./break-fx";
 import { playerOrigin } from "./player-origin";
+import { useHeroStore } from "@/components/world/store";
 
 /** Warm clay for blocks the player places, against the pastel point layers. */
 const PLAYER_BLOCK_COLOR = "#d9a07a";
@@ -195,6 +196,9 @@ function InstancedCubes({
   const addCube = useCubeStore((state) => state.addCube);
   const removeCubes = useCubeStore((state) => state.removeCubes);
   const [hovered, setHovered] = useState<number | null>(null);
+  // Scan mode (Iron Man / Owl): the whole model fades so its structure and
+  // the spaces behind every wall read through.
+  const xray = useHeroStore((state) => state.active.includes("scan"));
 
   // The instance buffer only ever grows; shrinking it would remount the mesh on
   // every break. `mesh.count` below is what actually hides removed instances.
@@ -318,6 +322,9 @@ function InstancedCubes({
         <meshStandardMaterial
           roughness={0.55}
           metalness={0.05}
+          transparent={xray}
+          opacity={xray ? 0.25 : 1}
+          depthWrite={!xray}
           polygonOffset
           polygonOffsetFactor={1}
           polygonOffsetUnits={1}
@@ -330,7 +337,11 @@ function InstancedCubes({
         frustumCulled={false}
         raycast={() => {}}
       >
-        <meshBasicMaterial color="#2c2118" />
+        <meshBasicMaterial
+          color="#2c2118"
+          transparent={xray}
+          opacity={xray ? 0.3 : 1}
+        />
       </instancedMesh>
       <NearbyColliders cubes={cubes} half={half} />
       {hoverPos && (

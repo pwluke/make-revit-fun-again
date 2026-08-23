@@ -1,7 +1,7 @@
 import Link from "next/link";
 import App from "@/components/minecraft/App";
 import GestureTracker from "@/components/gesture/GestureTracker";
-import TreasureHud from "@/components/world/TreasureHud";
+import HeroHud from "@/components/world/HeroHud";
 import PowerupHud from "@/components/world/PowerupHud";
 import FloodHud from "@/components/world/FloodHud";
 
@@ -33,7 +33,7 @@ export default function MinecraftGame() {
         with gestures
       </p>
       <GestureTracker />
-      <TreasureHud />
+      <HeroHud topClass="top-16" />
       <PowerupHud />
       <FloodHud />
     </main>

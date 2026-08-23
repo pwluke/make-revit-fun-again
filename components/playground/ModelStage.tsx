@@ -7,6 +7,7 @@ import {
   ResetIcon,
 } from "./icons";
 import GestureTracker from "@/components/gesture/GestureTracker";
+import HeroHud from "@/components/world/HeroHud";
 import { GesturePanel } from "./GesturePanel";
 import { MinecraftViewport } from "./MinecraftViewport";
 import {
@@ -168,6 +169,13 @@ export function ModelStage() {
             box the scene fills) on every mode, not just explode. */}
         <div className="gesture-tracker">
           <GestureTracker />
+        </div>
+
+        {/* Ability-card HUD (counter, unlock animation, numbered slots).
+            Collection happens inside the scene, so without this a collected
+            card would vanish with no feedback. */}
+        <div className="hero-hud">
+          <HeroHud />
         </div>
 
         <div className="view-cube" aria-hidden="true">

@@ -13,6 +13,7 @@ import Axe from "./Axe";
 import { useGestureStore } from "../gesture/store";
 import { hitBlockCenter } from "./GestureBuilder";
 import { powerupState, usePowerupStore } from "../world/powerupStore";
+import { useHeroStore } from "../world/store";
 import { useFloodStore } from "../world/floodStore";
 import { playerOrigin } from "./player-origin";
 import { TARGET_BLOCK_SIZE } from "@/lib/use-grid-points";
@@ -30,6 +31,8 @@ type PlayerProps = {
 };
 
 const SPEED = 5;
+/** Speed ability card: double speed (its jump boost is applied inline). */
+const SPEED_CARD_MULTIPLIER = 2;
 // Jump impulse. Apex is v^2 / (2 * gravity) = 1.35m at v=9 under the
 // scene's -30 gravity, so a single jump clears a one-block step — without
 // it the stairs and roofs in the world are unreachable.
@@ -116,7 +119,12 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
 
   // The one effect Player needs during render rather than in the frame loop:
   // the collider size is a prop, so shrinking means re-rendering.
-  const tiny = usePowerupStore((s) => s.tiny);
+  const powerupTiny = usePowerupStore((s) => s.tiny);
+  // Ability cards are permanent and stackable; powerups are timed and
+  // exclusive. Either source can switch an effect on, so every read below
+  // takes the union rather than duplicating the physics for each.
+  const heroTiny = useHeroStore((s) => s.active.includes("tiny"));
+  const tiny = powerupTiny || heroTiny;
 
   // Restarting the flood drops the player back at spawn. The body is owned
   // here, so the flood store just bumps a token rather than reaching into it.
@@ -148,6 +156,29 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     // Rapier is already up by then.
     if (!ref.current) return;
     const { forward, backward, left, right, jump, crouch } = get();
+    // Effective abilities this frame: permanent cards OR the active powerup.
+    const heroActive = useHeroStore.getState().active;
+    const canClimb = powerupState.climb || heroActive.includes("climb");
+    const canFly = powerupState.fly || heroActive.includes("fly");
+    const isTiny = powerupState.tiny || heroActive.includes("tiny");
+    const hasSpeedCard = heroActive.includes("speed");
+    const speedMultiplier = Math.max(
+      powerupState.speedMultiplier,
+      hasSpeedCard ? SPEED_CARD_MULTIPLIER : 0,
+    );
+    // The speed card doubles jump HEIGHT, and height goes as v^2.
+    const jumpMultiplier = hasSpeedCard ? Math.SQRT2 : 1;
+    const maxJumps = Math.max(powerupState.maxJumps, hasSpeedCard ? 2 : 1);
+    // Portal rings ask for a teleport; the body owner is the only place that
+    // can actually move it.
+    const teleport = useHeroStore.getState().consumeTeleport();
+    if (teleport) {
+      ref.current.setTranslation(
+        { x: teleport[0], y: teleport[1], z: teleport[2] },
+        true,
+      );
+      ref.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
+    }
     const velocity = ref.current.linvel();
     const speed = Math.hypot(velocity.x, velocity.y, velocity.z);
     // Camera rides above the small capsule at the original eye height.
@@ -262,7 +293,7 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
       // Read straight off the mutable powerup state rather than subscribing:
       // this runs every frame, and a store subscription would re-render Player
       // on every tick of the effect timer.
-      .multiplyScalar(SPEED * powerupState.speedMultiplier)
+      .multiplyScalar(SPEED * speedMultiplier)
       .applyEuler(state.camera.rotation);
 
     const world = rapier.world;
@@ -276,21 +307,21 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
       ref.current,
     );
     // Tiny shrinks the capsule, so the distance to the floor shrinks with it.
-    const groundReach = powerupState.tiny ? 0.45 : 0.85;
+    const groundReach = isTiny ? 0.45 : 0.85;
     const grounded = ray && ray.collider && Math.abs(ray.timeOfImpact) <= groundReach;
 
     // FLY: gravity off, Space rises and Shift drops. Toggled on transition
     // rather than every frame so we don't fight Rapier's own bookkeeping.
-    if (powerupState.fly !== flying.current) {
-      flying.current = powerupState.fly;
-      ref.current.setGravityScale(powerupState.fly ? 0 : 1, true);
+    if (canFly !== flying.current) {
+      flying.current = canFly;
+      ref.current.setGravityScale(canFly ? 0 : 1, true);
     }
 
     // MONKEY: walking into a wall climbs it. The ray goes along the camera's
     // horizontal facing, so you climb whatever you're looking at and pressing
     // into — no separate "grab" input to explain.
     let climbing = false;
-    if (powerupState.climb && !orbiting && (forward || gestureForward)) {
+    if (canClimb && !orbiting && (forward || gestureForward)) {
       state.camera.getWorldDirection(climbDir);
       climbDir.y = 0;
       if (climbDir.lengthSq() > 0.0001) {
@@ -381,10 +412,13 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     if (grounded && jumpLockout.current <= 0) jumpsUsed.current = 0;
     if (climbing || flying.current) jumpsUsed.current = 0;
 
-    if (!orbiting && !flying.current && pressedJump && jumpsUsed.current < powerupState.maxJumps) {
+    if (!orbiting && !flying.current && pressedJump && jumpsUsed.current < maxJumps) {
       jumpsUsed.current += 1;
       jumpLockout.current = JUMP_LOCKOUT;
-      ref.current.setLinvel({ x: direction.x, y: JUMP_SPEED, z: direction.z }, true);
+      ref.current.setLinvel(
+        { x: direction.x, y: JUMP_SPEED * jumpMultiplier, z: direction.z },
+        true,
+      );
     }
   });
   return (

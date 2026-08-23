@@ -9,7 +9,8 @@ import { Player } from "./Player";
 import { Cubes } from "./Cube";
 import { GestureBuilder } from "./GestureBuilder";
 import { House } from "../world/House";
-import { Stars } from "../world/Stars";
+import { AbilityCards } from "../world/AbilityCards";
+import { Portals } from "../world/Portals";
 import { Powerups } from "../world/Powerups";
 import { Flood } from "../world/Flood";
 
@@ -23,6 +24,7 @@ export const minecraftKeyMap = [
   { name: "left", keys: ["ArrowLeft", "a", "A"] },
   { name: "right", keys: ["ArrowRight", "d", "D"] },
   { name: "jump", keys: ["Space"] },
+  { name: "zip", keys: ["g", "G"] },
   // Only used by the fly powerup — the descend key. Harmless otherwise.
   { name: "crouch", keys: ["ShiftLeft", "ShiftRight", "Shift", "c", "C"] },
 ];
@@ -47,7 +49,8 @@ export function MinecraftScene() {
       {/* Outside <Physics>: stars and powerups are pickups, the builder only
           raycasts, and the flood is visual — you swim through it, the breath
           timer is what actually threatens you. */}
-      <Stars />
+      <AbilityCards />
+      <Portals />
       <Powerups />
       <Flood />
       <GestureBuilder />

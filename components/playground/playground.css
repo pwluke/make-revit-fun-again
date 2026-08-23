@@ -926,6 +926,18 @@
   font: 700 13px var(--body);
 }
 
+.playground .hero-hud {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+/* `.playground button { font: inherit }` is unlayered, so it beats the
+   Tailwind utilities inside the HUD — same fix the Hands button needed. */
+.playground .hero-hud button {
+  font: 700 11px var(--body);
+}
+
 /* Toolbar */
 .playground .stage-toolbar {
   min-height: 76px;
