@@ -29,7 +29,7 @@ export const minecraftKeyMap = [
   { name: "crouch", keys: ["ShiftLeft", "ShiftRight", "Shift", "c", "C"] },
 ];
 
-export function MinecraftScene() {
+export function MinecraftScene({ children }: { children?: ReactNode }) {
   return (
     <>
       <ThemeAtmosphere />
@@ -45,6 +45,10 @@ export function MinecraftScene() {
       <Stars />
       <Powerups />
       <Flood />
+      {/* Slot for a per-mode add-on — see components/lasertag. Out here for the
+          same reason the pickups are: it raycasts and animates, it doesn't
+          collide. Callers that pass nothing render exactly the tree above. */}
+      {children}
       <GestureBuilder />
       <PointerLockControls />
       <PostFX />

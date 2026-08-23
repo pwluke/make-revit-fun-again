@@ -18,6 +18,7 @@ import {
 } from "@/lib/use-grid-points";
 import { SCENE } from "@/lib/palette";
 import { useGestureStore } from "../gesture/store";
+import { laserTagState } from "../lasertag/laserTagStore";
 import { BreakDebris, playBreakSound, spawnBreakDebris } from "./break-fx";
 import { playerOrigin } from "./player-origin";
 import { THEMES, type LayerId } from "@/lib/themes";
@@ -241,7 +242,7 @@ function InstancedCubes({
     setHovered((current) =>
       current === first.instanceId ? current : first.instanceId!,
     );
-    if (breakQueued) breakAt(first.instanceId);
+    if (breakQueued && !laserTagState.active) breakAt(first.instanceId);
   });
 
   useEffect(() => {
@@ -253,6 +254,10 @@ function InstancedCubes({
       // This also skips the first click, the one that grabs the lock, which
       // shouldn't edit the world.
       if (!document.pointerLockElement) return;
+      // Laser Tag owns the left button while it is running — a shot must not
+      // also demolish the arena you are hunting in. Right-click placement goes
+      // with it, which is what you want mid-round.
+      if (laserTagState.active) return;
       const current = hit.current;
       if (!current) return;
       const target = cubesRef.current[current.index];

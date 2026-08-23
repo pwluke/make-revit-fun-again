@@ -73,6 +73,12 @@ export const floodState = {
   elapsed: 0,
   breath: 1,
   submerged: false,
+  /**
+   * Freezes the rise and the breath timer while some other mode owns the world.
+   * Opt-in and default-off: only components/lasertag writes it, so the flood
+   * game and every other mode behave exactly as they did before it existed.
+   */
+  paused: false,
 };
 
 export function publishFlood() {
