@@ -4,25 +4,25 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import type { CSSProperties } from "react";
-import type { Game } from "./games";
+import type { AgeTier } from "./games";
 
-// A client component only because of `onError`: the game art lives in
-// `public/` and may not be there yet, so a failed load has to swap the tile
-// back to its gradient instead of showing a broken-image icon.
-export function GameTile({ game, index }: { game: Game; index: number }) {
+// A client component only because of `onError`: the tier art lives in
+// `public/game-tiles/` and may not be there yet, so a failed load has to swap
+// the tile back to its gradient instead of showing a broken-image icon.
+export function AgeTile({ tier, index }: { tier: AgeTier; index: number }) {
   const [artFailed, setArtFailed] = useState(false);
 
   // Tailwind can't generate classes from runtime values, so the sampled palette
   // rides in as custom properties and the utilities below read them.
   const paletteVars = {
-    "--tile-from": game.palette.from,
-    "--tile-to": game.palette.to,
-    "--tile-accent": game.palette.accent,
+    "--tile-from": tier.palette.from,
+    "--tile-to": tier.palette.to,
+    "--tile-accent": tier.palette.accent,
   } as CSSProperties;
 
   return (
     <Link
-      href={game.href}
+      href={tier.href}
       style={paletteVars}
       className="group relative flex aspect-[4/5] flex-col justify-end overflow-hidden rounded-3xl bg-[linear-gradient(155deg,var(--tile-from)_0%,var(--tile-to)_100%)] shadow-lg ring-1 ring-black/10 transition-transform duration-300 outline-none hover:-translate-y-1.5 focus-visible:-translate-y-1.5 focus-visible:ring-4 focus-visible:ring-[var(--tile-accent)]"
     >
@@ -30,14 +30,14 @@ export function GameTile({ game, index }: { game: Game; index: number }) {
           art is absent, so the tile always reads as deliberate. */}
       {!artFailed && (
         <Image
-          src={game.image}
-          alt={game.imageAlt}
+          src={tier.image}
+          alt={tier.imageAlt}
           fill
           // Uniform 4/5 frame across four differently-shaped sources, so
-          // `object-cover` plus each game's optional focus point does the
+          // `object-cover` plus each tier's optional focus point does the
           // reconciling.
           className="object-cover transition-transform duration-500 group-hover:scale-[1.06]"
-          style={game.focus ? { objectPosition: game.focus } : undefined}
+          style={tier.focus ? { objectPosition: tier.focus } : undefined}
           sizes="(min-width: 1280px) 22vw, (min-width: 640px) 45vw, 92vw"
           priority={index < 2}
           onError={() => setArtFailed(true)}
@@ -53,12 +53,12 @@ export function GameTile({ game, index }: { game: Game; index: number }) {
 
       <div className="relative flex flex-col gap-1.5 p-5 sm:p-6">
         <span className="text-xs font-semibold tracking-[0.18em] text-[var(--tile-accent)] uppercase">
-          {game.kindLabel}
+          {tier.ageLabel}
         </span>
         <h2 className="text-2xl font-semibold text-white sm:text-[1.7rem]">
-          {game.title}
+          {tier.title}
         </h2>
-        <p className="text-sm leading-snug text-white/80">{game.tagline}</p>
+        <p className="text-sm leading-snug text-white/80">{tier.tagline}</p>
         <span className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-white opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100 sm:-translate-x-2">
           Play
           <span aria-hidden>→</span>

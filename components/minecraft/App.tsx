@@ -1,15 +1,19 @@
 "use client";
 
 import { type ReactNode } from "react";
-import { Sky, PointerLockControls, KeyboardControls } from "@react-three/drei";
+import { PointerLockControls, KeyboardControls } from "@react-three/drei";
 import { Physics } from "@react-three/rapier";
 import { SceneCanvas } from "@/components/canvas/SceneCanvas";
+import { PostFX } from "@/components/canvas/PostFX";
 import { Ground } from "./Ground";
 import { Player } from "./Player";
 import { Cubes } from "./Cube";
 import { GestureBuilder } from "./GestureBuilder";
 import { House } from "../world/House";
 import { Stars } from "../world/Stars";
+import { Powerups } from "../world/Powerups";
+import { Flood } from "../world/Flood";
+import { ThemeAtmosphere } from "../world/ThemeAtmosphere";
 
 // The original was made by Maksim Ivanow: https://www.youtube.com/watch?v=Lc2JvBXMesY&t=124s
 // This example needs pointer-lock, that works only if you open it in a new window
@@ -21,29 +25,29 @@ export const minecraftKeyMap = [
   { name: "left", keys: ["ArrowLeft", "a", "A"] },
   { name: "right", keys: ["ArrowRight", "d", "D"] },
   { name: "jump", keys: ["Space"] },
+  // Only used by the fly powerup — the descend key. Harmless otherwise.
+  { name: "crouch", keys: ["ShiftLeft", "ShiftRight", "Shift", "c", "C"] },
 ];
 
 export function MinecraftScene() {
   return (
     <>
-      <Sky sunPosition={[100, 20, 100]} />
-      <ambientLight intensity={0.3 * Math.PI} />
-      <pointLight
-        castShadow
-        intensity={0.8 * Math.PI}
-        decay={0}
-        position={[100, 100, 100]}
-      />
+      <ThemeAtmosphere />
       <Physics gravity={[0, -30, 0]}>
         <Ground />
         <Player />
         <House />
         <Cubes />
       </Physics>
-      {/* Outside <Physics>: stars are pickups, and the builder only raycasts. */}
+      {/* Outside <Physics>: stars and powerups are pickups, the builder only
+          raycasts, and the flood is visual — you swim through it, the breath
+          timer is what actually threatens you. */}
       <Stars />
+      <Powerups />
+      <Flood />
       <GestureBuilder />
       <PointerLockControls />
+      <PostFX />
     </>
   );
 }

@@ -2,6 +2,9 @@ import Link from "next/link";
 import App from "@/components/minecraft/App";
 import GestureTracker from "@/components/gesture/GestureTracker";
 import TreasureHud from "@/components/world/TreasureHud";
+import PowerupHud from "@/components/world/PowerupHud";
+import FloodHud from "@/components/world/FloodHud";
+import { ThemeFrame, ThemeHud } from "@/components/world/ThemeHud";
 
 // Deliberately no `flex-1` on <main>: it sets `flex-basis: 0%`, which resolves
 // against the body's auto height and leaves <main>'s height *indefinite*. The
@@ -9,8 +12,9 @@ import TreasureHud from "@/components/world/TreasureHud";
 // intrinsic 150px. `h-dvh` on its own is a definite height.
 export default function MinecraftGame() {
   return (
-    <main className="relative h-dvh w-full select-none overflow-hidden bg-sky-200">
+    <ThemeFrame className="relative h-dvh w-full select-none overflow-hidden">
       <App />
+      <ThemeHud />
       {/* Crosshair — PointerLockControls hides the cursor, so the scene needs
           its own aiming reticle. */}
       <div
@@ -27,11 +31,13 @@ export default function MinecraftGame() {
       </Link>
       <p className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-white/80">
         Click to look around · WASD to move · Space to jump · Left click to
-        break a block · Right click to place one · or press Hands and build
+        break a cluster · Right click to place one · or press Hands and build
         with gestures
       </p>
       <GestureTracker />
       <TreasureHud />
-    </main>
+      <PowerupHud />
+      <FloodHud />
+    </ThemeFrame>
   );
 }

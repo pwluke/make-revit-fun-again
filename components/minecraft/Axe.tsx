@@ -10,6 +10,7 @@ import * as THREE from "three";
 import { type GLTF } from "three-stdlib";
 import { type ThreeElements } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
+import { PASTEL } from "@/lib/palette";
 
 // Served from `public/axe.glb`; three's GLTFLoader fetches it at runtime, so it
 // stays a URL string rather than a bundled module import.
@@ -26,19 +27,37 @@ type GLTFResult = GLTF & {
   };
 };
 
+/**
+ * Only the geometry is used from the file. The model's own two materials carry
+ * baked colour textures — a near-black blade and a brown haft — and a tint
+ * cannot rescue them: multiplying pastel over dark just gives muddy pastel.
+ * Held in the corner of frame, the axe was the one saturated dark object left
+ * in the scene, so it gets flat palette colours instead, which is what every
+ * other surface here now is.
+ */
 export default function Axe(props: ThreeElements["group"]) {
-  const { nodes, materials } = useGLTF(axeModel) as unknown as GLTFResult;
+  const { nodes } = useGLTF(axeModel) as unknown as GLTFResult;
   return (
     <group dispose={null} {...props}>
       <group rotation={[0, Math.PI / 1.8, -0.3]} scale={0.5}>
-        <mesh
-          geometry={nodes.Mesh_1001_1.geometry}
-          material={materials.material_2}
-        />
-        <mesh
-          geometry={nodes.Mesh_1001_2.geometry}
-          material={materials.material_3}
-        />
+        {/* Haft — timber, so matte. (`_1` is the handle and `_2` the head,
+            despite the naming; the generated code's material_2/material_3 pair
+            up the same way round.) */}
+        <mesh geometry={nodes.Mesh_1001_1.geometry}>
+          <meshStandardMaterial
+            color={PASTEL.sand}
+            roughness={0.85}
+            metalness={0}
+          />
+        </mesh>
+        {/* Head — the diamond, so a touch of gloss. */}
+        <mesh geometry={nodes.Mesh_1001_2.geometry}>
+          <meshStandardMaterial
+            color={PASTEL.sky}
+            roughness={0.3}
+            metalness={0.2}
+          />
+        </mesh>
       </group>
     </group>
   );

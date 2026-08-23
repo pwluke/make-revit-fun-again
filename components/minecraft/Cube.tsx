@@ -7,27 +7,42 @@ import {
   useState,
 } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useTexture } from "@react-three/drei";
 import { CuboidCollider, RigidBody } from "@react-three/rapier";
 import * as THREE from "three";
 import { create } from "zustand";
-import { occupiedPointCoords, useGridPoints } from "@/lib/use-grid-points";
-
-// Served from `public/dirt.jpg` — see the note in Axe.tsx.
-const dirtImg = "/dirt.jpg";
-
-type CubeCoords = [x: number, y: number, z: number];
+import {
+  neighborPosition,
+  occupiedPointCoords,
+  useGridPoints,
+  type CubeCoords,
+} from "@/lib/use-grid-points";
+import { SCENE } from "@/lib/palette";
+import { useGestureStore } from "../gesture/store";
+import { BreakDebris, playBreakSound, spawnBreakDebris } from "./break-fx";
+import { playerOrigin } from "./player-origin";
+import { THEMES, type LayerId } from "@/lib/themes";
+import { useSceneTheme, useThemeStore } from "../world/themeStore";
 
 // How far the player can reach to break or place, in world units. Also caps the
 // per-frame raycast, so a block across the map can't be edited by aiming at it.
 const REACH = 8;
+/** Extra bricks removed with the one you aim at. */
+const BREAK_NEIGHBORS = 10;
 
 const dummy = new THREE.Object3D();
+const tint = new THREE.Color();
+
 // Pointer lock freezes the mouse, so every pick is from the screen centre —
 // i.e. the crosshair the page draws over the canvas.
 const CROSSHAIR = new THREE.Vector2(0, 0);
 
-const keyOf = (x: number, y: number, z: number) => `${x},${y},${z}`;
+const keyOf = (x: number, y: number, z: number) =>
+  `${x.toFixed(4)},${y.toFixed(4)},${z.toFixed(4)}`;
+
+type CubeInstance = {
+  position: CubeCoords;
+  color: string;
+};
 
 type CubeStore = {
   added: CubeCoords[];
@@ -35,12 +50,13 @@ type CubeStore = {
   removed: ReadonlySet<string>;
   addCube: (x: number, y: number, z: number) => void;
   removeCube: (x: number, y: number, z: number) => void;
+  removeCubes: (positions: CubeCoords[]) => void;
 };
 
 // Exported so gesture-driven building (GestureBuilder) can queue cubes
 // without going through a pointer event.
 export const useCubeStore = create<CubeStore>((set) => ({
-  added: [[0, 0.5, -10]],
+  added: [],
   removed: new Set<string>(),
   addCube: (x, y, z) =>
     set((state) => {
@@ -55,50 +71,94 @@ export const useCubeStore = create<CubeStore>((set) => ({
         added: already ? state.added : [...state.added, [x, y, z]],
       };
     }),
-  removeCube: (x, y, z) =>
-    set((state) => {
-      const key = keyOf(x, y, z);
-      return {
-        added: state.added.filter((coords) => keyOf(...coords) !== key),
-        // Seeded cubes arrive from a live InstantDB subscription, so they can't
-        // be spliced out at the source. Deletion is recorded as a mask instead,
-        // and the merge step subtracts it.
-        removed: new Set(state.removed).add(key),
-      };
-    }),
+  removeCube: (x, y, z) => set((state) => maskRemoved(state, [[x, y, z]])),
+  removeCubes: (positions) => set((state) => maskRemoved(state, positions)),
 }));
+
+function maskRemoved(state: CubeStore, positions: CubeCoords[]) {
+  const removed = new Set(state.removed);
+  const keys = new Set<string>();
+  for (const coords of positions) {
+    const key = keyOf(...coords);
+    keys.add(key);
+    // Seeded cubes arrive from the loaded point files, so they can't be
+    // spliced out at the source. Deletion is recorded as a mask instead,
+    // and the merge step subtracts it.
+    removed.add(key);
+  }
+  return {
+    added: state.added.filter((coords) => !keys.has(keyOf(...coords))),
+    removed,
+  };
+}
+
+function breakCluster(
+  origin: CubeInstance,
+  cubes: CubeInstance[],
+  extra: number,
+): CubeInstance[] {
+  const scored: { cube: CubeInstance; distanceSq: number }[] = [];
+  for (const cube of cubes) {
+    const dx = cube.position[0] - origin.position[0];
+    const dy = cube.position[1] - origin.position[1];
+    const dz = cube.position[2] - origin.position[2];
+    const distanceSq = dx * dx + dy * dy + dz * dz;
+    if (distanceSq === 0) continue;
+    scored.push({ cube, distanceSq });
+  }
+  scored.sort((a, b) => a.distanceSq - b.distanceSq);
+  return [origin, ...scored.slice(0, extra).map(({ cube }) => cube)];
+}
 
 export const Cubes = () => {
   const added = useCubeStore((state) => state.added);
   const removed = useCubeStore((state) => state.removed);
-  const { data } = useGridPoints();
+  const themeId = useThemeStore((state) => state.id);
+  const theme = THEMES[themeId];
+  const { data, blockSize } = useGridPoints();
 
   const cubes = useMemo(() => {
     const seen = new Set<string>();
-    const out: CubeCoords[] = [];
-    const push = (coords: CubeCoords) => {
+    const out: CubeInstance[] = [];
+    const push = (coords: CubeCoords, color: string) => {
       const key = keyOf(...coords);
       if (removed.has(key) || seen.has(key)) return;
       seen.add(key);
-      out.push(coords);
+      out.push({ position: coords, color });
     };
-    for (const point of occupiedPointCoords(data?.points)) push(point.position);
-    for (const coords of added) push(coords);
+    for (const point of occupiedPointCoords(data?.points)) {
+      const themed = theme.layers[point.layer as LayerId] ?? point.color;
+      push(point.position, themed);
+    }
+    for (const coords of added) push(coords, theme.playerBlock);
     return out;
-  }, [data?.points, added, removed]);
+  }, [data?.points, added, removed, theme]);
 
-  return <InstancedCubes cubes={cubes} />;
+  return (
+    <>
+      <InstancedCubes cubes={cubes} size={blockSize} />
+      <BreakDebris size={blockSize} />
+    </>
+  );
 };
 
-function InstancedCubes({ cubes }: { cubes: CubeCoords[] }) {
+function InstancedCubes({
+  cubes,
+  size,
+}: {
+  cubes: CubeInstance[];
+  size: CubeCoords;
+}) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const cubesRef = useRef(cubes);
   cubesRef.current = cubes;
+  const sizeRef = useRef(size);
+  sizeRef.current = size;
 
+  const theme = useSceneTheme();
   const camera = useThree((state) => state.camera);
-  const texture = useTexture(dirtImg);
   const addCube = useCubeStore((state) => state.addCube);
-  const removeCube = useCubeStore((state) => state.removeCube);
+  const removeCubes = useCubeStore((state) => state.removeCubes);
   const [hovered, setHovered] = useState<number | null>(null);
 
   // The instance buffer only ever grows; shrinking it would remount the mesh on
@@ -111,12 +171,15 @@ function InstancedCubes({ cubes }: { cubes: CubeCoords[] }) {
     const mesh = meshRef.current;
     if (!mesh) return;
     for (let i = 0; i < cubes.length; i++) {
-      dummy.position.set(cubes[i][0], cubes[i][1], cubes[i][2]);
+      dummy.position.set(...cubes[i].position);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
+      mesh.setColorAt(i, tint.set(cubes[i].color));
     }
     mesh.count = cubes.length;
     mesh.instanceMatrix.needsUpdate = true;
+    // `setColorAt` creates the attribute on first use, so this can't be hoisted.
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     // InstancedMesh.raycast rejects against the instance bounding sphere first,
     // so it has to be refreshed or newly-placed cubes become unpickable.
     mesh.computeBoundingSphere();
@@ -140,7 +203,35 @@ function InstancedCubes({ cubes }: { cubes: CubeCoords[] }) {
     setHovered((current) => (current === null ? current : null));
   }, []);
 
+  /**
+   * Break the brick at an instance index, with its cluster, debris and sound.
+   * Shared by the left click and the gesture so the two can't drift apart — and
+   * so the gesture picks up anything added to the mouse path later.
+   *
+   * Takes the index into the authoritative cube array rather than a position
+   * read back out of the instance matrix: that buffer is Float32, and these are
+   * voxelised model coordinates rather than a tidy integer grid, so the round
+   * trip shifts the low digits. keyOf's 4dp rounding would currently absorb
+   * that, but relying on it would make deletion depend on a rounding choice
+   * made elsewhere.
+   */
+  const breakAt = useCallback(
+    (index: number) => {
+      const target = cubesRef.current[index];
+      if (!target) return;
+      const cluster = breakCluster(target, cubesRef.current, BREAK_NEIGHBORS);
+      removeCubes(cluster.map((cube) => cube.position));
+      spawnBreakDebris(cluster, sizeRef.current);
+      playBreakSound(cluster.length);
+    },
+    [removeCubes],
+  );
+
   useFrame(() => {
+    // Consumed up front, even when nothing is under the crosshair: a queued
+    // break that missed should be dropped, not held until the player happens to
+    // aim at a block later.
+    const breakQueued = useGestureStore.getState().consumeBreak();
     const mesh = meshRef.current;
     if (!mesh || mesh.count === 0) return clearHit();
     picker.setFromCamera(CROSSHAIR, camera);
@@ -150,6 +241,7 @@ function InstancedCubes({ cubes }: { cubes: CubeCoords[] }) {
     setHovered((current) =>
       current === first.instanceId ? current : first.instanceId!,
     );
+    if (breakQueued) breakAt(first.instanceId);
   });
 
   useEffect(() => {
@@ -163,18 +255,15 @@ function InstancedCubes({ cubes }: { cubes: CubeCoords[] }) {
       if (!document.pointerLockElement) return;
       const current = hit.current;
       if (!current) return;
-      const coords = cubesRef.current[current.index];
-      if (!coords) return;
+      const target = cubesRef.current[current.index];
+      if (!target) return;
       if (e.button === 0) {
-        removeCube(...coords);
+        breakAt(current.index);
       } else if (e.button === 2) {
         // Instances are translation-only, so the local face normal is already
         // the world-space unit axis pointing out of the face that was hit.
-        const { x, y, z } = current.normal;
         addCube(
-          coords[0] + Math.round(x),
-          coords[1] + Math.round(y),
-          coords[2] + Math.round(z),
+          ...neighborPosition(target.position, current.normal, sizeRef.current),
         );
       }
     };
@@ -189,9 +278,10 @@ function InstancedCubes({ cubes }: { cubes: CubeCoords[] }) {
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("contextmenu", onContextMenu);
     };
-  }, [addCube, removeCube]);
+  }, [addCube, breakAt]);
 
-  const hoverPos = hovered != null ? cubes[hovered] : undefined;
+  const hoverPos = hovered != null ? cubes[hovered]?.position : undefined;
+  const half: CubeCoords = [size[0] / 2, size[1] / 2, size[2] / 2];
 
   if (cubes.length === 0) return null;
 
@@ -205,15 +295,19 @@ function InstancedCubes({ cubes }: { cubes: CubeCoords[] }) {
         castShadow
         receiveShadow
       >
-        <boxGeometry />
-        <meshStandardMaterial map={texture} />
+        <boxGeometry args={size} />
+        {/* White base so per-instance layer colours come through as authored. */}
+        <meshStandardMaterial
+          roughness={theme.cubeRoughness}
+          metalness={theme.cubeMetalness}
+        />
       </instancedMesh>
-      <NearbyColliders cubes={cubes} />
+      <NearbyColliders cubes={cubes} half={half} />
       {hoverPos && (
         <mesh position={hoverPos} scale={1.02} raycast={() => {}}>
-          <boxGeometry />
+          <boxGeometry args={size} />
           <meshBasicMaterial
-            color="hotpink"
+            color={SCENE.highlight}
             transparent
             opacity={0.35}
             depthWrite={false}
@@ -228,11 +322,21 @@ function InstancedCubes({ cubes }: { cubes: CubeCoords[] }) {
 // seeds thousands of cubes, and mounting a collider for every one of them cost
 // ~1.2s of blocked main thread at load. Only blocks the player can actually
 // walk into need to exist to Rapier — the rest are scenery.
-const COLLIDER_RADIUS = 10; // blocks; ignore anything further out
-const MAX_COLLIDERS = 512; // hard cap, so a dense grid can't blow the budget
-const REBUILD_DISTANCE = 2; // player units of travel before reselecting
+/** Horizontal reach around the capsule — a 10-unit sphere around the camera
+ *  let a dense wall eat the whole budget, then stairs underfoot had no
+ *  collider until one popped in around the body. */
+const COLLIDER_RADIUS = 4;
+const COLLIDER_HEIGHT = 3;
+const MAX_COLLIDERS = 1024;
+const REBUILD_DISTANCE = 1.2;
 
-function NearbyColliders({ cubes }: { cubes: CubeCoords[] }) {
+function NearbyColliders({
+  cubes,
+  half,
+}: {
+  cubes: CubeInstance[];
+  half: CubeCoords;
+}) {
   const [nearby, setNearby] = useState<CubeCoords[]>([]);
   // Sentinel: infinitely far from anywhere, so the first frame always builds.
   const builtAt = useRef(new THREE.Vector3(Infinity, Infinity, Infinity));
@@ -241,12 +345,15 @@ function NearbyColliders({ cubes }: { cubes: CubeCoords[] }) {
     (origin: THREE.Vector3) => {
       const radiusSq = COLLIDER_RADIUS * COLLIDER_RADIUS;
       const inRange: { coords: CubeCoords; distanceSq: number }[] = [];
-      for (const coords of cubes) {
+      for (const cube of cubes) {
+        const coords = cube.position;
         const dx = coords[0] - origin.x;
         const dy = coords[1] - origin.y;
         const dz = coords[2] - origin.z;
-        const distanceSq = dx * dx + dy * dy + dz * dz;
-        if (distanceSq <= radiusSq) inRange.push({ coords, distanceSq });
+        if (Math.abs(dy) > COLLIDER_HEIGHT) continue;
+        const planarSq = dx * dx + dz * dz;
+        if (planarSq > radiusSq) continue;
+        inRange.push({ coords, distanceSq: planarSq + dy * dy });
       }
       // Nearest-first, so the cap trims the blocks least able to be reached
       // before the next rebuild.
@@ -265,16 +372,14 @@ function NearbyColliders({ cubes }: { cubes: CubeCoords[] }) {
     builtAt.current.set(Infinity, Infinity, Infinity);
   }, [cubes]);
 
-  useFrame(({ camera }) => {
-    // Player.tsx copies the rigid body's translation onto the camera every
-    // frame, so the camera *is* the player position — no cross-module ref.
+  useFrame(() => {
     if (
-      camera.position.distanceToSquared(builtAt.current) <
+      playerOrigin.distanceToSquared(builtAt.current) <
       REBUILD_DISTANCE * REBUILD_DISTANCE
     ) {
       return;
     }
-    rebuild(camera.position);
+    rebuild(playerOrigin);
   });
 
   if (nearby.length === 0) return null;
@@ -287,8 +392,9 @@ function NearbyColliders({ cubes }: { cubes: CubeCoords[] }) {
       {nearby.map((coords) => (
         <CuboidCollider
           key={keyOf(...coords)}
-          args={[0.5, 0.5, 0.5]}
+          args={half}
           position={coords}
+          friction={0}
         />
       ))}
     </RigidBody>
