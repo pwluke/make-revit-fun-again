@@ -7,6 +7,10 @@
  * means replacing `r3f/` and nothing else.
  */
 
+import type { CreationTransform } from "./transform";
+
+export type { CreationTransform };
+
 export type SpawnTransform = {
   position: [number, number, number];
   rotationY: number;
@@ -100,6 +104,14 @@ export type Creation = {
    * still representable.
    */
   sketchUrl?: string;
+  /**
+   * Player-applied scale and height, edited via the selection bounding box.
+   *
+   * Separate from `spawn`, which records where the creation was BORN and is
+   * never recomputed. This is where the player has since put it — two different
+   * facts, so two different fields.
+   */
+  transform: CreationTransform;
   state: JobState;
 };
 

@@ -25,6 +25,8 @@ export type SketchState = {
   undo: () => void;
   clear: () => void;
   setColorIndex: (index: number) => void;
+  /** Steps through the palette, WRAPPING at both ends. */
+  cycleColor: (delta: number) => void;
   cycleWidth: (delta: number) => void;
   toggleDrawMode: () => void;
 };
@@ -96,6 +98,16 @@ export function createStrokeStore(): StrokeStore {
 
     setColorIndex: (index) =>
       set((state) => (index >= 0 && index < PALETTE.length ? { colorIndex: index } : state)),
+
+    // Wraps, unlike cycleWidth which clamps. A colour cycle that stops dead at
+    // purple would strand you six presses from red; widths are an ordered
+    // thin-to-thick scale where the ends are meaningful stopping points.
+    cycleColor: (delta) =>
+      set((state) => {
+        const count = PALETTE.length;
+        const next = (((state.colorIndex + delta) % count) + count) % count;
+        return next === state.colorIndex ? state : { colorIndex: next };
+      }),
 
     cycleWidth: (delta) =>
       set((state) => {

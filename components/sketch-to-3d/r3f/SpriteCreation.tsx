@@ -23,7 +23,7 @@ import * as THREE from "three";
 import { DoubleSide } from "three";
 import { useTexture } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import type { SpawnTransform } from "../core/types";
+import type { CreationTransform, SpawnTransform } from "../core/types";
 import { downscaleTexture } from "./Creations";
 
 const TARGET_HEIGHT = 2;
@@ -37,6 +37,10 @@ const MAX_SPRITE_TEXTURE_SIZE = 512;
 type SpriteCreationProps = {
   spriteUrl: string;
   spawn: SpawnTransform;
+  /** Player-applied scale and height — see core/transform.ts. */
+  transform: CreationTransform;
+  /** Tagged onto the mesh so a camera raycast can identify what it hit. */
+  creationId: string;
 };
 
 type TrimmedSprite = {
@@ -118,7 +122,12 @@ function trimSprite(texture: THREE.Texture): TrimmedSprite | null {
   return { texture: canvasTexture, aspect: croppedWidth / croppedHeight };
 }
 
-export function SpriteCreation({ spriteUrl, spawn }: SpriteCreationProps) {
+export function SpriteCreation({
+  spriteUrl,
+  spawn,
+  transform,
+  creationId,
+}: SpriteCreationProps) {
   const sourceTexture = useTexture(spriteUrl);
   const { camera } = useThree();
   const meshRef = useRef<THREE.Mesh>(null!);
@@ -151,17 +160,22 @@ export function SpriteCreation({ spriteUrl, spawn }: SpriteCreationProps) {
     mesh.rotation.y = Math.atan2(camera.position.x - worldPos.x, camera.position.z - worldPos.z);
   });
 
-  const height = TARGET_HEIGHT;
-  const width = TARGET_HEIGHT * (trimmed?.aspect ?? 1);
+  const height = TARGET_HEIGHT * transform.scale;
+  const width = height * (trimmed?.aspect ?? 1);
   const { position } = spawn;
-  // Sit on the ground: offset up by half the plane's height relative to the
-  // spawn position, rather than centring the quad on it.
-  const meshPosition: [number, number, number] = [position[0], position[1] + height / 2, position[2]];
+  // X and Z from the spawn; Y is player-editable. Offset up by half the plane's
+  // height so `transform.y` means the BASE of the sprite, matching how meshes
+  // are placed — otherwise "drop to ground" would half-bury one and not the other.
+  const meshPosition: [number, number, number] = [
+    position[0],
+    transform.y + height / 2,
+    position[2],
+  ];
 
   const mapTexture = trimmed?.texture ?? sourceTexture;
 
   return (
-    <mesh ref={meshRef} position={meshPosition}>
+    <mesh ref={meshRef} position={meshPosition} userData={{ creationId }}>
       <planeGeometry args={[width, height]} />
       {/* DoubleSide: a yaw billboard can still present its back during the
           frame its rotation is first applied, and a one-sided quad renders

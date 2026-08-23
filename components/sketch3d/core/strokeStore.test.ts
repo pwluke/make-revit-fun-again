@@ -104,6 +104,23 @@ describe("tool selection", () => {
     expect(store.getState().widthIndex).toBe(WIDTHS.length - 1);
   });
 
+  it("cycles colour forward and wraps at the end", () => {
+    store.getState().setColorIndex(PALETTE.length - 1);
+    store.getState().cycleColor(1);
+    expect(store.getState().colorIndex).toBe(0);
+  });
+
+  it("cycles colour backward and wraps at the start", () => {
+    store.getState().cycleColor(-1);
+    expect(store.getState().colorIndex).toBe(PALETTE.length - 1);
+  });
+
+  it("steps one colour at a time in the middle of the palette", () => {
+    store.getState().setColorIndex(2);
+    store.getState().cycleColor(1);
+    expect(store.getState().colorIndex).toBe(3);
+  });
+
   it("ignores an out-of-range colour index", () => {
     store.getState().setColorIndex(99);
     expect(store.getState().colorIndex).toBe(0);

@@ -23,7 +23,8 @@ export function PaletteHUD() {
   }, [confirmingClear]);
 
   useEffect(() => {
-    const { setColorIndex, cycleWidth, toggleDrawMode, undo, clear } = sketchStore.getState();
+    const { setColorIndex, cycleColor, cycleWidth, toggleDrawMode, undo, clear } =
+      sketchStore.getState();
 
     const onKeyDown = (event: KeyboardEvent) => {
       // The sketch-to-3D overlay (press E) has a text prompt input. Without this
@@ -46,6 +47,12 @@ export function PaletteHUD() {
       } else if (event.code === "Backspace") {
         event.preventDefault();
         undo();
+      } else if (event.code === "KeyX") {
+        // One key to step through the palette. Reaching for 1-6 means looking
+        // away from the crosshair mid-drawing; X is under the left hand that is
+        // already on WASD, so you can change colour without stopping.
+        // Shift+X steps back, so overshooting costs one press rather than five.
+        cycleColor(event.shiftKey ? -1 : 1);
       } else if (event.code === "BracketLeft") {
         cycleWidth(-1);
       } else if (event.code === "BracketRight") {

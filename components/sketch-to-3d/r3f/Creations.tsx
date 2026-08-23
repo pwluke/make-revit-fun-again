@@ -10,6 +10,8 @@ import { creationStore } from "../core/creationStore";
 import type { Creation } from "../core/types";
 import { CreationErrorBoundary } from "./CreationErrorBoundary";
 import { PreviewCard } from "./PreviewCard";
+import { SelectionBox } from "./SelectionBox";
+import { SelectionController } from "./SelectionController";
 import { SpriteCreation } from "./SpriteCreation";
 import { useR3FSceneBridge } from "./useR3FSceneBridge";
 
@@ -152,8 +154,14 @@ function LoadedModel({ creation, glbUrl }: LoadedModelProps) {
     const cloned = gltf.scene.clone(true);
     normalizeScene(cloned);
     applyMaterialPass(cloned);
+    // Tagged so a camera raycast can identify what it hit and walk back up to
+    // the creation. Set on every descendant, because a ray hits a leaf mesh and
+    // walking up parents is more fragile than reading the tag directly.
+    cloned.traverse((child) => {
+      child.userData.creationId = creation.id;
+    });
     return cloned;
-  }, [gltf]);
+  }, [gltf, creation.id]);
 
   // <primitive> opts out of R3F's automatic disposal, and each creation is
   // ~26 MB of GPU resources — with MAX_CREATIONS live, evicted creations
@@ -165,10 +173,20 @@ function LoadedModel({ creation, glbUrl }: LoadedModelProps) {
   }, [scene]);
 
   const { position, rotationY } = creation.spawn;
+  const { scale, y } = creation.transform;
 
   return (
-    <RigidBody type="fixed" colliders={false} position={position} rotation={[0, rotationY, 0]}>
-      <primitive object={scene} />
+    <RigidBody
+      type="fixed"
+      colliders={false}
+      // X and Z stay where the creation was born; Y is player-editable, so it
+      // comes from the transform rather than from the spawn.
+      position={[position[0], y, position[2]]}
+      rotation={[0, rotationY, 0]}
+    >
+      <group scale={scale}>
+        <primitive object={scene} />
+      </group>
     </RigidBody>
   );
 }
@@ -217,7 +235,12 @@ function CreationEntry({ creation }: { creation: Creation }) {
       <CreationErrorBoundary label={`${creation.id} (${result.mode})`} spawn={creation.spawn}>
         <Suspense fallback={<Ghost creation={creation} />}>
           {result.mode === "sprite" ? (
-            <SpriteCreation spriteUrl={result.spriteUrl} spawn={creation.spawn} />
+            <SpriteCreation
+              spriteUrl={result.spriteUrl}
+              spawn={creation.spawn}
+              transform={creation.transform}
+              creationId={creation.id}
+            />
           ) : (
             <LoadedModel creation={creation} glbUrl={result.glbUrl} />
           )}
@@ -263,7 +286,7 @@ function CreationEntry({ creation }: { creation: Creation }) {
 }
 
 /** Rendered inside <Canvas> and inside <Physics>. Registers the scene bridge. */
-export function Creations() {
+export function CreationsInner() {
   const bridge = useR3FSceneBridge();
   const creations = useStore(creationStore, (s) => s.creations);
 
@@ -282,6 +305,21 @@ export function Creations() {
       {creations.map((creation) => (
         <CreationEntry key={creation.id} creation={creation} />
       ))}
+    </>
+  );
+}
+
+/**
+ * Public entry point: the creations themselves, plus the selection machinery
+ * that edits them. Bundled so a scene mounts one component and cannot
+ * accidentally get creations without the ability to move them.
+ */
+export function Creations() {
+  return (
+    <>
+      <CreationsInner />
+      <SelectionController />
+      <SelectionBox />
     </>
   );
 }

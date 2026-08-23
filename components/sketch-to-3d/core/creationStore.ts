@@ -1,4 +1,11 @@
 import { createStore, type StoreApi } from "zustand/vanilla";
+import {
+  DEFAULT_TRANSFORM,
+  GROUND_Y,
+  clampScale,
+  clampY,
+  type CreationTransform,
+} from "./transform";
 import type { Creation, CreationMode, JobState, SceneBridge, SpawnTransform } from "./types";
 
 /**
@@ -31,6 +38,14 @@ export type CreationStoreState = {
   }) => void;
   updateJob: (id: string, state: JobState) => void;
   removeCreation: (id: string) => void;
+
+  /** Which creation the player has selected for editing, if any. */
+  selectedId: string | null;
+  select: (id: string | null) => void;
+  /** Applies a partial transform, clamped. Ignores unknown ids. */
+  setTransform: (id: string, patch: Partial<CreationTransform>) => void;
+  /** Puts a creation's base back on the floor. */
+  dropToGround: (id: string) => void;
 };
 
 export function createCreationStore(): StoreApi<CreationStoreState> {
@@ -49,6 +64,9 @@ export function createCreationStore(): StoreApi<CreationStoreState> {
           mode,
           spawn,
           sketchUrl,
+          // Starts at the height it was spawned at, so an untouched creation
+          // hangs where the player was looking rather than snapping to the floor.
+          transform: { ...DEFAULT_TRANSFORM, y: Math.max(spawn.position[1], GROUND_Y) },
           state: { status: "uploading" },
         };
         // Array order is insertion order, so the oldest is always at the front.
@@ -69,6 +87,34 @@ export function createCreationStore(): StoreApi<CreationStoreState> {
     removeCreation: (id) =>
       set((state) => ({
         creations: state.creations.filter((creation) => creation.id !== id),
+        // Never leave a selection pointing at something that no longer exists —
+        // the eviction cap removes creations without asking.
+        selectedId: state.selectedId === id ? null : state.selectedId,
+      })),
+
+    selectedId: null,
+
+    select: (id) => set((state) => (state.selectedId === id ? state : { selectedId: id })),
+
+    setTransform: (id, patch) =>
+      set((state) => ({
+        creations: state.creations.map((creation) => {
+          if (creation.id !== id) return creation;
+          const next: CreationTransform = {
+            scale: patch.scale !== undefined ? clampScale(patch.scale) : creation.transform.scale,
+            y: patch.y !== undefined ? clampY(patch.y) : creation.transform.y,
+          };
+          return { ...creation, transform: next };
+        }),
+      })),
+
+    dropToGround: (id) =>
+      set((state) => ({
+        creations: state.creations.map((creation) =>
+          creation.id === id
+            ? { ...creation, transform: { ...creation.transform, y: GROUND_Y } }
+            : creation,
+        ),
       })),
   }));
 }
