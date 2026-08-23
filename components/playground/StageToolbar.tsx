@@ -4,10 +4,11 @@ import type { CSSProperties } from "react";
 import { useLaserTagStore } from "@/components/lasertag/laserTagStore";
 import { useFloodStore } from "@/components/world/floodStore";
 import {
-  CONTROL_MODES,
   setControlMode,
   useControlMode,
+  visibleControlModes,
 } from "@/components/controls/controlModeStore";
+import { useSketchTools } from "@/components/world/sketchTools";
 import { FLOORS, INK_COLORS } from "./modes";
 import { usePlayground } from "./playground-context";
 
@@ -16,6 +17,8 @@ export function StageToolbar() {
   const botTotal = useLaserTagStore((s) => s.total);
   const botConfigCount = useLaserTagStore((s) => s.config.botCount);
   const control = useControlMode();
+  const hasCrayon = useSketchTools((state) => state.crayonAvailable);
+  const canDraw = useSketchTools((state) => state.enabled);
   const {
     mode,
     floor,
@@ -46,7 +49,7 @@ export function StageToolbar() {
             the activities to its right. */}
         <div className="tool-group control-tools">
           <span className="tool-label">Move with</span>
-          {CONTROL_MODES.map((item) => (
+          {visibleControlModes(hasCrayon).map((item) => (
             <button
               key={item.id}
               type="button"
@@ -54,7 +57,12 @@ export function StageToolbar() {
               className={`tool-chip control-chip${
                 control === item.id ? " active" : ""
               }`}
-              title={item.help}
+              title={
+                item.id === "draw" && !canDraw
+                  ? "Switch to Sketch to 3D to draw"
+                  : item.help
+              }
+              disabled={item.id === "draw" && !canDraw}
               onClick={() => {
                 setControlMode(item.id);
                 // The orbit hint over the viewport is gone for good once the

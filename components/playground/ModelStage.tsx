@@ -34,6 +34,7 @@ import type { ModeId } from "./modes";
 function lookHint(control: ControlModeId, mode: ModeId): string {
   if (control === "keyboard") return "Arrow keys to look · WASD to walk";
   if (control === "hands") return "Turn your head to look around";
+  if (control === "crayon") return "Draw on the picture";
   if (control === "draw") return "Click to look, then hold to draw";
   if (mode === "lasertag") return "Click to take aim";
   if (mode === "race") return "Click to look, WASD to run";

@@ -4,9 +4,10 @@ import { create, useStore } from "zustand";
 import { useGestureStore } from "@/components/gesture/store";
 import { creationStore } from "@/components/sketch-to-3d/core/creationStore";
 import { sketchStore } from "@/components/sketch3d/core/strokeStore";
+import { useSketchTools } from "@/components/world/sketchTools";
 
 /**
- * The four ways to drive the world, in one place.
+ * The ways to drive the world, in one place.
  *
  * Two of them already owned a flag before this module existed —
  * `sketchStore.drawMode` (the `B` key) and `useGestureStore.active` (the Hands
@@ -18,9 +19,15 @@ import { sketchStore } from "@/components/sketch3d/core/strokeStore";
  *
  * `mouseLook` is the one bit nothing else could supply: the difference between
  * "the mouse is looking around" and "the arrow keys are", which is the whole of
- * keyboard mode.
+ * keyboard mode. `crayon` is the playground's 2D overlay; hosts that do not
+ * render that surface hide the chip rather than greying it.
  */
-export type ControlModeId = "pointerlock" | "keyboard" | "draw" | "hands";
+export type ControlModeId =
+  | "pointerlock"
+  | "keyboard"
+  | "crayon"
+  | "draw"
+  | "hands";
 
 export type ControlModeConfig = {
   id: ControlModeId;
@@ -45,6 +52,12 @@ export const CONTROL_MODES: ControlModeConfig[] = [
     help: "WASD to walk · arrow keys to look · the mouse stays yours",
   },
   {
+    id: "crayon",
+    icon: "🖍️",
+    label: "Crayon",
+    help: "Draw flat on the picture",
+  },
+  {
     id: "draw",
     icon: "✏️",
     label: "Draw",
@@ -64,6 +77,13 @@ export const CONTROL_MODE: Record<ControlModeId, ControlModeConfig> =
     ControlModeConfig
   >;
 
+/** Crayon is hidden on hosts that do not render a 2D surface. */
+export function visibleControlModes(hasCrayon: boolean): ControlModeConfig[] {
+  return hasCrayon
+    ? CONTROL_MODES
+    : CONTROL_MODES.filter((item) => item.id !== "crayon");
+}
+
 type ControlModeState = {
   /** Whether the mouse owns looking. False means the arrow keys do. */
   mouseLook: boolean;
@@ -78,14 +98,18 @@ export const useControlModeStore = create<ControlModeState>((set) => ({
 function derive(
   handsOn: boolean,
   drawMode: boolean,
+  crayon: boolean,
   mouseLook: boolean,
 ): ControlModeId {
   // Hands and Draw each own an input the other two also want — the camera and
   // the left mouse button — so they win over the mouse/keys choice. Draw beats
   // `mouseLook` rather than requiring it: pressing `B` while in keyboard mode
-  // should start drawing, not silently do nothing.
+  // should start drawing, not silently do nothing. Crayon likewise owns the
+  // pointer (the overlay swallows clicks), so it wins over mouse/keys but
+  // yields to Hands and Draw — `B` mid-crayon should start a ribbon.
   if (handsOn) return "hands";
   if (drawMode) return "draw";
+  if (crayon) return "crayon";
   return mouseLook ? "pointerlock" : "keyboard";
 }
 
@@ -93,8 +117,9 @@ function derive(
 export function useControlMode(): ControlModeId {
   const handsOn = useGestureStore((state) => state.active);
   const drawMode = useStore(sketchStore, (state) => state.drawMode);
+  const crayon = useSketchTools((state) => state.crayon);
   const mouseLook = useControlModeStore((state) => state.mouseLook);
-  return derive(handsOn, drawMode, mouseLook);
+  return derive(handsOn, drawMode, crayon, mouseLook);
 }
 
 /** One-shot read, for frame loops and event handlers that must not subscribe. */
@@ -102,6 +127,7 @@ export function controlMode(): ControlModeId {
   return derive(
     useGestureStore.getState().active,
     sketchStore.getState().drawMode,
+    useSketchTools.getState().crayon,
     useControlModeStore.getState().mouseLook,
   );
 }
@@ -120,9 +146,14 @@ export function setControlMode(mode: ControlModeId): void {
   // Write the feature flags, never a copy of `mode` — see the note at the top.
   sketchStore.getState().setDrawMode(mode === "draw");
   useGestureStore.getState().setActive(mode === "hands");
-  // Only the two modes that ARE the mouse/keys choice get to change it. Draw
-  // and Hands borrow the input and hand it back, so stepping out of either
-  // returns you to whichever of the two you were using before.
+  useSketchTools.getState().setCrayon(mode === "crayon");
+  // The bounding box is another thing that wants the mouse, and it must not
+  // survive into Hands or Crayon.
+  creationStore.getState().select(null);
+
+  // Only the two modes that ARE the mouse/keys choice get to change it. Draw,
+  // Hands and Crayon borrow the input and hand it back, so stepping out of
+  // either returns you to whichever of the two you were using before.
   if (mode === "pointerlock" || mode === "keyboard") {
     useControlModeStore.getState().setMouseLook(mode === "pointerlock");
   }
