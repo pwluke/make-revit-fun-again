@@ -174,10 +174,10 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
    *
    * Without it a mode inherits whatever the last one left running — drawing
    * still armed during the treasure hunt, the gesture camera still holding the
-   * mouse in laser tag, a half-resized creation floating over the remix
-   * palette. The teardown is unconditional rather than "only when leaving mode
-   * X": the rule is cheaper to hold in your head, and each call is already a
-   * no-op when that sub-mode is not active.
+   * mouse in laser tag, a half-resized creation floating over the model. The
+   * teardown is unconditional rather than "only when leaving mode X": the rule
+   * is cheaper to hold in your head, and each call is already a no-op when that
+   * sub-mode is not active.
    *
    * An effect rather than a branch inside setMode, so it also covers the
    * initial mount — `mode` starts at "explore" and setMode has not run.
