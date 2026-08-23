@@ -18,6 +18,27 @@ import type { CreationMode, Generate, Progress } from "./core/types";
 import { onSceneInputUnlocked } from "./r3f/useR3FSceneBridge";
 import { SketchOverlay } from "./ui/SketchOverlay";
 
+/**
+ * Turns a thrown generation error into something a child (or the person running
+ * the booth) can act on.
+ *
+ * Design spec §10 asked for a distinct rate-limit message and it was never
+ * built, so every failure — quota, network, a rejected endpoint — produced the
+ * same silence. A 429 in particular is not a fault: it means "wait a moment",
+ * and saying so is the difference between a child trying again and a child
+ * concluding the thing is broken.
+ */
+function friendlyError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  if (/too many requests|rate.?limit|429/i.test(raw)) {
+    return "Lots of people are drawing right now — try again in a minute!";
+  }
+  if (/failed to fetch|network|offline/i.test(raw)) {
+    return "Lost the connection. Check the wifi and try again.";
+  }
+  return `Something went wrong: ${raw}`;
+}
+
 /** Resolves which generator to call, keyed on BOTH mode and mock-vs-real. */
 const GENERATORS: Record<CreationMode, { real: Generate; mock: Generate }> = {
   sprite: { real: generateSprite, mock: generateSpriteMock },
@@ -40,6 +61,8 @@ function resolveGenerateFn(mode: CreationMode): Generate {
  */
 export function SketchToWorld() {
   const [open, setOpen] = useState(false);
+  /** Most recent generation failure, surfaced in the world and auto-dismissed. */
+  const [lastError, setLastError] = useState<string | null>(null);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -75,6 +98,19 @@ export function SketchToWorld() {
   // NEXT_PUBLIC_WARM_ENDPOINTS=1; warming is billed like any other generation.
   useEffect(() => {
     if (open) warmAll();
+  }, [open]);
+
+  // Clear the banner after a while so it never becomes permanent furniture, and
+  // clear it immediately when the user starts a new drawing — by then it is
+  // describing something they have already moved on from.
+  useEffect(() => {
+    if (!lastError) return;
+    const timer = setTimeout(() => setLastError(null), 6000);
+    return () => clearTimeout(timer);
+  }, [lastError]);
+
+  useEffect(() => {
+    if (open) setLastError(null);
   }, [open]);
 
   const handleCancel = useCallback(() => setOpen(false), []);
@@ -126,8 +162,10 @@ export function SketchToWorld() {
         creationStore.getState().updateJob(id, { status: "ready", result });
       })
       .catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : "Generation failed";
+        console.error("[sketch-to-3d] generation failed", { id, err });
+        const message = friendlyError(err);
         creationStore.getState().updateJob(id, { status: "error", message, retryable: true });
+        setLastError(message);
       })
       .finally(() => {
         // Safe once the job has settled: the sketch is only rendered while
@@ -140,6 +178,11 @@ export function SketchToWorld() {
 
   return (
     <>
+      {lastError && (
+        <div className="pointer-events-none absolute top-24 left-1/2 z-50 -translate-x-1/2 rounded-full bg-red-600/90 px-5 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur-sm">
+          {lastError}
+        </div>
+      )}
       {/* Three creation modes now share this world, so the hint lists all of
           them rather than just this one. E opens the overlay below (which picks
           between a 3D model and a 2.5D sprite); B is the separate freehand

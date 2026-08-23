@@ -123,7 +123,18 @@ export function SpriteCreation({ spriteUrl, spawn }: SpriteCreationProps) {
   const { camera } = useThree();
   const meshRef = useRef<THREE.Mesh>(null!);
 
-  const trimmed = useMemo(() => trimSprite(sourceTexture), [sourceTexture]);
+  const trimmed = useMemo(() => {
+    try {
+      return trimSprite(sourceTexture);
+    } catch (err) {
+      // A throw here — a tainted canvas being the realistic case — would
+      // otherwise be swallowed into a null trim and look like a rendering
+      // problem rather than a security one. Fall back to the untrimmed frame,
+      // which still renders, and say why.
+      console.error("[sketch-to-3d] sprite trim failed, using untrimmed frame", err);
+      return null;
+    }
+  }, [sourceTexture]);
 
   // Dispose the CanvasTexture we created (not the drei-cached source
   // texture) when this creation unmounts or a new trim replaces it.

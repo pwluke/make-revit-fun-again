@@ -8,6 +8,7 @@ import { useFrame } from "@react-three/fiber";
 import { RigidBody } from "@react-three/rapier";
 import { creationStore } from "../core/creationStore";
 import type { Creation } from "../core/types";
+import { CreationErrorBoundary } from "./CreationErrorBoundary";
 import { PreviewCard } from "./PreviewCard";
 import { SpriteCreation } from "./SpriteCreation";
 import { useR3FSceneBridge } from "./useR3FSceneBridge";
@@ -195,17 +196,19 @@ function GhostMesh() {
 function CreationEntry({ creation }: { creation: Creation }) {
   if (creation.state.status === "ready") {
     const { result } = creation.state;
-    if (result.mode === "sprite") {
-      return (
-        <Suspense fallback={null}>
-          <SpriteCreation spriteUrl={result.spriteUrl} spawn={creation.spawn} />
-        </Suspense>
-      );
-    }
+    // Suspense catches the loader's promise; the boundary catches everything
+    // that actually fails. Without the latter a bad GLB throws into nothing and
+    // the creation silently never appears.
     return (
-      <Suspense fallback={null}>
-        <LoadedModel creation={creation} glbUrl={result.glbUrl} />
-      </Suspense>
+      <CreationErrorBoundary label={`${creation.id} (${result.mode})`} spawn={creation.spawn}>
+        <Suspense fallback={<Ghost creation={creation} />}>
+          {result.mode === "sprite" ? (
+            <SpriteCreation spriteUrl={result.spriteUrl} spawn={creation.spawn} />
+          ) : (
+            <LoadedModel creation={creation} glbUrl={result.glbUrl} />
+          )}
+        </Suspense>
+      </CreationErrorBoundary>
     );
   }
   if (creation.state.status === "uploading" || creation.state.status === "generating") {
@@ -228,8 +231,21 @@ function CreationEntry({ creation }: { creation: Creation }) {
     }
     return <Ghost creation={creation} />;
   }
-  // "error" — render nothing.
-  return null;
+
+  // "error". Rendering nothing here — which is what this did — makes a FAILED
+  // generation indistinguishable from one that never happened: the placeholder
+  // simply disappears and the child is left looking at empty air. Show a marker
+  // instead, in the same red wireframe language CreationErrorBoundary uses, so
+  // "it broke" and "it vanished" are never the same picture.
+  const { position, rotationY } = creation.spawn;
+  return (
+    <group position={position} rotation={[0, rotationY, 0]}>
+      <mesh position={[0, 0.5, 0]}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial color="#e5352b" wireframe />
+      </mesh>
+    </group>
+  );
 }
 
 /** Rendered inside <Canvas> and inside <Physics>. Registers the scene bridge. */
