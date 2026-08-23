@@ -12,10 +12,16 @@ import {
 import Axe from "./Axe";
 import { useGestureStore } from "../gesture/store";
 import { hitBlockCenter } from "./GestureBuilder";
-import { powerupState } from "../world/powerupStore";
+import { powerupState, usePowerupStore } from "../world/powerupStore";
 import { useFloodStore } from "../world/floodStore";
 
-type Controls = "forward" | "backward" | "left" | "right" | "jump";
+type Controls =
+  | "forward"
+  | "backward"
+  | "left"
+  | "right"
+  | "jump"
+  | "crouch";
 
 type PlayerProps = {
   lerp?: typeof THREE.MathUtils.lerp;
@@ -28,6 +34,24 @@ const SPEED = 5;
 const JUMP_SPEED = 9;
 /** Spawn drop height, shared by the initial <RigidBody position> and respawns. */
 const SPAWN_HEIGHT = 10;
+/** Vertical speed under the fly powerup, up or down. */
+const FLY_SPEED = 6;
+/** Climb rate under the monkey powerup. Slower than a jump, so scaling the
+ *  house still feels like work. */
+const CLIMB_SPEED = 3.5;
+/** How far ahead to look for a climbable wall — just past the capsule radius. */
+const WALL_REACH = 0.9;
+/** Heights above the body centre to probe for a wall, covering head to shin. */
+const WALL_PROBE_HEIGHTS = [0.4, 0, -0.5, -1];
+/** Fraction of walk speed pushed into the wall while climbing. */
+const CLIMB_WALL_PUSH = 0.25;
+/** Seconds after a jump during which "grounded" is ignored, so the body still
+ *  resting on the floor doesn't immediately refill the jump count. */
+const JUMP_LOCKOUT = 0.2;
+/** Capsule [halfHeight, radius] at normal size and under the tiny powerup. */
+const CAPSULE_NORMAL: [number, number] = [0.75, 0.5];
+const CAPSULE_TINY: [number, number] = [0.3, 0.22];
+const climbDir = new THREE.Vector3();
 const direction = new THREE.Vector3();
 const frontVector = new THREE.Vector3();
 const sideVector = new THREE.Vector3();
@@ -72,6 +96,15 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
   const orbitRadius = useRef(0);
   const orbitAz = useRef(0);
   const orbitEl = useRef(0);
+  // Powerup state that has to persist across frames.
+  const jumpsUsed = useRef(0);
+  const jumpWasDown = useRef(false);
+  const jumpLockout = useRef(0);
+  const flying = useRef(false);
+
+  // The one effect Player needs during render rather than in the frame loop:
+  // the collider size is a prop, so shrinking means re-rendering.
+  const tiny = usePowerupStore((s) => s.tiny);
 
   // Restarting the flood drops the player back at spawn. The body is owned
   // here, so the flood store just bumps a token rather than reaching into it.
@@ -92,14 +125,15 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
   useEffect(() => {
     camera.rotation.set(0, 0, 0);
   }, [camera]);
-  useFrame((state) => {
+  useFrame((state, delta) => {
+  
     // Rapier's wasm initialises asynchronously, so on a cold load this loop can
     // run a frame or two before <RigidBody> has created the body and populated
     // the ref — which threw "Cannot read properties of null (reading 'linvel')"
     // on every fresh page load. A warm client-side remount never hit it, since
     // Rapier is already up by then.
     if (!ref.current) return;
-    const { forward, backward, left, right, jump } = get();
+    const { forward, backward, left, right, jump, crouch } = get();
     const velocity = ref.current.linvel();
     const speed = Math.hypot(velocity.x, velocity.y, velocity.z);
     // update camera
@@ -210,15 +244,10 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
       .normalize()
       // Read straight off the mutable powerup state rather than subscribing:
       // this runs every frame, and a store subscription would re-render Player
-      // on every tick of the boost timer.
-      .multiplyScalar(SPEED * powerupState.multiplier)
+      // on every tick of the effect timer.
+      .multiplyScalar(SPEED * powerupState.speedMultiplier)
       .applyEuler(state.camera.rotation);
-    if (!orbiting)
-      ref.current.setLinvel(
-        { x: direction.x, y: velocity.y, z: direction.z },
-        true,
-      );
-    // jumping
+
     const world = rapier.world;
     const ray = world.castRay(
       new RAPIER.Ray(ref.current.translation(), { x: 0, y: -1, z: 0 }),
@@ -229,10 +258,85 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
       undefined,
       ref.current,
     );
-    const grounded = ray && ray.collider && Math.abs(ray.timeOfImpact) <= 1.75;
+    // Tiny shrinks the capsule, so the distance to the floor shrinks with it.
+    const groundReach = powerupState.tiny ? 0.75 : 1.75;
+    const grounded = ray && ray.collider && Math.abs(ray.timeOfImpact) <= groundReach;
+
+    // FLY: gravity off, Space rises and Shift drops. Toggled on transition
+    // rather than every frame so we don't fight Rapier's own bookkeeping.
+    if (powerupState.fly !== flying.current) {
+      flying.current = powerupState.fly;
+      ref.current.setGravityScale(powerupState.fly ? 0 : 1, true);
+    }
+
+    // MONKEY: walking into a wall climbs it. The ray goes along the camera's
+    // horizontal facing, so you climb whatever you're looking at and pressing
+    // into — no separate "grab" input to explain.
+    let climbing = false;
+    if (powerupState.climb && !orbiting && (forward || gestureForward)) {
+      state.camera.getWorldDirection(climbDir);
+      climbDir.y = 0;
+      if (climbDir.lengthSq() > 0.0001) {
+        climbDir.normalize();
+        const origin = ref.current.translation();
+        // Probe at several heights, not just the body centre: a centre-only ray
+        // sails over a one-block ledge — the very thing that stops you walking —
+        // so the climb would refuse to start on exactly the obstacles it exists
+        // to solve. Any hit counts as a wall.
+        climbing = WALL_PROBE_HEIGHTS.some((offset) => {
+          const hit = world.castRay(
+            new RAPIER.Ray(
+              { x: origin.x, y: origin.y + offset, z: origin.z },
+              climbDir,
+            ),
+            WALL_REACH,
+            true,
+            undefined,
+            undefined,
+            undefined,
+            ref.current,
+          );
+          return !!(hit && hit.collider);
+        });
+      }
+    }
+
+    if (!orbiting) {
+      const vertical = flying.current
+        ? (+(jump || false) - +(crouch || false)) * FLY_SPEED
+        : climbing
+          ? CLIMB_SPEED
+          : velocity.y;
+      // Climbing eases off the horizontal push: driving the capsule at full
+      // speed into the wall makes contact friction fight the upward slide, which
+      // dragged the measured climb down to ~0.7m/s against the 3.5 asked for.
+      // Enough push to stay attached, not enough to stick.
+      const grip = climbing ? CLIMB_WALL_PUSH : 1;
+      ref.current.setLinvel(
+        { x: direction.x * grip, y: vertical, z: direction.z * grip },
+        true,
+      );
+    }
+
+    // JUMPING. Rising-edge triggered now that a second jump exists: holding
+    // Space used to re-fire on every grounded frame, which would spend the
+    // double jump instantly.
     const gestureJump = gesture.consumeJump();
-    if (!orbiting && (jump || gestureJump) && grounded)
-      ref.current.setLinvel({ x: 0, y: JUMP_SPEED, z: 0 }, true);
+    const wantJump = jump || gestureJump;
+    const pressedJump = wantJump && !jumpWasDown.current;
+    jumpWasDown.current = wantJump;
+
+    // Ignore "grounded" briefly after a jump: the body is still touching the
+    // floor on the next frame or two, which would otherwise refill the jumps.
+    if (jumpLockout.current > 0) jumpLockout.current -= delta;
+    if (grounded && jumpLockout.current <= 0) jumpsUsed.current = 0;
+    if (climbing || flying.current) jumpsUsed.current = 0;
+
+    if (!orbiting && !flying.current && pressedJump && jumpsUsed.current < powerupState.maxJumps) {
+      jumpsUsed.current += 1;
+      jumpLockout.current = JUMP_LOCKOUT;
+      ref.current.setLinvel({ x: direction.x, y: JUMP_SPEED, z: direction.z }, true);
+    }
   });
   return (
     <>
@@ -244,7 +348,7 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
         position={[0, SPAWN_HEIGHT, 0]}
         enabledRotations={[false, false, false]}
       >
-        <CapsuleCollider args={[0.75, 0.5]} />
+        <CapsuleCollider args={tiny ? CAPSULE_TINY : CAPSULE_NORMAL} />
       </RigidBody>
       <group
         ref={axe}
