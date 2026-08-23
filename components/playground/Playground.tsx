@@ -3,7 +3,6 @@
 import { ActivityRail } from "./ActivityRail";
 import { MissionPanel } from "./MissionPanel";
 import { ModelStage } from "./ModelStage";
-import { PixelCursor } from "./PixelCursor";
 import { PlayToast } from "./PlayToast";
 import { PlaygroundProvider, usePlayground } from "./playground-context";
 import { TopBar } from "./TopBar";
@@ -21,7 +20,6 @@ function PlaygroundShell() {
         <MissionPanel />
       </div>
       <PlayToast />
-      <PixelCursor />
     </div>
   );
 }

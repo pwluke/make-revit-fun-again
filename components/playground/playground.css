@@ -1011,7 +1011,6 @@
   z-index: 7;
   width: 100%;
   height: 100%;
-  cursor: crosshair;
   touch-action: none;
   /* Crayon is one of four exclusive input modes. This canvas covers the entire
      viewport, so capturing unconditionally is what made 3D drawing (B) and
@@ -1637,55 +1636,6 @@
   font-size: 9px;
 }
 
-/* Pixel cursor */
-.playground .pixel-cursor {
-  width: 30px;
-  height: 38px;
-  position: fixed;
-  z-index: 9999;
-  left: 0;
-  top: 0;
-  opacity: 0;
-  pointer-events: none;
-  will-change: transform;
-  transform: translate3d(-100px, -100px, 0);
-  transform-origin: 5px 3px;
-  filter: drop-shadow(2px 3px 0 rgba(29, 33, 64, 0.22));
-}
-.playground .pixel-cursor.visible {
-  opacity: 1;
-}
-.playground .pixel-cursor.pressed {
-  scale: 0.82;
-}
-.playground .pixel-cursor svg {
-  width: 100%;
-  height: 100%;
-}
-.playground .cursor-outline {
-  fill: var(--ink);
-}
-.playground .cursor-fill {
-  fill: #f6c451;
-}
-.playground .cursor-shine {
-  fill: #fff2b8;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .playground,
-  .playground *:not(.scene-canvas-wrap):not(.scene-canvas-wrap *) {
-    cursor: none !important;
-  }
-  .playground .scene-canvas-wrap,
-  .playground .scene-canvas-wrap * {
-    cursor: default !important;
-  }
-  .playground .sketch-canvas {
-    cursor: crosshair !important;
-  }
-}
-
 @media (max-width: 1100px) {
   .playground .workspace {
     grid-template-columns: 230px minmax(420px, 1fr) 250px;
@@ -1887,12 +1837,6 @@
   }
     .playground .orbit-hint {
     top: 8px;
-  }
-}
-
-@media (hover: none), (pointer: coarse) {
-  .playground .pixel-cursor {
-    display: none;
   }
 }
 
