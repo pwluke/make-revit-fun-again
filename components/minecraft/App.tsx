@@ -13,6 +13,7 @@ import { GestureBuilder } from "./GestureBuilder";
 import { House } from "../world/House";
 import { GradientSky } from "../world/GradientSky";
 import { Stars } from "../world/Stars";
+import { Powerups } from "../world/Powerups";
 import { Flood } from "../world/Flood";
 
 // The original was made by Maksim Ivanow: https://www.youtube.com/watch?v=Lc2JvBXMesY&t=124s
@@ -25,6 +26,8 @@ export const minecraftKeyMap = [
   { name: "left", keys: ["ArrowLeft", "a", "A"] },
   { name: "right", keys: ["ArrowRight", "d", "D"] },
   { name: "jump", keys: ["Space"] },
+  // Only used by the fly powerup — the descend key. Harmless otherwise.
+  { name: "crouch", keys: ["ShiftLeft", "ShiftRight", "Shift", "c", "C"] },
 ];
 
 export function MinecraftScene() {
@@ -77,10 +80,11 @@ export function MinecraftScene() {
         <House />
         <Cubes />
       </Physics>
-      {/* Outside <Physics>: stars are pickups, the builder only raycasts, and
-          the flood is visual — you swim through it, the breath timer is what
-          actually threatens you. */}
+      {/* Outside <Physics>: stars and powerups are pickups, the builder only
+          raycasts, and the flood is visual — you swim through it, the breath
+          timer is what actually threatens you. */}
       <Stars />
+      <Powerups />
       <Flood />
       <GestureBuilder />
       <PointerLockControls />
