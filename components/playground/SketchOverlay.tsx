@@ -1,10 +1,18 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useSketchTools } from "@/components/world/sketchTools";
 import { usePlayground } from "./playground-context";
 
 export function SketchOverlay() {
   const { ink, sketchVersion, markSketchDrawn } = usePlayground();
+  // Crayon is one of four exclusive input modes (see components/ControlBar).
+  // This canvas covers the whole viewport, so while it is capturing, nothing
+  // behind it can be clicked — which is what made 3D drawing and creation
+  // editing unreachable in the very mode that offers them. It stays VISIBLE at
+  // all times in sketch mode (the marks you already made should not vanish
+  // because you switched to Draw); only pointer capture follows the mode.
+  const crayon = useSketchTools((state) => state.crayon);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const inkRef = useRef(ink);
   inkRef.current = ink;
@@ -83,7 +91,7 @@ export function SketchOverlay() {
   return (
     <canvas
       ref={canvasRef}
-      className="sketch-canvas"
+      className={`sketch-canvas${crayon ? " is-drawing" : ""}`}
       aria-label="Drawing canvas"
     />
   );

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ControlBar } from "@/components/ControlBar";
 import { ModeStrip } from "@/components/ModeStrip";
+import { toolsEnabled } from "@/components/world/sketchTools";
 import { creationStore } from "./core/creationStore";
 import { generate } from "./core/falClient";
 import {
@@ -90,6 +91,10 @@ export function SketchToWorld({
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return;
+      // Same gate as `B` and creation selection — generating from a drawing is
+      // the other half of Sketch-to-3D, so it belongs to the same mode rather
+      // than being reachable from the treasure hunt or a laser tag round.
+      if (!toolsEnabled()) return;
       setOpen(true);
     }
     window.addEventListener("keydown", handleKeyDown);

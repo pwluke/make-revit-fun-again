@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { useGestureStore } from "@/components/gesture/store";
+import { toolsEnabled } from "@/components/world/sketchTools";
 import { PALETTE, WIDTHS, sketchStore } from "../core/strokeStore";
 
 export function PaletteHUD() {
@@ -35,6 +36,13 @@ export function PaletteHUD() {
       const target = event.target as HTMLElement | null;
       const tag = target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return;
+
+      // Sketch-to-3D is one feature behind one gate: the host page decides
+      // whether it is available at all. The playground opens it only in its
+      // "Sketch to 3D" mode; /minecraft never touches the gate and so is always
+      // open. Checked before the toggle so `B` is inert rather than
+      // half-working outside that mode.
+      if (!toolsEnabled()) return;
 
       if (event.code === "KeyB") {
         toggleDrawMode();

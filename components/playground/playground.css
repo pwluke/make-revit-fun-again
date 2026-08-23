@@ -973,9 +973,19 @@
   height: 100%;
   cursor: crosshair;
   touch-action: none;
+  /* Crayon is one of four exclusive input modes. This canvas covers the entire
+     viewport, so capturing unconditionally is what made 3D drawing (B) and
+     creation editing unreachable inside Sketch to 3D — every click landed here
+     instead of on the WebGL canvas below, including the one that acquires
+     pointer lock. It stays visible so existing marks persist across a mode
+     switch; only capture follows the mode. */
+  pointer-events: none;
 }
 .playground .model-viewport.mode-sketch .sketch-canvas {
   display: block;
+}
+.playground .sketch-canvas.is-drawing {
+  pointer-events: auto;
 }
 
 .playground .remix-palette {

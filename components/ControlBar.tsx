@@ -4,8 +4,9 @@ import { useStore } from "zustand";
 import { useGestureStore } from "@/components/gesture/store";
 import { creationStore } from "@/components/sketch-to-3d/core/creationStore";
 import { sketchStore } from "@/components/sketch3d/core/strokeStore";
+import { useSketchTools } from "@/components/world/sketchTools";
 
-type Mode = "look" | "draw" | "hands";
+type Mode = "look" | "crayon" | "draw" | "hands";
 
 /**
  * Clickable look / draw / hands switcher.
@@ -18,7 +19,28 @@ type Mode = "look" | "draw" | "hands";
 export function ControlBar() {
   const drawMode = useStore(sketchStore, (state) => state.drawMode);
   const handsOn = useGestureStore((state) => state.active);
-  const mode: Mode = handsOn ? "hands" : drawMode ? "draw" : "look";
+  // Draw is only offered where Sketch-to-3D is available: always on /minecraft,
+  // and in the playground only in its "Sketch to 3D" mode. Disabled rather than
+  // hidden, so the bar keeps its shape and the player can see the mode exists —
+  // a control that vanishes reads as a bug, one that greys out reads as "not
+  // here". Matches `B` being inert under the same condition.
+  const canDraw = useSketchTools((state) => state.enabled);
+  // Crayon is different: it is HIDDEN where it does not exist rather than
+  // greyed, because /minecraft renders no 2D crayon surface at all. Greying it
+  // there would advertise a mode that page can never enter.
+  const hasCrayon = useSketchTools((state) => state.crayonAvailable);
+  const crayonOn = useSketchTools((state) => state.crayon);
+
+  // Priority order matters: exactly one of these is ever true, because setMode
+  // below sets all four together, but deriving rather than storing a fifth copy
+  // of "the mode" keeps the existing stores authoritative.
+  const mode: Mode = handsOn
+    ? "hands"
+    : drawMode
+      ? "draw"
+      : crayonOn
+        ? "crayon"
+        : "look";
 
   return (
     // White rather than the translucent black it started as, matching ThemeHud's
@@ -31,10 +53,21 @@ export function ControlBar() {
         active={mode === "look"}
         onClick={() => setMode("look")}
       />
+      {hasCrayon ? (
+        <ModeButton
+          label="Crayon"
+          hotkey=""
+          active={mode === "crayon"}
+          title="Draw flat on the picture"
+          onClick={() => setMode("crayon")}
+        />
+      ) : null}
       <ModeButton
         label="Draw"
         hotkey="B"
         active={mode === "draw"}
+        disabled={!canDraw}
+        title={canDraw ? undefined : "Switch to Sketch to 3D to draw"}
         onClick={() => setMode("draw")}
       />
       <ModeButton
@@ -47,48 +80,56 @@ export function ControlBar() {
   );
 }
 
+/**
+ * Enter one input mode and leave the other three.
+ *
+ * Written as four unconditional assignments rather than a branch per mode: the
+ * modes are mutually exclusive by construction, so there is no ordering of
+ * partial updates in which two of them are briefly on together. The previous
+ * per-branch version had to remember to turn off every other mode in every
+ * branch, which is exactly the kind of thing that rots when a fourth is added.
+ */
 function setMode(next: Mode) {
-  const sketch = sketchStore.getState();
-  const hands = useGestureStore.getState();
   const bridge = creationStore.getState().bridge;
 
-  if (next === "look") {
-    sketch.setDrawMode(false);
-    hands.setActive(false);
-    // Re-lock if the controls are already mounted (Esc'd out of look).
-    // Coming from Hands, LookLock remounts on the next paint — the following
-    // click on the world is what actually grabs the pointer, same as main.
-    bridge?.setInputEnabled(true);
-    return;
-  }
+  sketchStore.getState().setDrawMode(next === "draw");
+  useGestureStore.getState().setActive(next === "hands");
+  useSketchTools.getState().setCrayon(next === "crayon");
+  // Leaving any mode also drops a selection: the bounding box is a fifth thing
+  // that wants the mouse, and it must not survive into Hands or Crayon.
+  creationStore.getState().select(null);
 
-  if (next === "draw") {
-    hands.setActive(false);
-    sketch.setDrawMode(true);
-    bridge?.setInputEnabled(true);
-    return;
-  }
-
-  sketch.setDrawMode(false);
-  hands.setActive(true);
-  bridge?.setInputEnabled(false);
+  // Hands and Crayon need a real cursor — the gesture camera drives the view
+  // itself, and the crayon canvas is drawn on with the pointer. Look and Draw
+  // are both pointer-locked, first-person modes.
+  //
+  // For Look this re-locks if the controls are already mounted (Esc'd out).
+  // Coming from Hands, LookLock remounts on the next paint and the following
+  // click on the world is what actually grabs the pointer, same as main.
+  bridge?.setInputEnabled(next === "look" || next === "draw");
 }
 
 function ModeButton({
   label,
   hotkey,
   active,
+  disabled = false,
+  title,
   onClick,
 }: {
   label: string;
   hotkey: string;
   active: boolean;
+  disabled?: boolean;
+  title?: string;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       aria-pressed={active}
+      disabled={disabled}
+      title={title}
       onClick={(event) => {
         // Don't let the click bubble into a look-lock listener if this bar
         // ever sits inside the canvas host.
@@ -98,7 +139,9 @@ function ModeButton({
       className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
         active
           ? "bg-emerald-600 text-white"
-          : "text-slate-600 hover:bg-slate-900/10 hover:text-slate-900"
+          : disabled
+            ? "cursor-not-allowed text-slate-400"
+            : "text-slate-600 hover:bg-slate-900/10 hover:text-slate-900"
       }`}
     >
       {/* The keycap has to follow the button, not the bar: the active button is
