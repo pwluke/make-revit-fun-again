@@ -29,6 +29,7 @@ export type SketchState = {
   cycleColor: (delta: number) => void;
   cycleWidth: (delta: number) => void;
   toggleDrawMode: () => void;
+  setDrawMode: (drawMode: boolean) => void;
 };
 
 export type StrokeStore = StoreApi<SketchState>;
@@ -116,6 +117,10 @@ export function createStrokeStore(): StrokeStore {
       }),
 
     toggleDrawMode: () => set((state) => ({ drawMode: !state.drawMode, active: null })),
+    setDrawMode: (drawMode) =>
+      set((state) =>
+        state.drawMode === drawMode ? state : { drawMode, active: null },
+      ),
   }));
 }
 
