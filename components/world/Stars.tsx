@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
+import { SCENE } from "@/lib/palette";
 import { STAR_PICKUP_RADIUS } from "./houseData";
 import { useStarSpots } from "./starPlacement";
 import { useTreasureStore } from "./store";
@@ -94,10 +95,14 @@ export function Stars() {
           position={spot.pos}
         >
           <mesh geometry={geometry} castShadow>
+            {/* The interface's own gold. Emissive is pushed harder than it was
+                because the stars are now the only thing in the frame bright
+                enough to trip the bloom threshold — which is what makes them
+                findable in a scene with no dark left in it. */}
             <meshStandardMaterial
-              color="#ffc93c"
-              emissive="#ff9500"
-              emissiveIntensity={0.55}
+              color={SCENE.star}
+              emissive={SCENE.starGlow}
+              emissiveIntensity={0.9}
               roughness={0.35}
               metalness={0.15}
             />
@@ -105,7 +110,12 @@ export function Stars() {
           {/* A soft glow so stars stay findable in shadow or at distance.
               Opt-out for stars in open daylight — see StarSpot.glow. */}
           {spot.glow !== false ? (
-            <pointLight color="#ffb700" intensity={3} distance={4} decay={2} />
+            <pointLight
+              color={SCENE.starGlow}
+              intensity={3}
+              distance={4}
+              decay={2}
+            />
           ) : null}
         </group>
       ))}

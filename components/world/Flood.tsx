@@ -78,15 +78,17 @@ export function Flood() {
     <mesh ref={surface} rotation-x={-Math.PI / 2} renderOrder={1}>
       <planeGeometry args={[SURFACE_SIZE, SURFACE_SIZE]} />
       {/* DoubleSide so the surface still reads from below, and depthWrite off
-          so it doesn't punch a hole in what's behind it when seen underwater. */}
+          so it doesn't punch a hole in what's behind it when seen underwater.
+          Glassier and paler than open water would be — this is the pool in the
+          reference art, and the sun's glint off it is most of what sells it. */}
       <meshStandardMaterial
         color={theme.flood}
         transparent
-        opacity={0.62}
+        opacity={0.5}
         depthWrite={false}
         side={THREE.DoubleSide}
-        roughness={0.2}
-        metalness={0.1}
+        roughness={0.08}
+        metalness={0.25}
       />
     </mesh>
   );

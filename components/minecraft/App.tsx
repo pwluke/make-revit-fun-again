@@ -4,6 +4,7 @@ import { type ReactNode } from "react";
 import { PointerLockControls, KeyboardControls } from "@react-three/drei";
 import { Physics } from "@react-three/rapier";
 import { SceneCanvas } from "@/components/canvas/SceneCanvas";
+import { PostFX } from "@/components/canvas/PostFX";
 import { Ground } from "./Ground";
 import { Player } from "./Player";
 import { Cubes } from "./Cube";
@@ -46,6 +47,7 @@ export function MinecraftScene() {
       <Flood />
       <GestureBuilder />
       <PointerLockControls />
+      <PostFX />
     </>
   );
 }

@@ -16,6 +16,8 @@
  * can clear in a single jump.
  */
 
+import { PASTEL, UI, mix } from "@/lib/palette";
+
 export type HouseMaterial = "concrete" | "panel" | "wood" | "glass" | "stone";
 
 export type Brick = {
@@ -103,12 +105,18 @@ export const HOUSE_BRICKS: Brick[] = [
   b(1, 5, -22, 2, 8, -22, "wood"),
 ];
 
+/**
+ * Materials, keyed to the interface palette rather than to real ones — pale
+ * plaster, one indigo accent volume, blush timber, glass in the UI's own blue.
+ * The literals these replaced were sampled off photographs of concrete and
+ * cedar, which is exactly the register the scene is being pulled out of.
+ */
 export const HOUSE_COLORS: Record<HouseMaterial, string> = {
-  concrete: "#ece7dd",
-  panel: "#454b58",
-  wood: "#c08a4e",
-  glass: "#8fc9e3",
-  stone: "#a5a29b",
+  concrete: mix(PASTEL.chalk, UI.white, 0.4),
+  panel: PASTEL.indigo,
+  wood: PASTEL.sand,
+  glass: PASTEL.sky,
+  stone: mix(PASTEL.lilac, PASTEL.chalk, 0.45),
 };
 
 /**

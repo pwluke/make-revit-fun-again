@@ -9,7 +9,6 @@ import {
 import { useFrame, useThree } from "@react-three/fiber";
 import { CuboidCollider, RigidBody } from "@react-three/rapier";
 import * as THREE from "three";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { create } from "zustand";
 import {
   neighborPosition,
@@ -17,12 +16,9 @@ import {
   useGridPoints,
   type CubeCoords,
 } from "@/lib/use-grid-points";
+import { SCENE } from "@/lib/palette";
 import { useGestureStore } from "../gesture/store";
-import {
-  BreakDebris,
-  playBreakSound,
-  spawnBreakDebris,
-} from "./break-fx";
+import { BreakDebris, playBreakSound, spawnBreakDebris } from "./break-fx";
 import { playerOrigin } from "./player-origin";
 import { THEMES, type LayerId } from "@/lib/themes";
 import { useSceneTheme, useThemeStore } from "../world/themeStore";
@@ -35,38 +31,7 @@ const BREAK_NEIGHBORS = 10;
 
 const dummy = new THREE.Object3D();
 const tint = new THREE.Color();
-/** Slightly proud of the brick faces so the mortar lines don't z-fight. */
-const EDGE_SCALE = 1.004;
 
-function cubeCageGeometry(size: CubeCoords) {
-  const [sx, sy, sz] = size;
-  const t = Math.min(sx, sy, sz) * 0.055;
-  const hx = sx / 2;
-  const hy = sy / 2;
-  const hz = sz / 2;
-  const bars: THREE.BufferGeometry[] = [];
-  const bar = (w: number, h: number, d: number, x: number, y: number, z: number) => {
-    const geometry = new THREE.BoxGeometry(w, h, d);
-    geometry.translate(x, y, z);
-    bars.push(geometry);
-  };
-  bar(sx, t, t, 0, -hy, -hz);
-  bar(sx, t, t, 0, -hy, hz);
-  bar(sx, t, t, 0, hy, -hz);
-  bar(sx, t, t, 0, hy, hz);
-  bar(t, sy, t, -hx, 0, -hz);
-  bar(t, sy, t, hx, 0, -hz);
-  bar(t, sy, t, -hx, 0, hz);
-  bar(t, sy, t, hx, 0, hz);
-  bar(t, t, sz, -hx, -hy, 0);
-  bar(t, t, sz, hx, -hy, 0);
-  bar(t, t, sz, -hx, hy, 0);
-  bar(t, t, sz, hx, hy, 0);
-  const merged = mergeGeometries(bars);
-  for (const geometry of bars) geometry.dispose();
-  if (!merged) throw new Error("cube cage merge failed");
-  return merged;
-}
 // Pointer lock freezes the mouse, so every pick is from the screen centre —
 // i.e. the crosshair the page draws over the canvas.
 const CROSSHAIR = new THREE.Vector2(0, 0);
@@ -106,8 +71,7 @@ export const useCubeStore = create<CubeStore>((set) => ({
         added: already ? state.added : [...state.added, [x, y, z]],
       };
     }),
-  removeCube: (x, y, z) =>
-    set((state) => maskRemoved(state, [[x, y, z]])),
+  removeCube: (x, y, z) => set((state) => maskRemoved(state, [[x, y, z]])),
   removeCubes: (positions) => set((state) => maskRemoved(state, positions)),
 }));
 
@@ -186,13 +150,10 @@ function InstancedCubes({
   size: CubeCoords;
 }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
-  const edgesRef = useRef<THREE.InstancedMesh>(null);
   const cubesRef = useRef(cubes);
   cubesRef.current = cubes;
   const sizeRef = useRef(size);
   sizeRef.current = size;
-  const cage = useMemo(() => cubeCageGeometry(size), [size]);
-  useEffect(() => () => cage.dispose(), [cage]);
 
   const theme = useSceneTheme();
   const camera = useThree((state) => state.camera);
@@ -208,27 +169,17 @@ function InstancedCubes({
 
   useLayoutEffect(() => {
     const mesh = meshRef.current;
-    const edges = edgesRef.current;
     if (!mesh) return;
     for (let i = 0; i < cubes.length; i++) {
       dummy.position.set(...cubes[i].position);
-      dummy.scale.set(1, 1, 1);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
       mesh.setColorAt(i, tint.set(cubes[i].color));
-      dummy.scale.setScalar(EDGE_SCALE);
-      dummy.updateMatrix();
-      edges?.setMatrixAt(i, dummy.matrix);
     }
-    dummy.scale.set(1, 1, 1);
     mesh.count = cubes.length;
     mesh.instanceMatrix.needsUpdate = true;
+    // `setColorAt` creates the attribute on first use, so this can't be hoisted.
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    if (edges) {
-      edges.count = cubes.length;
-      edges.instanceMatrix.needsUpdate = true;
-      edges.computeBoundingSphere();
-    }
     // InstancedMesh.raycast rejects against the instance bounding sphere first,
     // so it has to be refreshed or newly-placed cubes become unpickable.
     mesh.computeBoundingSphere();
@@ -345,29 +296,18 @@ function InstancedCubes({
         receiveShadow
       >
         <boxGeometry args={size} />
+        {/* White base so per-instance layer colours come through as authored. */}
         <meshStandardMaterial
           roughness={theme.cubeRoughness}
           metalness={theme.cubeMetalness}
-          polygonOffset
-          polygonOffsetFactor={1}
-          polygonOffsetUnits={1}
         />
-      </instancedMesh>
-      <instancedMesh
-        key={`edges-${capacity}`}
-        ref={edgesRef}
-        args={[cage, undefined, capacity]}
-        frustumCulled={false}
-        raycast={() => {}}
-      >
-        <meshBasicMaterial color={theme.edge} />
       </instancedMesh>
       <NearbyColliders cubes={cubes} half={half} />
       {hoverPos && (
         <mesh position={hoverPos} scale={1.02} raycast={() => {}}>
           <boxGeometry args={size} />
           <meshBasicMaterial
-            color="hotpink"
+            color={SCENE.highlight}
             transparent
             opacity={0.35}
             depthWrite={false}
