@@ -17,6 +17,7 @@ import {
   useGridPoints,
   type CubeCoords,
 } from "@/lib/use-grid-points";
+import { useGestureStore } from "../gesture/store";
 import {
   BreakDebris,
   playBreakSound,
@@ -248,7 +249,35 @@ function InstancedCubes({
     setHovered((current) => (current === null ? current : null));
   }, []);
 
+  /**
+   * Break the brick at an instance index, with its cluster, debris and sound.
+   * Shared by the left click and the gesture so the two can't drift apart — and
+   * so the gesture picks up anything added to the mouse path later.
+   *
+   * Takes the index into the authoritative cube array rather than a position
+   * read back out of the instance matrix: that buffer is Float32, and these are
+   * voxelised model coordinates rather than a tidy integer grid, so the round
+   * trip shifts the low digits. keyOf's 4dp rounding would currently absorb
+   * that, but relying on it would make deletion depend on a rounding choice
+   * made elsewhere.
+   */
+  const breakAt = useCallback(
+    (index: number) => {
+      const target = cubesRef.current[index];
+      if (!target) return;
+      const cluster = breakCluster(target, cubesRef.current, BREAK_NEIGHBORS);
+      removeCubes(cluster.map((cube) => cube.position));
+      spawnBreakDebris(cluster, sizeRef.current);
+      playBreakSound(cluster.length);
+    },
+    [removeCubes],
+  );
+
   useFrame(() => {
+    // Consumed up front, even when nothing is under the crosshair: a queued
+    // break that missed should be dropped, not held until the player happens to
+    // aim at a block later.
+    const breakQueued = useGestureStore.getState().consumeBreak();
     const mesh = meshRef.current;
     if (!mesh || mesh.count === 0) return clearHit();
     picker.setFromCamera(CROSSHAIR, camera);
@@ -258,6 +287,7 @@ function InstancedCubes({
     setHovered((current) =>
       current === first.instanceId ? current : first.instanceId!,
     );
+    if (breakQueued) breakAt(first.instanceId);
   });
 
   useEffect(() => {
@@ -274,10 +304,7 @@ function InstancedCubes({
       const target = cubesRef.current[current.index];
       if (!target) return;
       if (e.button === 0) {
-        const cluster = breakCluster(target, cubesRef.current, BREAK_NEIGHBORS);
-        removeCubes(cluster.map((cube) => cube.position));
-        spawnBreakDebris(cluster, sizeRef.current);
-        playBreakSound(cluster.length);
+        breakAt(current.index);
       } else if (e.button === 2) {
         // Instances are translation-only, so the local face normal is already
         // the world-space unit axis pointing out of the face that was hit.
@@ -297,7 +324,7 @@ function InstancedCubes({
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("contextmenu", onContextMenu);
     };
-  }, [addCube, removeCubes]);
+  }, [addCube, breakAt]);
 
   const hoverPos = hovered != null ? cubes[hovered]?.position : undefined;
   const half: CubeCoords = [size[0] / 2, size[1] / 2, size[2] / 2];
