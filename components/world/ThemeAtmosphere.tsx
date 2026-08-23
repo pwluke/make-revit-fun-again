@@ -4,7 +4,7 @@ import { Suspense, useLayoutEffect, useMemo } from "react";
 import { Environment, Sky } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { useSceneTheme } from "./themeStore";
+import { useFastMode, useSceneTheme } from "./themeStore";
 
 const domeVertex = /* glsl */ `
   varying vec3 vPos;
@@ -79,6 +79,7 @@ function GradientDome({
  */
 export function ThemeAtmosphere() {
   const theme = useSceneTheme();
+  const fast = useFastMode();
   const scene = useThree((state) => state.scene);
 
   useLayoutEffect(() => {
@@ -89,14 +90,17 @@ export function ThemeAtmosphere() {
       scene.fog = null;
     }
     // Clay's Sky owns the background and has no HDRI. Clear any leftover
-    // environment map from a previous theme so reflections don't linger.
-    if (theme.env.kind === "sky") {
+    // environment map from a previous theme so reflections don't linger — and
+    // likewise when fast mode unmounts <Environment>, which otherwise leaves
+    // its map installed on the scene and keeps paying for the reflections it
+    // was turned off to avoid.
+    if (theme.env.kind === "sky" || fast) {
       scene.environment = null;
     }
     return () => {
       scene.fog = null;
     };
-  }, [scene, theme]);
+  }, [scene, theme, fast]);
 
   return (
     <>
@@ -104,22 +108,33 @@ export function ThemeAtmosphere() {
         <Sky sunPosition={theme.env.sunPosition} />
       ) : (
         <>
+          {/* The gradient dome is one unlit sphere and stays — it is what gives
+              the theme its sky colour, and it costs almost nothing. */}
           <GradientDome {...theme.env.dome} />
-          <Suspense fallback={null}>
-            <Environment
-              key={theme.env.preset}
-              preset={theme.env.preset}
-              background={false}
-              environmentIntensity={theme.env.intensity}
-              blur={theme.env.blur}
-            />
-          </Suspense>
+          {/* The HDRI is the expensive half: a downloaded environment map plus a
+              PMREM convolution, and it drives reflections on every surface in
+              the scene. Fast mode drops it and keeps the dome, so the world
+              still looks like its theme, just without image-based lighting. */}
+          {!fast && (
+            <Suspense fallback={null}>
+              <Environment
+                key={theme.env.preset}
+                preset={theme.env.preset}
+                background={false}
+                environmentIntensity={theme.env.intensity}
+                blur={theme.env.blur}
+              />
+            </Suspense>
+          )}
         </>
       )}
       <ambientLight color={theme.ambient.color} intensity={theme.ambient.intensity} />
+      {/* Shadows off in fast mode: a 2048² shadow map means re-rendering the
+          whole scene from the light's point of view every frame, which on a
+          voxel building is the single biggest cost after the post chain. */}
       {theme.keyLight.point ? (
         <pointLight
-          castShadow
+          castShadow={!fast}
           color={theme.keyLight.color}
           intensity={theme.keyLight.intensity}
           decay={0}
@@ -127,7 +142,7 @@ export function ThemeAtmosphere() {
         />
       ) : (
         <directionalLight
-          castShadow
+          castShadow={!fast}
           color={theme.keyLight.color}
           intensity={theme.keyLight.intensity}
           position={theme.keyLight.position}

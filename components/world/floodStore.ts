@@ -35,6 +35,17 @@ type FloodState = {
   best: number;
   /** Bumped on reset so the Player knows to teleport back to spawn. */
   respawnToken: number;
+  /**
+   * Creative mode: the water stops rising and drowning is disabled.
+   *
+   * The flood is a timer on the whole session — it reaches the roof and drowns
+   * you regardless of what you were doing. That is the game, but it is at odds
+   * with the other half of this app, where a child spends two minutes drawing
+   * and waiting for a model to generate. Creative mode is for building; the
+   * flood is for playing.
+   */
+  creative: boolean;
+  setCreative: (creative: boolean) => void;
   drown: () => void;
   reset: () => void;
 };
@@ -47,8 +58,22 @@ export const useFloodStore = create<FloodState>((set, get) => ({
   drowned: false,
   best: 0,
   respawnToken: 0,
+  creative: false,
+  setCreative: (creative) =>
+    set((s) => ({
+      creative,
+      // Entering creative mode clears a drowning in progress — otherwise you
+      // would switch it on to stop the water and still be dead, which reads as
+      // the button not working.
+      ...(creative ? { drowned: false, breath: 1, submerged: false } : null),
+      // Leaving it restarts the clock rather than resuming a run that was
+      // paused for an arbitrary length of time; `best` would be meaningless.
+      ...(!creative && s.creative ? { elapsed: 0 } : null),
+    })),
   drown: () => {
-    if (get().drowned) return;
+    // Creative mode disables drowning outright. Guarding here as well as at the
+    // call site means nothing else can drown the player behind its back.
+    if (get().drowned || get().creative) return;
     set((s) => ({ drowned: true, breath: 0, best: Math.max(s.best, s.elapsed) }));
   },
   reset: () =>
@@ -73,6 +98,12 @@ export const floodState = {
   elapsed: 0,
   breath: 1,
   submerged: false,
+  /**
+   * Freezes the rise and the breath timer while some other mode owns the world.
+   * Opt-in and default-off: only components/lasertag writes it, so the flood
+   * game and every other mode behave exactly as they did before it existed.
+   */
+  paused: false,
 };
 
 export function publishFlood() {

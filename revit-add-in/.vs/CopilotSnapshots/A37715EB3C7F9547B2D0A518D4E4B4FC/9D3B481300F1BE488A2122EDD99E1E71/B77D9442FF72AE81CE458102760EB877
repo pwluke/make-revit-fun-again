@@ -1,0 +1,188 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using BIM_Boom.Handlers;
+using BIM_Boom.Models;
+using BIM_Boom.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+namespace BIM_Boom.ViewModels;
+
+public sealed partial class BIM_BoomViewModel : ObservableObject
+{
+    private readonly Autodesk.Revit.UI.UIDocument _uidoc;
+    private readonly Document _doc;
+    private readonly VoxelDirectContext3DServer _dc3dServer;
+    private readonly DelegateExternalEventHandler _handler;
+    private readonly Autodesk.Revit.UI.ExternalEvent _externalEvent;
+
+    private MergedMesh? _mergedMesh;
+    private List<VoxelData> _currentVoxels = [];
+    private InstantDbClient? _instantClient;
+
+    [ObservableProperty] private double _cellSize = 1.0;
+    [ObservableProperty] private double _distanceThreshold = 0.5;
+    [ObservableProperty] private int _maxVoxels = 30000;
+    [ObservableProperty] private string _statusText = "Ready. Select elements and click 'Export & Voxelize'.";
+    [ObservableProperty] private bool _isStreamEnabled;
+    [ObservableProperty] private bool _isRecomputeEnabled;
+    [ObservableProperty] private string _appId = "<your-instantdb-app-id>";
+    [ObservableProperty] private string _adminToken = "<your-instantdb-admin-token>";
+    [ObservableProperty] private int _voxelCount;
+
+    public BIM_BoomViewModel(Autodesk.Revit.UI.UIDocument uidoc, VoxelDirectContext3DServer dc3dServer,
+        DelegateExternalEventHandler handler, Autodesk.Revit.UI.ExternalEvent externalEvent)
+    {
+        _uidoc = uidoc;
+        _doc = uidoc.Document;
+        _dc3dServer = dc3dServer;
+        _handler = handler;
+        _externalEvent = externalEvent;
+    }
+
+    [RelayCommand]
+    private void ExportAndVoxelize()
+    {
+        StatusText = "Reading selection...";
+
+        _handler.SetAction(uiApp =>
+        {
+            try
+            {
+                var ids = _uidoc.Selection.GetElementIds();
+                if (ids.Count == 0)
+                {
+                    StatusText = "No elements selected. Please select elements first.";
+                    return;
+                }
+
+                StatusText = $"Exporting {ids.Count} elements to IFC...";
+                var ifcPath = IfcExportService.ExportSelectionToIfc(_doc, new List<ElementId>(ids));
+
+                // Check for color styles
+                if (!IfcExportService.HasColorStyles(ifcPath))
+                {
+                    StatusText = "Warning: No color styles found in IFC — elements will voxelize gray.";
+                }
+
+                // Run parsing and voxelization on a background thread (no Revit API needed)
+                Task.Run(() => ParseAndVoxelizeBackground(ifcPath));
+            }
+            catch (Exception ex)
+            {
+                StatusText = $"Export failed: {ex.Message}";
+            }
+        });
+
+        _externalEvent.Raise();
+    }
+
+    private void ParseAndVoxelizeBackground(string ifcPath)
+    {
+        try
+        {
+            StatusText = "Parsing IFC geometry and colors...";
+            var (mesh, grayCount) = IfcParserService.ParseIfcWithColor(ifcPath);
+            _mergedMesh = mesh;
+
+            if (grayCount > 0)
+            {
+                StatusText = $"Parsed mesh ({mesh.Vertices.Count / 3} triangles, {grayCount} elements fell back to gray). Voxelizing...";
+            }
+            else
+            {
+                StatusText = $"Parsed mesh ({mesh.Vertices.Count / 3} triangles). Voxelizing...";
+            }
+
+            // Check thin member warning
+            if (VoxelizationService.HasThinMemberWarning(mesh, CellSize))
+            {
+                StatusText += " ⚠ Thin members may not register voxels at this cell size.";
+            }
+
+            RunVoxelization();
+
+            // Clean up temp file
+            try { System.IO.File.Delete(ifcPath); } catch { }
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Parse/voxelize failed: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void RecomputePreview()
+    {
+        if (_mergedMesh == null)
+        {
+            StatusText = "No mesh data — run Export & Voxelize first.";
+            return;
+        }
+
+        StatusText = "Recomputing voxels...";
+        Task.Run(() =>
+        {
+            try
+            {
+                RunVoxelization();
+            }
+            catch (Exception ex)
+            {
+                StatusText = $"Recompute failed: {ex.Message}";
+            }
+        });
+    }
+
+    private void RunVoxelization()
+    {
+        var parameters = new VoxelizationService.VoxelParams(CellSize, DistanceThreshold, MaxVoxels);
+        var voxels = VoxelizationService.Voxelize(_mergedMesh!, parameters);
+        _currentVoxels = voxels;
+        VoxelCount = voxels.Count;
+        IsStreamEnabled = voxels.Count > 0;
+        IsRecomputeEnabled = true;
+
+        StatusText = $"{voxels.Count} voxels ready. Updating preview...";
+
+        // Update DC3D preview on the API thread
+        _handler.SetAction(_ =>
+        {
+            _dc3dServer.UpdateVoxels(_currentVoxels);
+            _uidoc.RefreshActiveView();
+            StatusText = $"{_currentVoxels.Count} voxels displayed.";
+        });
+        _externalEvent.Raise();
+    }
+
+    [RelayCommand]
+    private async Task StreamToWebApp()
+    {
+        if (_currentVoxels.Count == 0)
+        {
+            StatusText = "Nothing to stream — run Export & Voxelize first.";
+            return;
+        }
+
+        IsStreamEnabled = false;
+        StatusText = $"Streaming {_currentVoxels.Count} voxels to web app...";
+
+        try
+        {
+            _instantClient ??= new InstantDbClient(AppId, AdminToken);
+            await _instantClient.PushVoxelsAsync(_currentVoxels);
+            StatusText = $"Streamed {_currentVoxels.Count} voxels successfully.";
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Stream failed: {ex.Message}";
+        }
+        finally
+        {
+            IsStreamEnabled = true;
+        }
+    }
+}

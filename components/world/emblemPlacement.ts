@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { occupiedPointCoords, useGridPoints } from "@/lib/use-grid-points";
 import { ABILITY_ORDER, type AbilityId } from "./store";
+import { seededRandom } from "./placementUtils";
 
 /**
  * Where the five animal emblems hide.
@@ -38,19 +39,10 @@ const HEADROOM = 2;
 /** How many of the five wait inside; the rest ring the building. */
 const INDOOR_COUNT = 1;
 
-/** mulberry32 — small deterministic PRNG. Reseeded per page load so the
- *  hunt differs each session but is stable within it: the scene and the
- *  HUD both read this module, and an emblem must not move mid-walk. */
+/** One seed per page load: the hunt differs each session but is stable
+ *  within it — the scene and the HUD both read this module, and an emblem
+ *  must not move while the player is walking toward it. */
 const SEED = Math.floor(Math.random() * 0xffffff) + 1;
-function seededRandom(seed: number) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 export type EmblemSpot = {
   id: AbilityId;

@@ -1,0 +1,112 @@
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.IFC;
+
+namespace BIM_Boom.Services;
+
+/// <summary>
+/// Exports only the user-selected elements to a temporary IFC file
+/// by creating a disposable isolated 3D view (Stage A from the spec).
+/// </summary>
+public static class IfcExportService
+{
+    /// <summary>
+    /// Exports the specified element IDs to a temporary IFC file.
+    /// Must be called on the Revit API thread (inside a valid API context).
+    /// </summary>
+    /// <returns>Full path to the exported IFC file.</returns>
+    public static string ExportSelectionToIfc(Document doc, IList<ElementId> selectedIds)
+    {
+        if (selectedIds == null || selectedIds.Count == 0)
+            throw new InvalidOperationException("No elements selected.");
+
+        var tempFolder = Path.Combine(Path.GetTempPath(), "BIM-Boom-Voxel");
+        Directory.CreateDirectory(tempFolder);
+        var tempFileName = $"voxel_export_{Guid.NewGuid():N}.ifc";
+
+        View3D? view3d = null;
+
+        // Create a temporary 3D view first
+        using (var t = new Transaction(doc, "Voxel Export - Create Temp View"))
+        {
+            t.Start();
+            try
+            {
+                var vft = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewFamilyType))
+                    .Cast<ViewFamilyType>()
+                    .First(v => v.ViewFamily == ViewFamily.ThreeDimensional);
+
+                view3d = View3D.CreateIsometric(doc, vft.Id);
+                view3d.Name = $"__voxel_export_temp_{Guid.NewGuid():N}__";
+
+                t.Commit();
+            }
+            catch
+            {
+                t.RollBack();
+                throw;
+            }
+        }
+
+        // IsolateElementsTemporary is a temporary view mode — must be done
+        // in a separate transaction after the view exists in the document.
+        using (var t = new Transaction(doc, "Voxel Export - Isolate Elements"))
+        {
+            t.Start();
+            view3d!.IsolateElementsTemporary(selectedIds);
+            t.Commit();
+        }
+
+        try
+        {
+            // Export IFC scoped to the isolated view
+            var ifcOptions = new IFCExportOptions
+            {
+                FilterViewId = view3d!.Id
+            };
+            ifcOptions.AddOption("VisibleElementsOfCurrentView", "true");
+            ifcOptions.AddOption("ExportInternalRevitPropertySets", "false");
+
+            doc.Export(tempFolder, tempFileName, ifcOptions);
+        }
+        finally
+        {
+            // Always clean up the temporary view
+            using var t2 = new Transaction(doc, "Voxel Export - Cleanup Temp View");
+            t2.Start();
+            try
+            {
+                if (view3d!.IsTemporaryHideIsolateActive())
+                {
+                    view3d.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate);
+                }
+                doc.Delete(view3d.Id);
+                t2.Commit();
+            }
+            catch
+            {
+                t2.RollBack();
+            }
+        }
+
+        var fullPath = Path.Combine(tempFolder, tempFileName);
+        if (!File.Exists(fullPath))
+            throw new FileNotFoundException("IFC export did not produce a file.", fullPath);
+
+        return fullPath;
+    }
+
+    /// <summary>
+    /// Quick check whether the exported IFC contains color style data.
+    /// </summary>
+    public static bool HasColorStyles(string ifcPath)
+    {
+        var content = File.ReadAllText(ifcPath);
+        return content.Contains("IFCCOLOURRGB", StringComparison.OrdinalIgnoreCase)
+            || content.Contains("IFCSURFACESTYLESHADING", StringComparison.OrdinalIgnoreCase);
+    }
+}

@@ -1,0 +1,6 @@
+﻿namespace BIM_Boom.ViewModels
+{
+    public sealed class BIM_BoomViewModel : ObservableObject
+    {
+    }
+}

@@ -6,11 +6,17 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check:portability": "node scripts/check-portability.mjs",
+    "check:layering": "node scripts/check-layering.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
     "@dimforge/rapier3d-compat": "^0.12.0",
+    "@fal-ai/client": "^1.10.1",
+    "@fal-ai/server-proxy": "^1.2.1",
     "@instantdb/react": "^1.0.65",
     "@mediapipe/tasks-vision": "^1.0.1",
     "@react-three/drei": "^10.7.8",
@@ -49,6 +55,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.2",
     "tailwindcss": "^4",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.11"
   }
 }

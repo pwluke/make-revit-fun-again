@@ -8,6 +8,8 @@ import {
 } from "./icons";
 import GestureTracker from "@/components/gesture/GestureTracker";
 import HeroHud from "@/components/world/HeroHud";
+import { LaserTag } from "@/components/lasertag/LaserTag";
+import { LaserTagHud } from "@/components/lasertag/LaserTagHud";
 import { GesturePanel } from "./GesturePanel";
 import { MinecraftViewport } from "./MinecraftViewport";
 import {
@@ -101,11 +103,15 @@ export function ModelStage() {
           fov={fov}
           sceneEpoch={sceneEpoch}
           onPlay={markSpun}
-        />
+        >
+          {mode === "lasertag" ? <LaserTag /> : null}
+        </MinecraftViewport>
         {pointerLocked ? <div className="crosshair" aria-hidden /> : null}
+        {mode === "lasertag" ? <LaserTagHud /> : null}
 
         <div className={`orbit-hint${spun ? " hidden" : ""}`}>
-          <span>↔</span> Click to look around
+          <span>↔</span>{" "}
+          {mode === "lasertag" ? "Click to take aim" : "Click to look around"}
         </div>
 
         <ThemeHud className="top-4 left-4 right-auto items-start" />

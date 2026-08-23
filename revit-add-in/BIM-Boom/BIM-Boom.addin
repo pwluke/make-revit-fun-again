@@ -1,0 +1,14 @@
+<RevitAddIns>
+    <AddIn Type="Application">
+        <Name>BIM-Boom</Name>
+        <Assembly>BIM-Boom\BIM-Boom.dll</Assembly>
+        <AddInId>8918EE50-81DA-4908-8C80-E502769EDA9F</AddInId>
+        <FullClassName>BIM_Boom.Application</FullClassName>
+        <VendorId>Development</VendorId>
+        <VendorDescription></VendorDescription>
+    </AddIn>
+    <ManifestSettings>
+        <UseRevitContext>False</UseRevitContext>
+        <ContextName>BIM-Boom</ContextName>
+    </ManifestSettings>
+</RevitAddIns>
