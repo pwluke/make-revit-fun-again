@@ -7,6 +7,7 @@ import { SceneCanvas } from "@/components/canvas/SceneCanvas";
 import { Ground } from "./Ground";
 import { Player } from "./Player";
 import { Creations } from "@/components/sketch-to-3d/r3f/Creations";
+import { GroundGuide } from "@/components/sketch3d/r3f/GroundGuide";
 import { SketchController } from "@/components/sketch3d/r3f/SketchController";
 import { Strokes } from "@/components/sketch3d/r3f/Strokes";
 
@@ -62,6 +63,9 @@ export function MinecraftScene() {
           app/minecraft/page.js — it cannot live here, inside <Canvas>. */}
       <SketchController />
       <Strokes />
+      {/* Shows where the invisible drawing plane meets the ground. Only visible
+          in draw mode, and it freezes with the plane the moment a stroke starts. */}
+      <GroundGuide />
       {/* Both props here are load-bearing, for different reasons.
 
           `selector`: without it drei attaches a document-level `click` listener

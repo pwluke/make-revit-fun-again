@@ -4,6 +4,7 @@ import {
   DRAW_DISTANCE,
   MAX_SAMPLES,
   freezePlane,
+  planeGroundLine,
   projectOntoPlane,
   shouldSample,
 } from "./projection";
@@ -66,6 +67,68 @@ describe("projectOntoPlane", () => {
     const plane = freezePlane(origin);
     const past: CameraPose = { position: [0, 0, -10], forward: [0, 0, -1] };
     expect(projectOntoPlane(past, plane)).toBeNull();
+  });
+});
+
+describe("planeGroundLine", () => {
+  it("puts the line directly below the plane centre when standing level", () => {
+    // Camera at head height looking level: the plane is vertical, so its ground
+    // line runs straight under the point it was frozen at.
+    const pose: CameraPose = { position: [0, 1.6, 0], forward: [0, 0, -1] };
+    const line = planeGroundLine(freezePlane(pose))!;
+    expect(line.point[0]).toBeCloseTo(0);
+    expect(line.point[1]).toBe(0);
+    expect(line.point[2]).toBeCloseTo(-DRAW_DISTANCE);
+  });
+
+  it("returns a horizontal direction, always", () => {
+    const tilted: CameraPose = {
+      position: [0, 1.6, 0],
+      forward: [0.3, -0.5, -0.81],
+    };
+    const line = planeGroundLine(freezePlane(tilted))!;
+    expect(line.direction[1]).toBe(0);
+    expect(Math.hypot(...line.direction)).toBeCloseTo(1);
+  });
+
+  it("runs perpendicular to the way the camera is facing", () => {
+    // Facing -Z, so the plane's ground line runs left-right along X.
+    const pose: CameraPose = { position: [0, 1.6, 0], forward: [0, 0, -1] };
+    const line = planeGroundLine(freezePlane(pose))!;
+    expect(Math.abs(line.direction[0])).toBeCloseTo(1);
+    expect(Math.abs(line.direction[2])).toBeCloseTo(0);
+  });
+
+  it("keeps the returned point on the plane itself", () => {
+    const pose: CameraPose = { position: [2, 1.6, -3], forward: [0.4, -0.3, -0.87] };
+    const plane = freezePlane(pose);
+    const line = planeGroundLine(plane)!;
+    // dot(point - planePoint, normal) == 0 is the definition of "on the plane".
+    const offset = [
+      line.point[0] - plane.point[0],
+      line.point[1] - plane.point[1],
+      line.point[2] - plane.point[2],
+    ];
+    const onPlane =
+      offset[0] * plane.normal[0] + offset[1] * plane.normal[1] + offset[2] * plane.normal[2];
+    expect(onPlane).toBeCloseTo(0);
+  });
+
+  it("honours a non-zero ground height", () => {
+    const pose: CameraPose = { position: [0, 5, 0], forward: [0, 0, -1] };
+    expect(planeGroundLine(freezePlane(pose), 2)!.point[1]).toBe(2);
+  });
+
+  // Looking straight down makes the drawing plane horizontal, so it never meets
+  // the ground in a line — it is parallel to it.
+  it("returns null when looking straight down", () => {
+    const pose: CameraPose = { position: [0, 5, 0], forward: [0, -1, 0] };
+    expect(planeGroundLine(freezePlane(pose))).toBeNull();
+  });
+
+  it("returns null when looking straight up", () => {
+    const pose: CameraPose = { position: [0, 5, 0], forward: [0, 1, 0] };
+    expect(planeGroundLine(freezePlane(pose))).toBeNull();
   });
 });
 
