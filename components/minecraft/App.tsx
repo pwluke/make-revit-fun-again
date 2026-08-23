@@ -14,6 +14,7 @@ import { Stars } from "../world/Stars";
 import { Powerups } from "../world/Powerups";
 import { Flood } from "../world/Flood";
 import { ThemeAtmosphere } from "../world/ThemeAtmosphere";
+import { MarineGarden } from "../world/MarineGarden";
 
 // The original was made by Maksim Ivanow: https://www.youtube.com/watch?v=Lc2JvBXMesY&t=124s
 // This example needs pointer-lock, that works only if you open it in a new window
@@ -44,6 +45,7 @@ export function MinecraftScene() {
           timer is what actually threatens you. */}
       <Stars />
       <Powerups />
+      <MarineGarden />
       <Flood />
       <GestureBuilder />
       <PointerLockControls />
