@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 export function ThemeHud({ className }: { className?: string }) {
   const id = useThemeStore((state) => state.id);
   const setTheme = useThemeStore((state) => state.setTheme);
+  const fast = useThemeStore((state) => state.fast);
+  const setFast = useThemeStore((state) => state.setFast);
   const current = THEMES[id];
 
   return (
@@ -52,13 +54,41 @@ export function ThemeHud({ className }: { className?: string }) {
             />
           );
         })}
+
+        {/* Performance mode. Sits with the theme swatches because it is the same
+            kind of choice — how the world looks — but it is a toggle rather than
+            a radio: it does not replace the palette, it turns off the expensive
+            rendering on top of it. Hence the divider and the different shape. */}
+        <span aria-hidden className="mx-0.5 h-6 w-px bg-slate-900/15" />
+        <button
+          type="button"
+          aria-pressed={fast}
+          title={
+            fast
+              ? "Fast mode on — post-processing and HDRI lighting are off"
+              : "Fast mode — turn off post-processing and HDRI lighting for a smoother frame rate"
+          }
+          onClick={() => setFast(!fast)}
+          className={cn(
+            "flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] font-bold transition",
+            fast
+              ? "bg-amber-400 text-amber-950 ring-2 ring-slate-800"
+              : "bg-slate-200 text-slate-600 ring-2 ring-white hover:bg-slate-300",
+          )}
+        >
+          ⚡ Fast
+        </button>
       </div>
       <p className="rounded-full bg-black/40 px-2.5 py-0.5 text-[11px] font-semibold text-white/90 backdrop-blur-sm">
         {current.name}
-        <span className="hidden font-medium text-white/70 sm:inline">
-          {" "}
-          · {current.blurb}
-        </span>
+        {fast ? (
+          <span className="font-medium text-amber-300"> · fast mode</span>
+        ) : (
+          <span className="hidden font-medium text-white/70 sm:inline">
+            {" "}
+            · {current.blurb}
+          </span>
+        )}
       </p>
     </div>
   );

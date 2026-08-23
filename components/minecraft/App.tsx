@@ -15,6 +15,7 @@ import { Stars } from "../world/Stars";
 import { Powerups } from "../world/Powerups";
 import { Flood } from "../world/Flood";
 import { ThemeAtmosphere } from "../world/ThemeAtmosphere";
+import { useFastMode } from "../world/themeStore";
 import { creationStore } from "@/components/sketch-to-3d/core/creationStore";
 import { Creations } from "@/components/sketch-to-3d/r3f/Creations";
 import { GroundGuide } from "@/components/sketch3d/r3f/GroundGuide";
@@ -44,6 +45,7 @@ export function MinecraftScene() {
   // three-stdlib's disconnect() leaves domElement set, so lock() still fires.
   // Unmounting is the only clean answer.
   const selectedId = useStore(creationStore, (state) => state.selectedId);
+  const fast = useFastMode();
 
   return (
     <>
@@ -89,7 +91,11 @@ export function MinecraftScene() {
           drawing overlay nor creation selection can release the pointer — which
           reads as "the cursor never appears", with no error anywhere. */}
       {!selectedId && <PointerLockControls makeDefault selector="#game-surface" />}
-      <PostFX />
+      {/* The post chain is seven full-screen passes and by far the most
+          expensive thing in the frame. Fast mode drops it entirely — see the
+          ⚡ Fast button in ThemeHud. Unmounted rather than disabled so the
+          EffectComposer and its render targets are actually freed. */}
+      {!fast && <PostFX />}
     </>
   );
 }
