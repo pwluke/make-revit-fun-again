@@ -247,12 +247,6 @@ export function ModelStage() {
           <GestureTracker />
         </div>
 
-        <div className="view-cube" aria-hidden="true">
-          <span className="cube-top">TOP</span>
-          <span className="cube-front">FRONT</span>
-          <span className="cube-side">SIDE</span>
-        </div>
-
         <div className="zoom-controls">
           <button type="button" aria-label="Zoom in" onClick={zoomIn}>
             +
