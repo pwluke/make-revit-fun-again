@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
+import { useGestureStore } from "@/components/gesture/store";
 import { floodState, useFloodStore } from "@/components/world/floodStore";
 import { ALERT_RADIUS, Bots, spookBots } from "./Bots";
 import { useBotArena } from "./botArena";
@@ -67,6 +68,15 @@ function LaserRig() {
   }, []);
 
   useEffect(() => {
+    /** One shot, wherever the trigger came from. */
+    const fire = () => {
+      if (laserTagState.finished) return;
+      const now = performance.now() / 1000;
+      if (now - lastShot.current < FIRE_COOLDOWN) return;
+      lastShot.current = now;
+      shoot();
+    };
+
     const onPointerDown = (event: PointerEvent) => {
       // Listen on the document, not the canvas: drei's PointerLockControls locks
       // r3f's event target, and a locked element receives mouse events itself
@@ -76,12 +86,13 @@ function LaserRig() {
       if (!document.pointerLockElement) return;
       if (event.button !== 0) return;
       // A decided round stops taking shots — otherwise the win card's shot
-      // count would keep climbing behind it.
-      if (laserTagState.finished) return;
-      const now = performance.now() / 1000;
-      if (now - lastShot.current < FIRE_COOLDOWN) return;
-      lastShot.current = now;
+      // count would keep climbing behind it. `fire` owns that check and the
+      // cooldown, so the mouse and the gesture cannot drift apart.
+      fire();
+    };
 
+    /** The shot itself, extracted so both triggers run the same code. */
+    function shoot() {
       registerShot();
       recoil.current = RECOIL_KICK;
 
@@ -134,7 +145,19 @@ function LaserRig() {
       // visibly even when one hit is enough to tag them.
       spookBots(impact, ALERT_RADIUS);
       publishLaserTag();
+    }
+
+    // The fist gesture is the trigger in Laser Tag. GestureTracker queues the
+    // same action that breaks blocks elsewhere; Cube.tsx already ignores it
+    // while a round is live, so the two never both fire.
+    let raf = 0;
+    const pollGesture = () => {
+      raf = requestAnimationFrame(pollGesture);
+      const gesture = useGestureStore.getState();
+      if (gesture.status !== "on") return;
+      if (gesture.consumeBreak()) fire();
     };
+    raf = requestAnimationFrame(pollGesture);
 
     const onContextMenu = (event: MouseEvent) => {
       if (document.pointerLockElement) event.preventDefault();
@@ -143,6 +166,7 @@ function LaserRig() {
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("contextmenu", onContextMenu);
     return () => {
+      cancelAnimationFrame(raf);
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("contextmenu", onContextMenu);
     };

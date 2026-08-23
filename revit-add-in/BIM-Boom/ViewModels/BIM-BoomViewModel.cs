@@ -30,6 +30,9 @@ public sealed partial class BIM_BoomViewModel : ObservableObject
 
     private List<VoxelData> _currentVoxels = [];
 
+    /// <summary>Cached whole-project grid, built once per session.</summary>
+    private readonly ProjectGridCache _gridCache = new();
+
     /// <summary>
     /// 1.4 ft matches the pitch of the model the game currently ships, so an
     /// export at this size drops in with the same proportions: the web app
@@ -38,6 +41,21 @@ public sealed partial class BIM_BoomViewModel : ObservableObject
     /// player — and multiplies the export time by about eight.
     /// </summary>
     [ObservableProperty] private double _cellSize = 1.4;
+
+    /// <summary>
+    /// Vertical spacing between grid layers, in feet. Defaults to CellSize
+    /// for an isotropic lattice — keeping these equal avoids the anisotropic
+    /// shell band issue from the GH prototype.
+    /// </summary>
+    [ObservableProperty] private double _layerHeight = 1.4;
+
+    /// <summary>
+    /// Distance threshold for the cutout test: a grid point is kept if its
+    /// nearest surface distance is ≤ this value. Default is 0.5 × CellSize,
+    /// independently adjustable. Decoupled from LayerHeight (unlike the GH
+    /// prototype which reused one slider for both).
+    /// </summary>
+    [ObservableProperty] private double _cutoutTolerance = 0.7;
 
     /// <summary>
     /// How close a cell centre has to be to a surface to become a voxel, as a
@@ -254,6 +272,99 @@ public sealed partial class BIM_BoomViewModel : ObservableObject
             uiApp.ActiveUIDocument?.RefreshActiveView();
         });
         _externalEvent.Raise();
+    }
+
+    // ---------------------------------------------------------------
+    // Cutout-based voxelization: whole-project grid, selection cutout
+    // ---------------------------------------------------------------
+
+    /// <summary>
+    /// Voxelizes just the current selection against a cached whole-project
+    /// grid. The grid is built once; subsequent clicks reuse it. This is the
+    /// "quick preview" path — it does NOT write JSON files.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanExport))]
+    private void VoxelizeSelection()
+    {
+        if (IsExporting) return;
+        IsExporting = true;
+        StatusText = "Building project grid...";
+
+        _handler.SetAction(uiApp =>
+        {
+            try
+            {
+                var uidoc = uiApp.ActiveUIDocument;
+                var doc = uidoc.Document;
+
+                var ids = uidoc.Selection.GetElementIds();
+                if (ids.Count == 0)
+                {
+                    StatusText = "Select at least one element first.";
+                    SetExporting(false);
+                    return;
+                }
+
+                // Phase 1: ensure the whole-project grid exists.
+                var cellXY = CellSize;
+                var cellZ = LayerHeight;
+                bool rebuilt = _gridCache.EnsureGrid(doc, cellXY, cellZ);
+                StatusText = rebuilt
+                    ? $"Built project grid: {_gridCache.PointCount:N0} points. Extracting selection..."
+                    : $"Reusing cached grid ({_gridCache.PointCount:N0} points). Extracting selection...";
+
+                // Phase 2: extract selection geometry (read-only, on API thread).
+                var (mesh, grayCount) = RevitGeometryExtractor.ExtractGeometry(doc, ids);
+                if (mesh.Vertices.Count < 3)
+                {
+                    StatusText = "No geometry found in selection.";
+                    SetExporting(false);
+                    return;
+                }
+
+                var note = grayCount > 0 ? $" ({grayCount} without material)" : "";
+                StatusText = $"Extracted {mesh.Vertices.Count / 3} triangles{note}. Running cutout...";
+
+                // Phase 3: cutout on a background thread.
+                var tolerance = CutoutTolerance * cellXY;
+                var maxV = MaxVoxels;
+                Task.Run(() => RunCutoutBackground(mesh, tolerance, maxV));
+            }
+            catch (Exception ex)
+            {
+                StatusText = $"Voxelize failed: {ex.Message}";
+                SetExporting(false);
+            }
+        });
+
+        _externalEvent.Raise();
+    }
+
+    private void RunCutoutBackground(MergedMesh mesh, double tolerance, int maxVoxels)
+    {
+        try
+        {
+            // Bbox pre-filter.
+            var candidates = _gridCache.PreFilterByBBox(mesh.BBoxMin, mesh.BBoxMax, tolerance);
+            StatusText = $"Pre-filtered to {candidates.Count:N0} candidate points. Distance testing...";
+
+            // Accurate cutout.
+            var voxels = VoxelizationService.CutoutFromGrid(
+                _gridCache, candidates, mesh, tolerance, maxVoxels);
+
+            _currentVoxels = voxels;
+            VoxelCount = voxels.Count;
+            StatusText = $"Cutout produced {voxels.Count:N0} voxels. Showing preview...";
+            ShowPreview();
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Cutout failed: {ex.Message}";
+        }
+        finally
+        {
+            SetExporting(false);
+        }
     }
 
     [RelayCommand]

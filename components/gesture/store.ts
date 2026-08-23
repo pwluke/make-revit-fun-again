@@ -7,7 +7,8 @@ export type GestureLabel =
   | "jump"
   | "build"
   | "break"
-  | "orbit"
+  | "hammer"
+  | "leap"
   | null;
 export type GestureStatus = "off" | "starting" | "on" | "error";
 
@@ -28,10 +29,10 @@ type GestureState = {
   headPitch: number;
   /** Walk direction: 1 forward (palm), -1 backward (back of hand), 0 idle */
   move: number;
-  /** A fist is held: the camera orbits the grabbed target */
-  orbiting: boolean;
-  /** Accumulated fist travel while orbiting, consumed by the game loop */
-  orbitDelta: { x: number; y: number };
+  /** Thumb-up is being held — the butterfly hovers on this. */
+  jumpHeld: boolean;
+  /** Walking hand + thumb-up together: a jump that carries you forward. */
+  leapQueued: boolean;
   /** One-shot actions, queued by the tracker and consumed by the game loop */
   jumpQueued: boolean;
   buildQueued: boolean;
@@ -45,13 +46,13 @@ type GestureState = {
     headYaw: number;
     headPitch: number;
     move: number;
-    orbiting: boolean;
+    jumpHeld: boolean;
   }) => void;
-  addOrbit: (dx: number, dy: number) => void;
+  queueLeap: () => void;
   queueJump: () => void;
   queueBuild: () => void;
   queueBreak: () => void;
-  consumeOrbit: () => { x: number; y: number };
+  consumeLeap: () => boolean;
   consumeJump: () => boolean;
   consumeBuild: () => boolean;
   consumeBreak: () => boolean;
@@ -67,24 +68,23 @@ export const useGestureStore = create<GestureState>((set, get) => ({
   headYaw: 0,
   headPitch: 0,
   move: 0,
-  orbiting: false,
-  orbitDelta: { x: 0, y: 0 },
+  jumpHeld: false,
+  leapQueued: false,
   jumpQueued: false,
   buildQueued: false,
   breakQueued: false,
   setActive: (active) => set({ active }),
   setStatus: (status) => set({ status }),
-  setFrame: ({ faceTracking, handTracking, label, headYaw, headPitch, move, orbiting }) =>
-    set({ faceTracking, handTracking, label, headYaw, headPitch, move, orbiting }),
-  addOrbit: (dx, dy) =>
-    set((s) => ({ orbitDelta: { x: s.orbitDelta.x + dx, y: s.orbitDelta.y + dy } })),
+  setFrame: ({ faceTracking, handTracking, label, headYaw, headPitch, move, jumpHeld }) =>
+    set({ faceTracking, handTracking, label, headYaw, headPitch, move, jumpHeld }),
+  queueLeap: () => set({ leapQueued: true }),
   queueJump: () => set({ jumpQueued: true }),
   queueBuild: () => set({ buildQueued: true }),
   queueBreak: () => set({ breakQueued: true }),
-  consumeOrbit: () => {
-    const delta = get().orbitDelta;
-    if (delta.x !== 0 || delta.y !== 0) set({ orbitDelta: { x: 0, y: 0 } });
-    return delta;
+  consumeLeap: () => {
+    const queued = get().leapQueued;
+    if (queued) set({ leapQueued: false });
+    return queued;
   },
   consumeJump: () => {
     const queued = get().jumpQueued;
@@ -110,8 +110,8 @@ export const useGestureStore = create<GestureState>((set, get) => ({
       headYaw: 0,
       headPitch: 0,
       move: 0,
-      orbiting: false,
-      orbitDelta: { x: 0, y: 0 },
+      jumpHeld: false,
+      leapQueued: false,
       jumpQueued: false,
       buildQueued: false,
       breakQueued: false,

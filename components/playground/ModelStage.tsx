@@ -7,6 +7,10 @@ import {
   ResetIcon,
 } from "./icons";
 import GestureTracker from "@/components/gesture/GestureTracker";
+import HeroHud from "@/components/world/HeroHud";
+import { AbilityEmblems } from "@/components/world/AbilityEmblems";
+import { DinoFragments } from "@/components/world/DinoFragments";
+import { DinoPickup, DinoReveal } from "@/components/world/DinoPanel";
 import { LaserTag } from "@/components/lasertag/LaserTag";
 import { LaserTagHud } from "@/components/lasertag/LaserTagHud";
 import FloodHud from "@/components/world/FloodHud";
@@ -119,6 +123,15 @@ export function ModelStage() {
           onPlay={markSpun}
         >
           {mode === "lasertag" ? <LaserTag /> : null}
+          {/* The hunt is Treasure Hunt's, not the whole playground's: the
+              other modes stay uncluttered, and nothing is collectable in
+              them. */}
+          {mode === "treasure" ? (
+            <>
+              <AbilityEmblems />
+              <DinoFragments />
+            </>
+          ) : null}
         </MinecraftViewport>
         {/* Keyboard mode never takes the lock, but the centre of the screen is
             still where the arrow keys aim, so it needs the reticle just as
@@ -153,10 +166,15 @@ export function ModelStage() {
 
             All of these are `absolute`, so they land inside .model-viewport
             (position: relative) rather than over the playground chrome. */}
-        {/* The stars/water pills stack in the bottom-left of the viewport, at
-            the offsets the components carry themselves — nothing else parks in
-            that corner now. */}
-        <TreasureHud className="world-hud-stars" />
+        {/* The stars/water pills stack in the bottom-left of the viewport. Two
+            modes park a panel in that same corner, so playground.css lifts the
+            stack clear of them — see .world-hud-* there. */}
+        {/* The star pill belongs to the other modes. Treasure Hunt has its own
+            two collections — the animal powers and the dinosaur — and a third
+            counter in the same corner only muddles what you are hunting. */}
+        {mode !== "treasure" ? (
+          <TreasureHud className="world-hud-stars" />
+        ) : null}
         <PowerupHud />
         <FloodHud className="world-hud-water" />
         {/* top-14 rather than the default top-4: the orbit hint owns the top
@@ -187,11 +205,16 @@ export function ModelStage() {
           <GestureTracker />
         </div>
 
-        <div className="view-cube" aria-hidden="true">
-          <span className="cube-top">TOP</span>
-          <span className="cube-front">FRONT</span>
-          <span className="cube-side">SIDE</span>
-        </div>
+        {/* Ability-card HUD (counter, unlock animation, numbered slots).
+            Collection happens inside the scene, so without this a collected
+            card would vanish with no feedback. */}
+        {mode === "treasure" ? (
+          <div className="hero-hud">
+            <HeroHud />
+            <DinoPickup />
+            <DinoReveal />
+          </div>
+        ) : null}
 
         <div className="zoom-controls">
           <button type="button" aria-label="Zoom in" onClick={zoomIn}>

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("BIM-Boom")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug.R23")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+96a3766ebc9cbadc577fe97722e81c8902f06c5c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+55c9f57b18ba5c7f1da499d62cadc97e00d9367a")]
 [assembly: System.Reflection.AssemblyProductAttribute("BIM-Boom")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BIM-Boom")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

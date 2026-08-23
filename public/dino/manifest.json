@@ -1,0 +1,76 @@
+{
+  "trex": {
+    "head": {
+      "file": "trex-head.png",
+      "w": 299,
+      "h": 281
+    },
+    "body": {
+      "file": "trex-body.png",
+      "w": 226,
+      "h": 273
+    },
+    "arms": {
+      "file": "trex-arms.png",
+      "w": 193,
+      "h": 97
+    },
+    "legs": {
+      "file": "trex-legs.png",
+      "w": 324,
+      "h": 193
+    },
+    "tail": {
+      "file": "trex-tail.png",
+      "w": 253,
+      "h": 189
+    },
+    "markings": {
+      "file": "trex-markings.png",
+      "w": 232,
+      "h": 126
+    },
+    "whole": {
+      "file": "trex-whole.png",
+      "w": 378,
+      "h": 427
+    }
+  },
+  "ptero": {
+    "head": {
+      "file": "ptero-head.png",
+      "w": 306,
+      "h": 271
+    },
+    "body": {
+      "file": "ptero-body.png",
+      "w": 237,
+      "h": 267
+    },
+    "arms": {
+      "file": "ptero-arms.png",
+      "w": 564,
+      "h": 202
+    },
+    "legs": {
+      "file": "ptero-legs.png",
+      "w": 184,
+      "h": 160
+    },
+    "tail": {
+      "file": "ptero-tail.png",
+      "w": 206,
+      "h": 188
+    },
+    "markings": {
+      "file": "ptero-markings.png",
+      "w": 273,
+      "h": 201
+    },
+    "whole": {
+      "file": "ptero-whole.png",
+      "w": 463,
+      "h": 365
+    }
+  }
+}

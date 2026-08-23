@@ -1,7 +1,7 @@
 import Link from "next/link";
 import App from "@/components/minecraft/App";
 import GestureTracker from "@/components/gesture/GestureTracker";
-import TreasureHud from "@/components/world/TreasureHud";
+import HeroHud from "@/components/world/HeroHud";
 import PowerupHud from "@/components/world/PowerupHud";
 import FloodHud from "@/components/world/FloodHud";
 import { ThemeFrame, ThemeHud } from "@/components/world/ThemeHud";
@@ -54,7 +54,7 @@ export default function MinecraftGame() {
         to free the mouse
       </p>
       <GestureTracker />
-      <TreasureHud />
+      <HeroHud />
       <PowerupHud />
       <FloodHud />
     </ThemeFrame>

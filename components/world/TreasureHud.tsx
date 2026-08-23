@@ -1,7 +1,7 @@
 "use client";
 
 import { useStarSpots } from "./starPlacement";
-import { useTreasureStore } from "./store";
+import { useTreasureStore } from "./treasureStore";
 import { cn } from "@/lib/utils";
 
 /**

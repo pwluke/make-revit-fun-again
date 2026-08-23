@@ -83,6 +83,9 @@ export function usePlayground() {
   return value;
 }
 
+import { useHeroStore } from "@/components/world/store";
+import { ACTIVE_DINO, DINOS, useDinoStore } from "@/components/world/dinoStore";
+
 export function PlaygroundProvider({ children }: { children: ReactNode }) {
   const stageRef = useRef<HTMLElement | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
@@ -306,6 +309,15 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
+  // Treasure Hunt progress. Read here as well as in MissionPanel so the
+  // reward effect below sees the same numbers the panel shows — otherwise a
+  // mission could read "complete" and never pay out.
+  const animalsFound = useHeroStore((s) => s.found.length);
+  const animalsTotal = useHeroStore((s) => s.total);
+  const powersUsed = useHeroStore((s) => s.everUsed.length);
+  const fossilsFound = useDinoStore((s) => s.found.length);
+  const fossilsTotal = DINOS[ACTIVE_DINO].parts.length;
+
   const zoomIn = useCallback(() => {
     setFov((current) => Math.max(28, current - 6));
   }, []);
@@ -346,6 +358,11 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
       treasures,
       botsTagged,
       botTotal,
+      animalsFound,
+      animalsTotal,
+      powersUsed,
+      fossilsFound,
+      fossilsTotal,
       waterLevel,
     });
     const finished = steps.every((step) => step.done);
@@ -357,11 +374,16 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
     showToast("Mission complete!", "You earned 15 stars.");
     tone(760, 0.16);
   }, [
+    animalsFound,
+    animalsTotal,
     botTotal,
     botsTagged,
     floor,
+    fossilsFound,
+    fossilsTotal,
     inkPicked,
     mode,
+    powersUsed,
     showToast,
     sketchDrawn,
     sketchSaved,
