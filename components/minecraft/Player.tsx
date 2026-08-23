@@ -32,8 +32,9 @@ const SPEED = 5;
 // scene's -30 gravity, so a single jump clears a one-block step — without
 // it the stairs and roofs in the world are unreachable.
 const JUMP_SPEED = 9;
-/** Spawn drop height, shared by the initial <RigidBody position> and respawns. */
-const SPAWN_HEIGHT = 10;
+/** In front of the recentered JSON grid (z ≈ ±9, ~23 tall) so spawn looks
+ *  at the facade instead of dropping through a floor. */
+const SPAWN_POSITION: [number, number, number] = [0, 8, 16];
 /** Vertical speed under the fly powerup, up or down. */
 const FLY_SPEED = 6;
 /** Climb rate under the monkey powerup. Slower than a jump, so scaling the
@@ -112,7 +113,10 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
   useEffect(() => {
     // Token 0 is the initial mount, where <RigidBody position> already applies.
     if (respawnToken === 0 || !ref.current) return;
-    ref.current.setTranslation({ x: 0, y: SPAWN_HEIGHT, z: 0 }, true);
+    ref.current.setTranslation(
+      { x: SPAWN_POSITION[0], y: SPAWN_POSITION[1], z: SPAWN_POSITION[2] },
+      true,
+    );
     ref.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
   }, [respawnToken]);
   // SceneCanvas is shared with the Rhino viewer, so its camera is authored for
@@ -126,7 +130,6 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     camera.rotation.set(0, 0, 0);
   }, [camera]);
   useFrame((state, delta) => {
-  
     // Rapier's wasm initialises asynchronously, so on a cold load this loop can
     // run a frame or two before <RigidBody> has created the body and populated
     // the ref — which threw "Cannot read properties of null (reading 'linvel')"
@@ -345,7 +348,7 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
         colliders={false}
         mass={1}
         type="dynamic"
-        position={[0, SPAWN_HEIGHT, 0]}
+        position={SPAWN_POSITION}
         enabledRotations={[false, false, false]}
       >
         <CapsuleCollider args={tiny ? CAPSULE_TINY : CAPSULE_NORMAL} />
