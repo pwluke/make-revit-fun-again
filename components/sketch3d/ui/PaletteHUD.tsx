@@ -119,7 +119,12 @@ export function PaletteHUD() {
     // the browser window, below the stage toolbar and outside the viewport the
     // strokes are actually being drawn in. z-20 clears the playground's own
     // overlay stack (the sketch canvas is z-7, the zoom controls z-10).
-    <div className="pointer-events-none absolute inset-x-0 bottom-14 z-20 flex flex-col items-center gap-2 font-sans select-none">
+    //
+    // bottom-24 rather than bottom-14: the bottom centre is a stack now, and at
+    // 14 this landed on top of the controls hint. Measured on /minecraft, from
+    // the bottom edge up — control bar 16-54px, hint 64-80px, so the palette
+    // starts at 96px. See the same constants in PowerupHud, which sits above it.
+    <div className="pointer-events-none absolute inset-x-0 bottom-24 z-20 flex flex-col items-center gap-2 font-sans select-none">
       {confirmingClear && (
         <div className="rounded bg-red-600/90 px-3 py-1 text-sm text-white">
           Press C again to clear everything

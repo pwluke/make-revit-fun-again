@@ -216,7 +216,10 @@ export function SketchToWorld({
       {!open && (
         <>
           <ModeStrip className={modeStripClassName} />
-          <ControlBar />
+          {/* The bar's `E` button and the `E` key are the same entry point, so
+              they share this one setter rather than the bar reaching into the
+              overlay state itself. */}
+          <ControlBar onCreate={() => setOpen(true)} />
         </>
       )}
       <SketchOverlay open={open} onCancel={handleCancel} onSubmit={handleSubmit} />

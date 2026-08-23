@@ -16,7 +16,7 @@ type Mode = "look" | "crayon" | "draw" | "hands";
  * The three modes share one mouse: Look is FPS pointer-lock (main's default),
  * Draw is the in-world 3D lines (B), Hands is the gesture camera.
  */
-export function ControlBar() {
+export function ControlBar({ onCreate }: { onCreate?: () => void } = {}) {
   const drawMode = useStore(sketchStore, (state) => state.drawMode);
   const handsOn = useGestureStore((state) => state.active);
   // Draw is only offered where Sketch-to-3D is available: always on /minecraft,
@@ -76,6 +76,32 @@ export function ControlBar() {
         active={mode === "hands"}
         onClick={() => setMode("hands")}
       />
+
+      {/* `E` is an ACTION, not a mode — it opens the generate overlay and
+          returns you to whatever mode you were in. Hence the divider: the three
+          buttons to the left are a radio group, this is a push button.
+
+          It lives here because the E/B hint strip was removed and nothing else
+          advertised `E`, leaving the single most important entry point in the
+          app undiscoverable. A button rather than a tip also gives it a
+          pointer-driven route: press Esc for the cursor, then click. */}
+      {onCreate ? (
+        <>
+          <span aria-hidden className="mx-0.5 h-6 w-px bg-slate-900/15" />
+          <ModeButton
+            label="Make"
+            hotkey="E"
+            active={false}
+            disabled={!canDraw}
+            title={
+              canDraw
+                ? "Draw a picture and turn it into a 3D thing"
+                : "Switch to Sketch to 3D to make something"
+            }
+            onClick={onCreate}
+          />
+        </>
+      ) : null}
     </div>
   );
 }

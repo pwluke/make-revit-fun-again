@@ -1121,17 +1121,46 @@
    Unlayered, so these beat the components' own Tailwind `bottom-*` utilities
    without needing !important — the same mechanism the Hands button relies on
    further down this file. */
+/* Base lift, every mode. The control bar is centred and grew a Crayon and a
+   Make button, so on this viewport (~1000px, far narrower than /minecraft's
+   full window) its left edge reaches x=270 while the water pill — widened by
+   the higher-ground hint — runs to x=288. At the components' own bottom-4/14
+   the two clipped corners. Sitting the stack above the bar's band (its top edge
+   is 61px up) makes that independent of how wide the bar grows. */
+.playground .world-hud-stars {
+  bottom: 72px;
+}
+.playground .world-hud-water {
+  bottom: 112px;
+}
+
+/* The remix inventory is centred at the bottom and so is the control bar, so
+   they overlap by construction rather than at some particular width. The
+   inventory moves up; the bar stays put, for the same reason as in explode. */
+.playground .model-viewport.mode-remix .remix-inventory {
+  bottom: 72px;
+}
 .playground .model-viewport.mode-remix .world-hud-stars {
   bottom: 152px;
 }
 .playground .model-viewport.mode-remix .world-hud-water {
   bottom: 192px;
 }
+/* Explode is the crowded one. Its gesture panel is bottom-left and up to 510px
+   wide, so on a ~1000px viewport it runs straight under the centred control bar
+   — they cannot both sit in the bottom band at any width. The panel goes above
+   the bar (whose top edge is 61px up), and the two pills go above the panel,
+   which is 85px tall. The bar itself never moves: it is the one control present
+   in every mode, and a primary control that hops around between activities is
+   worse than a crowded corner. */
+.playground .model-viewport.mode-explode .gesture-panel {
+  bottom: 72px;
+}
 .playground .model-viewport.mode-explode .world-hud-stars {
-  bottom: 114px;
+  bottom: 168px;
 }
 .playground .model-viewport.mode-explode .world-hud-water {
-  bottom: 154px;
+  bottom: 208px;
 }
 
 .playground .camera-preview {
