@@ -14,6 +14,8 @@ import { useGestureStore } from "../gesture/store";
 import { hitBlockCenter } from "./GestureBuilder";
 import { powerupState, usePowerupStore } from "../world/powerupStore";
 import { useFloodStore } from "../world/floodStore";
+import { playerOrigin } from "./player-origin";
+import { TARGET_BLOCK_SIZE } from "@/lib/use-grid-points";
 
 type Controls =
   | "forward"
@@ -41,17 +43,26 @@ const FLY_SPEED = 6;
  *  house still feels like work. */
 const CLIMB_SPEED = 3.5;
 /** How far ahead to look for a climbable wall — just past the capsule radius. */
-const WALL_REACH = 0.9;
+const WALL_REACH = TARGET_BLOCK_SIZE * 0.7;
 /** Heights above the body centre to probe for a wall, covering head to shin. */
-const WALL_PROBE_HEIGHTS = [0.4, 0, -0.5, -1];
+const WALL_PROBE_HEIGHTS = [0.2, 0, -0.25, -0.5];
 /** Fraction of walk speed pushed into the wall while climbing. */
 const CLIMB_WALL_PUSH = 0.25;
 /** Seconds after a jump during which "grounded" is ignored, so the body still
  *  resting on the floor doesn't immediately refill the jump count. */
 const JUMP_LOCKOUT = 0.2;
-/** Capsule [halfHeight, radius] at normal size and under the tiny powerup. */
-const CAPSULE_NORMAL: [number, number] = [0.75, 0.5];
-const CAPSULE_TINY: [number, number] = [0.3, 0.22];
+/** Standing eye height from the original [0.75, 0.5] capsule (its centre). */
+const EYE_HEIGHT = 0.75 + 0.5;
+/** Wider than half a voxel so you cannot slip through a one-brick gap.
+ *  Slide-along-wall still keeps stairs from swallowing the capsule. */
+const VOXEL_RADIUS = TARGET_BLOCK_SIZE * 0.55;
+const CAPSULE_NORMAL: [number, number] = [0.38, VOXEL_RADIUS];
+const CAPSULE_TINY: [number, number] = [0.16, TARGET_BLOCK_SIZE * 0.38];
+function eyeLift(shape: [number, number]) {
+  return EYE_HEIGHT - (shape[0] + shape[1]);
+}
+const slideDir = new THREE.Vector3();
+const SLIDE_PROBE_HEIGHTS = [0.15, -0.2];
 const climbDir = new THREE.Vector3();
 const direction = new THREE.Vector3();
 const frontVector = new THREE.Vector3();
@@ -139,8 +150,11 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     const { forward, backward, left, right, jump, crouch } = get();
     const velocity = ref.current.linvel();
     const speed = Math.hypot(velocity.x, velocity.y, velocity.z);
-    // update camera
-    state.camera.position.copy(ref.current.translation());
+    // Camera rides above the small capsule at the original eye height.
+    const shape = tiny ? CAPSULE_TINY : CAPSULE_NORMAL;
+    const body = ref.current.translation();
+    playerOrigin.set(body.x, body.y, body.z);
+    state.camera.position.set(body.x, body.y + eyeLift(shape), body.z);
     // gesture input (merged with mouse + keyboard)
     const gesture = useGestureStore.getState();
     const gestureOn = gesture.status === "on";
@@ -262,7 +276,7 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
       ref.current,
     );
     // Tiny shrinks the capsule, so the distance to the floor shrinks with it.
-    const groundReach = powerupState.tiny ? 0.75 : 1.75;
+    const groundReach = powerupState.tiny ? 0.45 : 0.85;
     const grounded = ray && ray.collider && Math.abs(ray.timeOfImpact) <= groundReach;
 
     // FLY: gravity off, Space rises and Shift drops. Toggled on transition
@@ -301,6 +315,38 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
           );
           return !!(hit && hit.collider);
         });
+      }
+    }
+
+    if (!orbiting && !climbing && !flying.current && (direction.x || direction.z)) {
+      // setLinvel every frame would otherwise keep driving the capsule into a
+      // stair riser or voxel corner after the solver already pushed it out.
+      slideDir.set(direction.x, 0, direction.z);
+      if (slideDir.lengthSq() > 1e-6) {
+        slideDir.normalize();
+        const reach = shape[1] + 0.1;
+        for (const offset of SLIDE_PROBE_HEIGHTS) {
+          const wall = world.castRayAndGetNormal(
+            new RAPIER.Ray(
+              { x: body.x, y: body.y + offset, z: body.z },
+              slideDir,
+            ),
+            reach,
+            true,
+            undefined,
+            undefined,
+            undefined,
+            ref.current,
+          );
+          if (!wall) continue;
+          const nx = wall.normal.x;
+          const nz = wall.normal.z;
+          const into = direction.x * nx + direction.z * nz;
+          if (into < 0) {
+            direction.x -= nx * into;
+            direction.z -= nz * into;
+          }
+        }
       }
     }
 
@@ -351,7 +397,11 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
         position={SPAWN_POSITION}
         enabledRotations={[false, false, false]}
       >
-        <CapsuleCollider args={tiny ? CAPSULE_TINY : CAPSULE_NORMAL} />
+        <CapsuleCollider
+          args={tiny ? CAPSULE_TINY : CAPSULE_NORMAL}
+          friction={0}
+          restitution={0}
+        />
       </RigidBody>
       <group
         ref={axe}
