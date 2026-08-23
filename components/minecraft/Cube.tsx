@@ -21,6 +21,7 @@ import { useGestureStore } from "../gesture/store";
 import { BreakDebris, spawnBreakDebris } from "./break-fx";
 import { playBreak, playPlace } from "@/components/world/sfx";
 import { playerOrigin } from "./player-origin";
+import { useHeroStore } from "@/components/world/store";
 import { THEMES, type LayerId } from "@/lib/themes";
 import { useSceneTheme, useThemeStore } from "../world/themeStore";
 
@@ -259,6 +260,10 @@ function InstancedCubes({
       const target = cubesRef.current[current.index];
       if (!target) return;
       if (e.button === 0) {
+        // Spider owns the left button: it shoots a web instead. Without this
+        // a click both fired the web and smashed the surface being aimed at,
+        // which then dropped the player.
+        if (useHeroStore.getState().active.includes("climb")) return;
         breakAt(current.index);
       } else if (e.button === 2) {
         // Instances are translation-only, so the local face normal is already

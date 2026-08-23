@@ -61,14 +61,19 @@ const WALL_WALK_SPEED = 4;
 const WALL_STICK = 6;
 /** How far below your feet the face may be before you count as fallen off. */
 const WALL_REPROBE = 1.2;
+/** Look this far ahead for the next face, so the roll starts before the edge. */
+const EDGE_LOOKAHEAD = 0.5;
+/** Reach used to feel around a convex corner onto the face beyond it. */
+const EDGE_WRAP = 0.9;
 /** Mouse sensitivity while wall-walking, matching PointerLockControls. */
 const WALL_LOOK_SENSITIVITY = 0.002;
 const WALL_MAX_PITCH = Math.PI / 2 - 0.12;
 /** Web-zip: click a surface further than the break reach to be pulled to it. */
 const ZIP_SPEED = 16;
 const ZIP_MAX_DIST = 60;
-/** Clicks nearer than this stay ordinary block-breaking. */
-const WEB_MIN_DIST = 9;
+/** Web anchors must be at least a body-length away, so a click while
+ *  pressed against a wall does not yank you into it. */
+const WEB_MIN_DIST = 2;
 const ZIP_ARRIVE = 1.4;
 const ZIP_TIMEOUT = 3; // seconds, so a blocked pull always lets go
 /** Flight: each double-tap of jump lifts the hover target by this much.
@@ -112,6 +117,15 @@ const wQuat = new THREE.Quaternion();
 const wLocal = new THREE.Quaternion();
 const wEuler = new THREE.Euler(0, 0, 0, "YXZ");
 const wMove = new THREE.Vector3();
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
+const rollFrom = new THREE.Vector3();
+const rollTo = new THREE.Vector3();
+const rollFwd = new THREE.Vector3();
+const rollFlat = new THREE.Vector3();
+const rollAxis = new THREE.Vector3();
+const rollQuat = new THREE.Quaternion();
+const webMid = new THREE.Vector3();
+const webDir = new THREE.Vector3();
 const zipVec = new THREE.Vector3();
 const direction = new THREE.Vector3();
 const frontVector = new THREE.Vector3();
@@ -192,6 +206,7 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
   const wallYaw = useRef(0);
   const wallPitch = useRef(0);
   const gravityOn = useRef(true);
+  const webRef = useRef<THREE.Mesh>(null);
 
   // The one effect Player needs during render rather than in the frame loop:
   // the collider size is a prop, so shrinking means re-rendering.
@@ -276,29 +291,63 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [camera, scene]);
 
-  /** Snap onto a face: adopt its normal as "up", and pick a yaw that keeps
-   *  looking roughly where the player already was, so the flip is a roll
-   *  rather than a teleport of the view. */
-  const attachToFace = (
+  /**
+   * Adopt a new face as the floor. The view is carried across by the same
+   * rotation that takes the old up-vector to the new one, so walking over a
+   * cube rolls the camera — up the side you face the sky, on the top face
+   * you are level again, down the far side you face the ground — instead of
+   * cutting to a fresh orientation at every edge.
+   */
+  const reorient = (
     nx: number,
     ny: number,
     nz: number,
     cam: THREE.Camera,
   ) => {
+    rollFrom.copy(wallUp.current ?? WORLD_UP);
+    rollTo.set(nx, ny, nz).normalize();
+    cam.getWorldDirection(rollFwd);
+    // setFromUnitVectors is undefined for exact opposites; a half turn about
+    // any perpendicular axis is the right answer there.
+    if (rollFrom.dot(rollTo) < -0.9999) {
+      rollAxis.set(1, 0, 0);
+      if (Math.abs(rollFrom.x) > 0.9) rollAxis.set(0, 1, 0);
+      rollAxis.cross(rollFrom).normalize();
+      rollQuat.setFromAxisAngle(rollAxis, Math.PI);
+    } else {
+      rollQuat.setFromUnitVectors(rollFrom, rollTo);
+    }
+    rollFwd.applyQuaternion(rollQuat).normalize();
+
     const up = (wallUp.current ??= new THREE.Vector3());
-    up.set(nx, ny, nz).normalize();
+    up.copy(rollTo);
     buildWallBasis(up);
-    // Project the old view direction into the new face's tangent plane and
-    // read the yaw straight off it.
-    const look = cam.getWorldDirection(rotation).clone();
-    look.addScaledVector(up, -look.dot(up));
-    if (look.lengthSq() < 1e-6) look.copy(wBack).negate();
-    look.normalize();
-    wallYaw.current = Math.atan2(
-      -look.dot(wRight),
-      -look.dot(wBack),
+
+    // Read the carried look direction back out as yaw and pitch on the new face.
+    const vert = THREE.MathUtils.clamp(rollFwd.dot(up), -1, 1);
+    rollFlat.copy(rollFwd).addScaledVector(up, -vert);
+    if (rollFlat.lengthSq() < 1e-8) rollFlat.copy(wBack).negate();
+    rollFlat.normalize();
+    wallYaw.current = Math.atan2(-rollFlat.dot(wRight), -rollFlat.dot(wBack));
+    wallPitch.current = THREE.MathUtils.clamp(
+      Math.asin(vert),
+      -WALL_MAX_PITCH,
+      WALL_MAX_PITCH,
     );
-    wallPitch.current = 0;
+  };
+
+  /** Leaving the wall: level the camera on the world horizon, keeping the
+   *  heading. PointerLockControls reads the camera's own quaternion on each
+   *  mouse move, so handing it a level one is all the resync it needs. */
+  const detachFromWall = (cam: THREE.Camera) => {
+    if (!wallUp.current) return;
+    cam.getWorldDirection(rollFwd);
+    rollFwd.y = 0;
+    if (rollFwd.lengthSq() < 1e-8) rollFwd.set(0, 0, -1);
+    rollFwd.normalize();
+    wEuler.set(0, Math.atan2(-rollFwd.x, -rollFwd.z), 0, "YXZ");
+    cam.quaternion.setFromEuler(wEuler);
+    wallUp.current = null;
   };
 
   useFrame((state, delta) => {
@@ -476,7 +525,7 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     // SPIDER. Walking into a wall while the power is on flips you onto it:
     // that face becomes the floor, the sky is ahead, and you crawl across
     // the building like the animal does. Leaving the power drops you.
-    if (!canClimb || orbiting) wallUp.current = null;
+    if ((!canClimb || orbiting) && wallUp.current) detachFromWall(state.camera);
 
     if (canClimb && !orbiting && !wallUp.current) {
       // Not yet attached: pressing forward into a face grabs it.
@@ -499,43 +548,67 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
               ref.current,
             );
             if (hit && hit.collider) {
-              attachToFace(hit.normal.x, hit.normal.y, hit.normal.z, state.camera);
+              reorient(hit.normal.x, hit.normal.y, hit.normal.z, state.camera);
               break;
             }
           }
         }
       }
     } else if (wallUp.current) {
-      // Attached: keep the face under our feet up to date, so crawling over
-      // a corner rolls onto the next face instead of dropping off it.
+      // Attached. Every frame, work out which face is under our feet — that
+      // is what drives the camera roll, so an edge has to be found slightly
+      // BEFORE we walk off it, not after.
       wUp.copy(wallUp.current);
-      const below = world.castRayAndGetNormal(
-        new RAPIER.Ray(body, { x: -wUp.x, y: -wUp.y, z: -wUp.z }),
-        WALL_REPROBE,
-        true,
-        undefined,
-        undefined,
-        undefined,
-        ref.current,
-      );
-      if (below && below.collider) {
-        wallUp.current.set(below.normal.x, below.normal.y, below.normal.z).normalize();
-      } else {
-        // Nothing underfoot. Try the face we are walking into — that is a
-        // convex corner, and wrapping onto it is the whole point.
-        const ahead = world.castRayAndGetNormal(
-          new RAPIER.Ray(body, { x: wMove.x, y: wMove.y, z: wMove.z }),
-          WALL_REPROBE,
+      const step = wMove.lengthSq() > 0.01 ? EDGE_LOOKAHEAD : 0;
+      const probeOrigin = {
+        x: body.x + wMove.x * step,
+        y: body.y + wMove.y * step,
+        z: body.z + wMove.z * step,
+      };
+      const down = { x: -wUp.x, y: -wUp.y, z: -wUp.z };
+      const cast = (origin: typeof probeOrigin, dir: typeof down, len: number) =>
+        world.castRayAndGetNormal(
+          new RAPIER.Ray(origin, dir),
+          len,
           true,
           undefined,
           undefined,
           undefined,
           ref.current,
         );
-        if (ahead && ahead.collider && wMove.lengthSq() > 0.01) {
-          attachToFace(ahead.normal.x, ahead.normal.y, ahead.normal.z, state.camera);
+
+      // 1. Still over the same kind of surface a step ahead: follow it. This
+      //    also tracks gentle curvature without any special case.
+      const below = cast(probeOrigin, down, WALL_REPROBE);
+      if (below && below.collider) {
+        const n = below.normal;
+        if (wUp.dot(new THREE.Vector3(n.x, n.y, n.z)) < 0.999) {
+          reorient(n.x, n.y, n.z, state.camera);
+        }
+      } else {
+        // 2. Concave corner: a face rising in front of us. Walk onto it.
+        const front = wMove.lengthSq() > 0.01
+          ? cast(body, { x: wMove.x, y: wMove.y, z: wMove.z }, WALL_REPROBE)
+          : null;
+        if (front && front.collider) {
+          reorient(front.normal.x, front.normal.y, front.normal.z, state.camera);
         } else {
-          wallUp.current = null;
+          // 3. Convex corner: the surface ended. Step past the edge, then
+          //    look BACK the way we came — that ray lands on the face we are
+          //    wrapping onto, which is how you get from a wall to a roof.
+          const past = {
+            x: body.x + wMove.x * EDGE_WRAP - wUp.x * EDGE_WRAP,
+            y: body.y + wMove.y * EDGE_WRAP - wUp.y * EDGE_WRAP,
+            z: body.z + wMove.z * EDGE_WRAP - wUp.z * EDGE_WRAP,
+          };
+          const around = wMove.lengthSq() > 0.01
+            ? cast(past, { x: -wMove.x, y: -wMove.y, z: -wMove.z }, EDGE_WRAP * 2)
+            : null;
+          if (around && around.collider) {
+            reorient(around.normal.x, around.normal.y, around.normal.z, state.camera);
+          } else {
+            detachFromWall(state.camera);
+          }
         }
       }
     }
@@ -601,10 +674,23 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
         zipTarget.current.z - body.z,
       );
       const dist = zipVec.length();
+      // Draw the strand: a thin white cylinder from just below the eye to
+      // the anchor, re-aimed every frame as the pull closes the gap.
+      if (webRef.current) {
+        webRef.current.visible = true;
+        webMid
+          .copy(state.camera.position)
+          .addScaledVector(zipTarget.current, 1)
+          .multiplyScalar(0.5);
+        webRef.current.position.copy(webMid);
+        webRef.current.scale.set(1, Math.max(dist, 0.01), 1);
+        webDir.copy(zipTarget.current).sub(state.camera.position).normalize();
+        webRef.current.quaternion.setFromUnitVectors(WORLD_UP, webDir);
+      }
       if (!canClimb || orbiting || dist < ZIP_ARRIVE || now > zipDeadline.current) {
         // Arriving on a face you shot at lands you standing on it.
         if (dist < ZIP_ARRIVE && zipFace.current && canClimb) {
-          attachToFace(
+          reorient(
             zipFace.current.x,
             zipFace.current.y,
             zipFace.current.z,
@@ -613,6 +699,7 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
         }
         zipTarget.current = null;
         zipFace.current = null;
+        if (webRef.current) webRef.current.visible = false;
       } else {
         zipVec.normalize().multiplyScalar(ZIP_SPEED);
         ref.current.setLinvel({ x: zipVec.x, y: zipVec.y, z: zipVec.z }, true);
@@ -730,6 +817,11 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
           restitution={0}
         />
       </RigidBody>
+      {/* Web strand. A unit-tall cylinder, scaled and aimed each frame. */}
+      <mesh ref={webRef} visible={false} raycast={() => {}}>
+        <cylinderGeometry args={[0.02, 0.02, 1, 5]} />
+        <meshBasicMaterial color="#ffffff" toneMapped={false} />
+      </mesh>
       <group
         ref={axe}
         onPointerMissed={(e) => (axe.current.children[0].rotation.x = -0.5)}
