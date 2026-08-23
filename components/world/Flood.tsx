@@ -81,10 +81,12 @@ export function Flood() {
           so it doesn't punch a hole in what's behind it when seen underwater.
           Glassier and paler than open water would be — this is the pool in the
           reference art, and the sun's glint off it is most of what sells it. */}
+      {/* Opacity down from 0.5: at eye level the surface fills the lower half
+          of the frame, so every point of it tints a large share of the view. */}
       <meshStandardMaterial
         color={theme.flood}
         transparent
-        opacity={0.5}
+        opacity={0.38}
         depthWrite={false}
         side={THREE.DoubleSide}
         roughness={0.08}
