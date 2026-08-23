@@ -37,8 +37,15 @@ const SPEED = 5;
 // it the stairs and roofs in the world are unreachable.
 const JUMP_SPEED = 9;
 /** In front of the recentered JSON grid (z ≈ ±9, ~23 tall) so spawn looks
- *  at the facade instead of dropping through a floor. */
-const SPAWN_POSITION: [number, number, number] = [0, 8, 16];
+ *  at the facade instead of dropping through a floor.
+ *
+ *  z=26 rather than 16: the facade front sits at z≈9, so the old spawn stood
+ *  ~7 units off a 23-unit-tall building and you opened the game staring at a
+ *  wall. At ~17 units back a 45° vertical fov takes in about 14 units of
+ *  height, so the entrance and the floor above it read as a building rather
+ *  than as texture. Framing the whole 23 would need z≈36, which is far enough
+ *  that the model stops feeling like somewhere you are standing. */
+const SPAWN_POSITION: [number, number, number] = [0, 8, 26];
 /** Vertical speed under the fly powerup, up or down. */
 const FLY_SPEED = 6;
 /** Climb rate under the monkey powerup. Slower than a jump, so scaling the
