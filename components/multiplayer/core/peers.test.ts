@@ -46,6 +46,26 @@ describe("syncPeers", () => {
     expect(updated.drawn.x).toBe(0.5); // but the easing state was not reset
   });
 
+  it("keeps walk-cycle state across updates", () => {
+    // Presence lands ~10x a second. Resetting the stride on each one would snap
+    // every avatar back to a neutral pose several times per second, which reads
+    // as a twitch rather than as walking.
+    syncPeers(new Map([["a", at(0)]]));
+    const [peer] = listed();
+    peer.gait.phase = 2.5;
+    peer.gait.speed = 4;
+
+    syncPeers(new Map([["a", at(1)]]));
+
+    const [updated] = listed();
+    expect(updated.gait).toEqual({ phase: 2.5, speed: 4 });
+  });
+
+  it("starts a new peer at rest", () => {
+    syncPeers(new Map([["a", at(0)]]));
+    expect(listed()[0].gait).toEqual({ phase: 0, speed: 0 });
+  });
+
   it("updates colour in place", () => {
     syncPeers(new Map([["a", at(0)]]));
     syncPeers(new Map([["a", { ...at(0), color: "#2cae87" }]]));

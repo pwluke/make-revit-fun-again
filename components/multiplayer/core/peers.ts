@@ -27,6 +27,16 @@ export type Peer = PeerState & {
    * appears where they are instead of flying in from the middle of the map.
    */
   drawn: { x: number; y: number; z: number; yaw: number };
+  /**
+   * Walk-cycle state, kept per peer because each one is at a different point in
+   * its stride. Derived entirely from how far the avatar moved — nobody
+   * transmits an animation state, so this costs nothing on the wire.
+   *
+   * Lives beside `drawn` rather than inside it: `drawn` is compared field-for-
+   * field in tests as the interpolation contract, and animation is not part of
+   * that contract.
+   */
+  gait: { phase: number; speed: number };
 };
 
 const peers = new Map<string, Peer>();
@@ -36,9 +46,9 @@ const peers = new Map<string, Peer>();
  * the FULL peer slice each time, not a delta, so this reconciles rather than
  * merges: anyone absent from `next` has disconnected and their avatar goes.
  *
- * Existing peers are mutated in place instead of replaced so that `drawn`
- * survives — rebuilding the entry every tick would reset the interpolation and
- * pin every avatar to its last reported position.
+ * Existing peers are mutated in place instead of replaced so that `drawn` and
+ * `gait` survive — rebuilding the entry every tick would reset the
+ * interpolation and pin every avatar to its last reported position, mid-stride.
  */
 export function syncPeers(next: Map<string, PeerState>): void {
   for (const id of peers.keys()) {
@@ -57,6 +67,10 @@ export function syncPeers(next: Map<string, PeerState>): void {
         id,
         ...state,
         drawn: { x: state.x, y: state.y, z: state.z, yaw: state.yaw },
+        // Staggered by nothing in particular — two players who join together and
+        // walk together will be in step. That reads as fine; de-syncing them
+        // would mean seeding from a random, and randomness here buys nothing.
+        gait: { phase: 0, speed: 0 },
       });
     }
   }
