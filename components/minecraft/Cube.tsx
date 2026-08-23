@@ -20,7 +20,13 @@ import { SCENE } from "@/lib/palette";
 import { useGestureStore } from "../gesture/store";
 import { BreakDebris, playBreakSound, spawnBreakDebris } from "./break-fx";
 import { playerOrigin } from "./player-origin";
-import { buildVoxelIndex, cellKey, pickVoxel } from "./voxel-pick";
+import {
+  buildVoxelIndex,
+  cellKey,
+  nearestInstances,
+  pickVoxel,
+  type VoxelIndex,
+} from "./voxel-pick";
 import { THEMES, type LayerId } from "@/lib/themes";
 import { useSceneTheme, useThemeStore } from "../world/themeStore";
 
@@ -131,22 +137,21 @@ function cullEnclosed(cubes: CubeInstance[], size: CubeCoords): CubeInstance[] {
   return visible;
 }
 
+/**
+ * The brick aimed at plus its nearest neighbours. Neighbours come from the
+ * voxel index — expanding shells around the origin cell — rather than by
+ * scoring every cube in the world and sorting the result.
+ */
 function breakCluster(
   origin: CubeInstance,
   cubes: CubeInstance[],
+  index: VoxelIndex,
   extra: number,
 ): CubeInstance[] {
-  const scored: { cube: CubeInstance; distanceSq: number }[] = [];
-  for (const cube of cubes) {
-    const dx = cube.position[0] - origin.position[0];
-    const dy = cube.position[1] - origin.position[1];
-    const dz = cube.position[2] - origin.position[2];
-    const distanceSq = dx * dx + dy * dy + dz * dz;
-    if (distanceSq === 0) continue;
-    scored.push({ cube, distanceSq });
-  }
-  scored.sort((a, b) => a.distanceSq - b.distanceSq);
-  return [origin, ...scored.slice(0, extra).map(({ cube }) => cube)];
+  const neighbours = nearestInstances(index, origin.position, extra)
+    .map((i) => cubes[i])
+    .filter((cube): cube is CubeInstance => !!cube && cube !== origin);
+  return [origin, ...neighbours];
 }
 
 export const Cubes = () => {
@@ -260,12 +265,12 @@ function InstancedCubes({
     (index: number) => {
       const target = cubesRef.current[index];
       if (!target) return;
-      const cluster = breakCluster(target, cubesRef.current, BREAK_NEIGHBORS);
+      const cluster = breakCluster(target, cubesRef.current, voxelIndex, BREAK_NEIGHBORS);
       removeCubes(cluster.map((cube) => cube.position));
       spawnBreakDebris(cluster, sizeRef.current);
       playBreakSound(cluster.length);
     },
-    [removeCubes],
+    [removeCubes, voxelIndex],
   );
 
   useFrame(() => {
