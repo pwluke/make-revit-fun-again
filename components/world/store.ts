@@ -20,20 +20,40 @@ export const ABILITY_COLORS: Record<AbilityId, string> = {
   climb: "#ef4444",
 };
 
-export type Ability = { name: string; emoji: string; power: string };
+export type Ability = {
+  name: string;
+  emoji: string;
+  /** Long form, for the unlock card and the slot tooltip. */
+  power: string;
+  /** Short form, shown under the panel while the power is switched on.
+   *  Written as controls, not prose — this is a reminder, not a lesson. */
+  tip: string;
+};
 
 export const ABILITIES: Record<AbilityId, Ability> = {
-  speed: { name: "Bunny", emoji: "🐰", power: "Twice as fast, and twice as high" },
-  tiny: { name: "Mouse", emoji: "🐭", power: "Shrink to fit through gaps" },
+  speed: {
+    name: "Bunny",
+    emoji: "🐰",
+    power: "Twice as fast, and twice as high",
+    tip: "Speed ×2 · Jump ×2",
+  },
+  tiny: {
+    name: "Mouse",
+    emoji: "🐭",
+    power: "Shrink to fit through gaps",
+    tip: "Mouse-sized · fits through gaps",
+  },
   fly: {
     name: "Butterfly",
     emoji: "🦋",
     power: "Double-tap Space to rise, again to go higher",
+    tip: "Space ×2 = fly up · again = higher",
   },
   climb: {
     name: "Spider",
     emoji: "🕷️",
     power: "Walk into a wall to climb it · click far away to swing over",
+    tip: "Walk at a wall = climb it · Click = web",
   },
 };
 

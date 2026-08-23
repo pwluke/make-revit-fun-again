@@ -180,6 +180,24 @@ export default function HeroHud({
           </div>
         </div>
 
+        {/* What the powers you have switched on actually do. Only the active
+            ones, so the strip stays short and always relevant. */}
+        {active.length > 0 ? (
+          <div className="flex flex-col items-end gap-1 rounded-2xl bg-slate-900/80 px-2.5 py-1.5 shadow-lg backdrop-blur-sm">
+            {ABILITY_ORDER.filter((id) => active.includes(id)).map((id) => (
+              <div key={id} className="flex items-center gap-1.5">
+                <span className="text-sm leading-none">{ABILITIES[id].emoji}</span>
+                <span
+                  className="text-[11px] font-bold"
+                  style={{ color: ABILITY_COLORS[id] }}
+                >
+                  {ABILITIES[id].tip}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
         {complete ? (
           <div className="pointer-events-auto flex items-center gap-3 rounded-2xl bg-amber-300 px-3 py-2 shadow-lg ring-1 ring-amber-500/30">
             <span className="text-sm font-bold text-slate-900">
