@@ -1,7 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import { occupiedPointCoords, useGridPoints } from "@/lib/use-grid-points";
+import {
+  TARGET_BLOCK_SIZE,
+  occupiedPointCoords,
+  useGridPoints,
+} from "@/lib/use-grid-points";
 import { bearing, seededRandom } from "@/components/world/starPlacement";
 
 /**
@@ -71,6 +75,38 @@ const SEED = 0x1a5e42;
 /** Body centre above the floor. Bots stand ~1.15 tall, the eye rides 1.25. */
 export const BOT_HEIGHT_OFFSET = 0.5;
 
+/**
+ * How far below the highest voxel a column's top can sit and still count as
+ * "the roof".
+ *
+ * Deliberately generous. At 1.2 (a parapet plus a slab) the band on the real
+ * model is the set-back top deck only, and a boss standing there is occluded
+ * from every point in the arena — measured: his head clears the facade in front
+ * of him only from ~65 m back, and ARENA_RADIUS is 34. Taking the top storey
+ * rather than the top slab brings the front parapet into the band, which is
+ * where he ends up standing, in plain view from the lawn.
+ */
+const ROOF_BAND = 4.5;
+
+/**
+ * The smallest plateau worth putting a boss on, in cells. Below this the
+ * "roof" found is a lift overrun or a chimney, and the Inspector would be
+ * balanced on a post.
+ */
+const MIN_ROOF_CELLS = 12;
+
+export type RoofPlan = {
+  /** Cells he may pace: the perimeter ring of the top plateau, in walk-grid
+   *  coordinates. See buildRoof for why it is the ring and not the whole top. */
+  cells: [number, number][];
+  /** Same cells, for O(1) membership from the frame loop. */
+  set: Set<string>;
+  /** Cell key -> world Y of that column's walking surface. */
+  surface: Map<string, number>;
+  /** Where the Inspector starts: the plateau cell nearest its centroid. */
+  spawn: { cell: [number, number]; pos: [number, number, number] };
+};
+
 export type BotSpot = {
   id: string;
   cell: [number, number];
@@ -94,6 +130,9 @@ export type Arena = {
   cells: [number, number][];
   /** Candidate spawn cells: inside, and in a room worth the name. */
   rooms: [number, number][];
+  /** The top of the building, where the Inspector waits. Null until the
+   *  voxels have streamed in, or if the model has no plateau worth the name. */
+  roof: RoofPlan | null;
   bounds: Bounds;
   spots: BotSpot[];
 };
@@ -146,6 +185,78 @@ function components(
 }
 
 /**
+ * The roof plateau: columns whose highest voxel is within ROOF_BAND of the
+ * highest voxel anywhere, reduced to their largest connected patch.
+ *
+ * Deriving it from per-column tops rather than from the A-ROOF layer is
+ * deliberate — the layer includes canopies and overhangs at every level, and
+ * what the boss needs is "the surface nothing else is stacked on top of".
+ */
+function buildRoof(tops: Map<string, number>): RoofPlan | null {
+  let highest = -Infinity;
+  for (const top of tops.values()) if (top > highest) highest = top;
+  if (!Number.isFinite(highest)) return null;
+
+  const band: [number, number][] = [];
+  for (const [key, top] of tops) {
+    if (top < highest - ROOF_BAND) continue;
+    const [i, j] = key.split(",").map(Number) as [number, number];
+    band.push([i, j]);
+  }
+  const bandSet = new Set(band.map(([i, j]) => cellKey(i, j)));
+  const plateau = components(band, bandSet).sort(
+    (a, b) => b.length - a.length,
+  )[0];
+  if (!plateau || plateau.length < MIN_ROOF_CELLS) return null;
+
+  // Voxel y values are cube centres, so the surface you stand on is half a
+  // block above the top one.
+  const surface = new Map<string, number>();
+  for (const [i, j] of plateau) {
+    const key = cellKey(i, j);
+    surface.set(key, tops.get(key)! + TARGET_BLOCK_SIZE / 2);
+  }
+
+  // He paces the perimeter, not the interior — and this is a visibility
+  // requirement, not a stylistic one. Standing at the centre of the roof he is
+  // occluded by his own parapet from every point in the arena: from a 1.25 m
+  // camera, a 4.4 m figure 19 m behind an 18 m roof edge only clears that edge
+  // from ~68 m back, and ARENA_RADIUS is 34. A boss nobody can see is a round
+  // nobody can win. The ring is every plateau cell with a neighbour off it.
+  const plateauSet = new Set(plateau.map(([i, j]) => cellKey(i, j)));
+  const ring = plateau.filter(([i, j]) =>
+    NEIGHBOR_STEPS.some(([di, dj]) => !plateauSet.has(cellKey(i + di, j + dj))),
+  );
+  // A plateau small enough to be all edge has nothing to gain from the ring.
+  const walk = ring.length >= MIN_ROOF_CELLS ? ring : plateau;
+
+  // Spawn on the side of the ring nearest the player, so he is in view on the
+  // approach rather than something you have to circle the building to find.
+  const [playerX, playerZ] = cellToWorld(...SEED_CELL);
+  let spawnCell = walk[0];
+  let best = Infinity;
+  for (const [i, j] of walk) {
+    const [x, z] = cellToWorld(i, j);
+    const distance = (x - playerX) * (x - playerX) + (z - playerZ) * (z - playerZ);
+    if (distance < best) {
+      best = distance;
+      spawnCell = [i, j];
+    }
+  }
+
+  const [x, z] = cellToWorld(...spawnCell);
+  return {
+    cells: walk,
+    set: new Set(walk.map(([i, j]) => cellKey(i, j))),
+    surface,
+    spawn: {
+      cell: [...spawnCell] as [number, number],
+      pos: [x, surface.get(cellKey(...spawnCell))!, z],
+    },
+  };
+}
+
+/**
  * Blocked columns from the obstruction band, covered columns from anything
  * overhead, then a flood fill out from the spawn. Runs once per grid change
  * (the grid is fetched once and shared — see lib/use-grid-points.ts).
@@ -153,6 +264,8 @@ function components(
 export function buildArena(points: ReturnType<typeof occupiedPointCoords>) {
   const blocked = new Set<string>();
   const covered = new Set<string>();
+  /** Highest voxel centre per column — the roof, before it is filtered. */
+  const tops = new Map<string, number>();
   const bounds: Bounds = {
     minX: Infinity,
     maxX: -Infinity,
@@ -169,6 +282,8 @@ export function buildArena(points: ReturnType<typeof occupiedPointCoords>) {
     if (z < bounds.minZ) bounds.minZ = z;
     if (z > bounds.maxZ) bounds.maxZ = z;
     const key = cellKey(...worldToCell(x, z));
+    const top = tops.get(key);
+    if (top === undefined || y > top) tops.set(key, y);
     // Anything overhead means this column is under cover — a ceiling, a slab or
     // the roof. That, not the footprint, is what separates a room from a
     // courtyard.
@@ -219,7 +334,7 @@ export function buildArena(points: ReturnType<typeof occupiedPointCoords>) {
     .filter((group) => group.length >= MIN_ROOM_CELLS)
     .flat();
 
-  return { walkable, roam, cells, rooms, bounds };
+  return { walkable, roam, cells, rooms, roof: buildRoof(tops), bounds };
 }
 
 /**

@@ -10,6 +10,36 @@ export const DEFAULT_BOT_COUNT = 3;
  *  raise it to 2 once the chase feels good. */
 export const TAG_HITS = 1;
 
+/**
+ * The final boss. He is not one of the scan-bots: he spawns on the roof, has
+ * his own id so hit attribution and the tag threshold can tell him apart, and
+ * he counts toward the round total — so the hunt is not over until he is down.
+ */
+export const BOSS_ID = "the-inspector";
+export const BOSS_NAME = "The Inspector";
+
+/** Hits to put the Inspector down, against TAG_HITS for a scan-bot. High
+ *  enough that the fight is a fight; low enough to stay a hackathon demo. */
+export const BOSS_HITS = 12;
+
+/**
+ * How the Inspector differs from the scan-bots at the same difficulty. He is
+ * a multiplier on the chosen preset rather than a fourth preset, so the setup
+ * card's three choices still mean what they say.
+ */
+export const BOSS_MODIFIER = {
+  /** Fires this much faster. */
+  fireInterval: 0.55,
+  damage: 1.75,
+  accuracy: 1.25,
+  /** Flat range instead of a multiplier: he is on the roof, and anything less
+   *  than the whole arena would let the player stand off and plink him. */
+  range: 70,
+  /** Slower on the draw than a bot — the tell that gives you time to break
+   *  line of sight when he first spots you. */
+  reaction: 1.4,
+} as const;
+
 export type Difficulty = "beginner" | "intermediate" | "expert";
 
 export type DifficultyDef = {
@@ -95,6 +125,12 @@ type LaserTagStore = {
   /** Bearing + distance to the nearest live bot, e.g. "north-east, 14 m". */
   hint: string | null;
   health: number;
+  /** Hits landed on the Inspector so far, out of BOSS_HITS. Published on its
+   *  own so the boss bar can move without the pip row re-rendering. */
+  bossHits: number;
+  /** Whether this round has a Inspector at all — false until the voxels have
+   *  streamed in far enough to find a roof. */
+  bossPresent: boolean;
   /** Bumped every time the player is hit, so the HUD can flash without having
    *  to diff health itself. */
   hurtToken: number;
@@ -107,6 +143,7 @@ type LaserTagStore = {
   /** Back to the setup card to change settings. */
   backToSetup: () => void;
   setTotal: (total: number) => void;
+  setBossPresent: (present: boolean) => void;
 };
 
 export const useLaserTagStore = create<LaserTagStore>((set, get) => ({
@@ -119,6 +156,8 @@ export const useLaserTagStore = create<LaserTagStore>((set, get) => ({
   lastTagged: null,
   hint: null,
   health: MAX_HEALTH,
+  bossHits: 0,
+  bossPresent: false,
   hurtToken: 0,
   roundToken: 0,
   startRound: (config) => {
@@ -133,6 +172,7 @@ export const useLaserTagStore = create<LaserTagStore>((set, get) => ({
       lastTagged: null,
       hint: null,
       health: MAX_HEALTH,
+      bossHits: 0,
       // Reset with the rest: a stale token would replay the damage flash on the
       // first frame of a fresh round.
       hurtToken: 0,
@@ -148,12 +188,17 @@ export const useLaserTagStore = create<LaserTagStore>((set, get) => ({
       shots: 0,
       hits: 0,
       health: MAX_HEALTH,
+      bossHits: 0,
       hurtToken: 0,
     });
   },
   setTotal: (total) => {
     if (get().total === total) return;
     set({ total });
+  },
+  setBossPresent: (present) => {
+    if (get().bossPresent === present) return;
+    set({ bossPresent: present });
   },
 }));
 
@@ -188,13 +233,18 @@ export function registerShot() {
   laserTagState.shots += 1;
 }
 
+/** Hits needed to tag this target. The boss is the only exception. */
+export function hitsToTag(id: string) {
+  return id === BOSS_ID ? BOSS_HITS : TAG_HITS;
+}
+
 /** Land one hit on a bot. Returns true when this hit is the one that tags it. */
 export function landHit(id: string): boolean {
   laserTagState.hitCount += 1;
   if (laserTagState.tagged.has(id)) return false;
   const hits = (laserTagState.hits.get(id) ?? 0) + 1;
   laserTagState.hits.set(id, hits);
-  if (hits < TAG_HITS) return false;
+  if (hits < hitsToTag(id)) return false;
   laserTagState.tagged.add(id);
   laserTagState.lastTagged = id;
   return true;
@@ -220,6 +270,7 @@ export function publishLaserTag() {
   if (store.phase === "setup") return;
 
   const hint = hintText();
+  const bossHits = laserTagState.hits.get(BOSS_ID) ?? 0;
   let phase = store.phase;
   if (!laserTagState.finished) {
     if (laserTagState.health <= 0) {
@@ -239,6 +290,7 @@ export function publishLaserTag() {
     store.phase !== phase ||
     store.hint !== hint ||
     store.health !== laserTagState.health ||
+    store.bossHits !== bossHits ||
     store.hurtToken !== laserTagState.hurtCount;
   if (!changed) return;
 
@@ -250,6 +302,7 @@ export function publishLaserTag() {
     phase,
     hint,
     health: laserTagState.health,
+    bossHits,
     hurtToken: laserTagState.hurtCount,
   });
 }
