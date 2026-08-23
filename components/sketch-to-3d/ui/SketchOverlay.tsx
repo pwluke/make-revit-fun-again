@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { mergeTranscript } from "../core/dictation";
 import type { CreationMode } from "../core/types";
+import { useDictation } from "./useDictation";
 
 export type SketchOverlayProps = {
   open: boolean;
@@ -91,6 +93,17 @@ export function SketchOverlay({ open, onCancel, onSubmit }: SketchOverlayProps) 
     drawStrokes(ctx, strokesRef.current);
   }, [drawStrokes]);
 
+  // Dictation appends rather than replaces, so talking and typing compose:
+  // type "a red", say "dragon with wings", get one prompt. It also clears the
+  // "Tell us what it is" hint, which would otherwise stay up accusingly after
+  // the field had in fact been filled — by voice.
+  const handleDictated = useCallback((text: string) => {
+    setUserText((previous) => mergeTranscript(previous, text));
+    setTextHint(null);
+  }, []);
+
+  const dictation = useDictation(handleDictated);
+
   const resetDrawing = useCallback(() => {
     strokesRef.current = [];
     currentStrokeRef.current = null;
@@ -111,6 +124,14 @@ export function SketchOverlay({ open, onCancel, onSubmit }: SketchOverlayProps) 
       return () => cancelAnimationFrame(frame);
     }
 
+    // Released the moment the overlay starts closing, not after the fade: this
+    // component never unmounts (it returns null while hidden, with its hooks
+    // still alive), so nothing else would ever switch the microphone off. A hot
+    // mic left running behind a closed overlay is both a privacy problem and a
+    // source of transcripts arriving into a field nobody can see.
+    const cancelDictation = dictation.cancel;
+    cancelDictation();
+
     // Keep rendering interactive content through the fade-out, then hide and clear.
     // Resetting on close rather than on open means a half-finished drawing is not
     // left sitting in memory while the kid is back in the world.
@@ -122,7 +143,7 @@ export function SketchOverlay({ open, onCancel, onSubmit }: SketchOverlayProps) 
       setTextHint(null);
     }, 250);
     return () => clearTimeout(timer);
-  }, [open, resetDrawing]);
+  }, [open, resetDrawing, dictation.cancel]);
 
   useEffect(() => {
     if (!open) return;
@@ -374,10 +395,58 @@ export function SketchOverlay({ open, onCancel, onSubmit }: SketchOverlayProps) 
               e.stopPropagation();
               handleSubmit();
             }}
-            placeholder="a red dragon... (press Enter)"
+            placeholder={
+              dictation.supported ? "a red dragon... (or tap 🎤)" : "a red dragon... (press Enter)"
+            }
             className="flex-1 rounded-full border-2 border-slate-600 bg-slate-800 px-4 py-2 text-base text-white placeholder-slate-400 outline-none focus:border-sky-400"
           />
+
+          {/* Rendered only where the engine exists — Firefox ships none at all.
+              Showing a dead mic button there would be worse than showing
+              nothing, because a child would tap it and wait. */}
+          {dictation.supported && (
+            <button
+              type="button"
+              aria-label={dictation.state === "listening" ? "Stop listening" : "Say what you drew"}
+              aria-pressed={dictation.state === "listening"}
+              // A button takes focus on mousedown, which would blur the input —
+              // and Enter-to-submit lives on the input's key handler. Preventing
+              // the default here keeps focus where it was, so talking and then
+              // pressing Enter works as one continuous gesture.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={dictation.toggle}
+              // animate-pulse as a class, not an inline `animation` string:
+              // Tailwind v4 only emits the @keyframes for a utility it sees
+              // used, so an inline `animation: pulse ...` names a rule that was
+              // never generated and silently does nothing. The only moving
+              // thing in the panel, and it moves only while the mic is live —
+              // a child needs to know they are being heard before any words
+              // have come back.
+              className={`shrink-0 rounded-full px-4 py-2 text-xl transition-colors ${
+                dictation.state === "listening" ? "animate-pulse" : ""
+              }`}
+              style={{
+                backgroundColor: dictation.state === "listening" ? "#dc2626" : "#334155",
+              }}
+            >
+              🎤
+            </button>
+          )}
         </div>
+
+        {/* Interim words are shown but never written into the field: they are
+            still being revised by the engine, and only the settled transcript
+            from onend is merged in. */}
+        {dictation.state === "listening" && (
+          <p className="rounded-full bg-black/60 px-4 py-1 text-sm text-sky-300 backdrop-blur-sm">
+            {dictation.interim || "Listening..."}
+          </p>
+        )}
+        {dictation.error && (
+          <p className="rounded-full bg-black/60 px-3 py-1 text-sm font-semibold text-amber-300 backdrop-blur-sm">
+            {dictation.error}
+          </p>
+        )}
         {textHint && <p className="-mt-2 self-start rounded-full bg-black/60 px-3 py-1 text-sm font-semibold text-amber-300 backdrop-blur-sm sm:self-center">{textHint}</p>}
 
         <div
