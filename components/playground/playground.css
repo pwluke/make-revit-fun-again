@@ -755,6 +755,52 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The Contractor's pip. Amber rather than violet, matching his hard hat, so
+   the boss is findable in the pip row at a glance. */
+.playground .bot-pip.boss-pip {
+  width: 18px;
+  height: 18px;
+}
+.playground .bot-pip.boss-pip.filled {
+  fill: var(--amber, #f09b3d);
+}
+
+/* Boss track. Same anatomy as the health bar, inverted in colour: his bar
+   drains toward the player's win, the player's drains toward his. */
+.playground .laser-boss {
+  position: relative;
+  height: 13px;
+  margin-top: 5px;
+  border-radius: 7px;
+  background: var(--line);
+  overflow: hidden;
+}
+.playground .laser-boss span {
+  display: block;
+  height: 100%;
+  border-radius: 7px;
+  background: linear-gradient(90deg, #ff8a1f, #ff2f45);
+  transition: width 0.15s;
+}
+.playground .laser-boss b {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+}
+
+.playground .setup-boss {
+  margin-top: 4px;
+  color: #d4381f;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+}
+
 /* Red vignette on taking a hit. Fixed, not absolute: the HUD it sits in is a
    small card in the corner, and a damage flash has to cover the whole view.
    The element stays mounted and the animation ends at opacity 0 — it is

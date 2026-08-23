@@ -48,6 +48,10 @@ const scratch = new THREE.Vector3();
 /** Enemy fire. Warm, so incoming reads apart from your own violet at a glance. */
 export const ENEMY_BOLT = "#ff7a59";
 
+/** The Inspector's fire. Hotter and redder than a scan-bot's, so a bolt from
+ *  the roof is recognisable as his before you have found where he is. */
+export const BOSS_BOLT = "#ff2f45";
+
 export function spawnBolt(
   from: THREE.Vector3,
   to: THREE.Vector3,
@@ -175,6 +179,59 @@ export function playTagSound() {
       osc.start(start);
       osc.stop(start + 0.14);
     });
+  } catch {
+    // As above.
+  }
+}
+
+/**
+ * The Inspector noticing you: a short air-horn blare. Deliberately the ugliest
+ * sound in the mode — it is the only warning you get that the roof has eyes.
+ */
+export function playBossAlertSound() {
+  if (typeof window === "undefined") return;
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    // Two detuned saws a semitone apart beat against each other, which is what
+    // makes a horn sound like a horn rather than like a synth note.
+    [138, 146].forEach((frequency) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(frequency, t);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.06, t + 0.03);
+      gain.gain.setValueAtTime(0.06, t + 0.34);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.52);
+    });
+  } catch {
+    // As above — sound is garnish.
+  }
+}
+
+/** The Inspector going down: a long descending groan under the tag blips. */
+export function playBossDownSound() {
+  if (typeof window === "undefined") return;
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(180, t);
+    osc.frequency.exponentialRampToValueAtTime(38, t + 0.9);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.1, t + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 1);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 1.02);
   } catch {
     // As above.
   }
