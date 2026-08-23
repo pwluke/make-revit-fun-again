@@ -30,7 +30,10 @@ export default function FloodHud() {
       {submerged && !drowned ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 z-10 bg-sky-600/35 mix-blend-multiply"
+          // Normal blend, not multiply: multiply darkens everything underneath
+          // it, and the scene already arrives graded and vignetted. A light
+          // wash reads as "underwater" without turning the frame to mud.
+          className="pointer-events-none absolute inset-0 z-10 bg-sky-400/20"
         />
       ) : null}
 
@@ -70,7 +73,11 @@ export default function FloodHud() {
       </div>
 
       {drowned ? (
-        <div className="absolute inset-0 z-30 flex items-center justify-center bg-sky-950/55">
+        // Was bg-sky-950/55 — near-black over the whole frame, and the drowned
+        // state persists until the player restarts, so that was the screen for
+        // as long as they left it. Enough scrim to lift the card off the scene,
+        // no more.
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-sky-900/25 backdrop-blur-[2px]">
           <div className="pointer-events-auto flex flex-col items-center gap-3 rounded-3xl bg-white/95 px-8 py-6 shadow-2xl">
             <span className="text-xl font-bold text-slate-800">
               🌊 The flood got you
