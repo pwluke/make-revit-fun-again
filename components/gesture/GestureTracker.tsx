@@ -4,12 +4,20 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useGestureStore, type GestureLabel } from "./store";
 import {
+  PINCH_CLOSE,
+  PINCH_OPEN,
+  classifyPose,
+  dist,
+  type HandPose,
+  type Landmark,
+} from "./pose";
+import {
   BackIcon,
   GoIcon,
   LookIcon,
   OrbitIcon,
   PinchIcon,
-  PointIcon,
+  PurseIcon,
   ThumbIcon,
 } from "./icons";
 
@@ -23,17 +31,10 @@ const HEAD_DEADZONE = 0.06; // rad, ~3.5 deg
 // Flip these if steering feels inverted on some cameras.
 const HEAD_YAW_SIGN = 1;
 const HEAD_PITCH_SIGN = 1;
-// Flip if palm/back of hand are detected the wrong way around.
-const PALM_SIGN = 1;
-// Pinch-to-build hysteresis (fractions of the palm size). The pinch must
-// re-open past PINCH_OPEN before the next close can build again — one
-// pinch, one block.
-const PINCH_CLOSE = 0.3;
-const PINCH_OPEN = 0.45;
 // Minimum gap between one-shot actions (jump/build/break).
 const ACTION_COOLDOWN_MS = 250;
-// Gap between repeats while a point is held. Slower than the one-shot
-// cooldown, so a single deliberate poke never takes two blocks.
+// Gap between repeats while the purse is held. Slower than the one-shot
+// cooldown, so a single deliberate pinch never takes two blocks.
 const BREAK_REPEAT_MS = 600;
 const MIN_SCORE = 0.55;
 
@@ -53,24 +54,10 @@ const LEGEND: { key: Exclude<GestureLabel, null>; word: string; Icon: typeof Loo
   { key: "back", word: "Back", Icon: BackIcon },
   { key: "jump", word: "Jump", Icon: ThumbIcon },
   { key: "build", word: "Build", Icon: PinchIcon },
-  { key: "break", word: "Break", Icon: PointIcon },
+  { key: "break", word: "Break", Icon: PurseIcon },
   { key: "orbit", word: "Orbit", Icon: OrbitIcon },
 ];
 
-type Landmark = { x: number; y: number; z: number };
-type HandPose = "palm" | "back" | "fist" | "thumb" | "pinch" | "point" | "other";
-
-const dist = (a: Landmark, b: Landmark) => Math.hypot(a.x - b.x, a.y - b.y);
-
-/** Whether the palm (not the back of the hand) faces the camera, from the
- *  winding of wrist -> index base -> pinky base in image space. */
-function palmFacesCamera(lm: Landmark[], handedness: string) {
-  const crossZ =
-    (lm[5].x - lm[0].x) * (lm[17].y - lm[0].y) -
-    (lm[5].y - lm[0].y) * (lm[17].x - lm[0].x);
-  const palm = handedness === "Right" ? crossZ < 0 : crossZ > 0;
-  return PALM_SIGN > 0 ? palm : !palm;
-}
 
 export default function GestureTracker() {
   const active = useGestureStore((s) => s.active);
@@ -112,8 +99,8 @@ export default function GestureTracker() {
     // one-shots
     let pinchIsOpen = true;
     let prevThumb = false;
-    let prevPoint = false;
-    let pointHand: Landmark[] | null = null;
+    let prevPurse = false;
+    let purseHand: Landmark[] | null = null;
     let lastAction = 0;
     // orbit (fist drag)
     let prevFist: { x: number; y: number } | null = null;
@@ -128,35 +115,6 @@ export default function GestureTracker() {
         yaw: HEAD_YAW_SIGN * headEuler.y,
         pitch: HEAD_PITCH_SIGN * -headEuler.x,
       };
-    }
-
-    /** Classify one hand into a coarse pose the rules care about. */
-    function poseOf(canned: string, lm: Landmark[], handedness: string): HandPose {
-      const palm = dist(lm[0], lm[9]) || 1;
-      const middleExtended = dist(lm[0], lm[12]) / palm > 1.2;
-      // Pinch first: thumb tip meets index tip while the middle finger stays
-      // up — a fist also curls the thumb near the index, hence the check.
-      if (middleExtended && dist(lm[4], lm[8]) / palm < PINCH_OPEN) return "pinch";
-      if (canned === "Closed_Fist") return "fist";
-      if (canned === "Thumb_Up") return "thumb";
-      if (canned === "Pointing_Up") return "point";
-      if (canned === "Open_Palm") {
-        return palmFacesCamera(lm, handedness) ? "palm" : "back";
-      }
-      // Fallbacks for poses the canned classifier drops mid-motion.
-      const tips = [8, 12, 16, 20];
-      const openness = tips.reduce((sum, t) => sum + dist(lm[0], lm[t]) / palm, 0) / tips.length;
-      // Pointing: index reaching well past a fist while the other three stay
-      // curled. The canned "Pointing_Up" only fires when the finger is roughly
-      // vertical, but you point at a block by aiming the hand at it — so this
-      // catches the same pose held at an angle.
-      const indexOut = dist(lm[0], lm[8]) / palm;
-      const othersIn =
-        [12, 16, 20].reduce((sum, t) => sum + dist(lm[0], lm[t]) / palm, 0) / 3;
-      if (indexOut > 1.45 && othersIn < 1.15) return "point";
-      if (openness > 1.55) return palmFacesCamera(lm, handedness) ? "palm" : "back";
-      if (openness < 1.1) return "fist";
-      return "other";
     }
 
     function drawOverlay(frameLabel: GestureLabel) {
@@ -204,13 +162,15 @@ export default function GestureTracker() {
         ctx.fillRect(px - 6, py - 6, 12, 12);
         ctx.strokeRect(px - 6, py - 6, 12, 12);
       }
-      // The fingertip doing the breaking, so it is obvious which hand the
-      // recognizer locked onto.
-      if (frameLabel === "break" && pointHand) {
-        const tip = pointHand[8];
+      // The gathered fingertips doing the breaking, so it is obvious which
+      // hand the recognizer locked onto.
+      if (frameLabel === "break" && purseHand) {
+        const tips = [4, 8, 12, 16, 20].map((t) => purseHand![t]);
+        const cx = (tips.reduce((sum, p) => sum + p.x, 0) / tips.length) * w;
+        const cy = (tips.reduce((sum, p) => sum + p.y, 0) / tips.length) * h;
         ctx.fillStyle = "#ffffff";
         ctx.beginPath();
-        ctx.arc(tip.x * w, tip.y * h, 7, 0, Math.PI * 2);
+        ctx.arc(cx, cy, 7, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
       }
@@ -235,19 +195,19 @@ export default function GestureTracker() {
       let sawBack = false;
       let sawThumb = false;
       let sawPinch = false;
-      let sawPoint = false;
+      let sawPurse = false;
       handPoses.forEach((pose, i) => {
         if (pose === "fist") fists.push(i);
         else if (pose === "palm") sawPalm = true;
         else if (pose === "back") sawBack = true;
         else if (pose === "thumb") sawThumb = true;
         else if (pose === "pinch") sawPinch = true;
-        else if (pose === "point") {
-          sawPoint = true;
-          pointHand = handLms[i];
+        else if (pose === "purse") {
+          sawPurse = true;
+          purseHand = handLms[i];
         }
       });
-      if (!sawPoint) pointHand = null;
+      if (!sawPurse) purseHand = null;
 
       if (fists.length > 0) {
         // Fist = grab: drag it to orbit the camera around the target the
@@ -284,17 +244,17 @@ export default function GestureTracker() {
         }
         prevThumb = sawThumb;
 
-        // Break fires on point entry, and repeats while the finger stays out —
+        // Break fires when the purse closes, and repeats while it is held —
         // holding a mouse button down breaks a run of blocks, and a gesture you
         // have to re-form for every block is exhausting. The repeat is slower
-        // than the one-shot cooldown so a single poke can't take two blocks.
-        if (sawPoint && now - lastAction > (prevPoint ? BREAK_REPEAT_MS : ACTION_COOLDOWN_MS)) {
+        // than the one-shot cooldown so a single pinch can't take two blocks.
+        if (sawPurse && now - lastAction > (prevPurse ? BREAK_REPEAT_MS : ACTION_COOLDOWN_MS)) {
           store.queueBreak();
           lastAction = now;
         }
-        prevPoint = sawPoint;
+        prevPurse = sawPurse;
 
-        if (sawPoint) frameLabel = "break";
+        if (sawPurse) frameLabel = "break";
         else if (sawPinch) frameLabel = "build";
         else if (sawThumb) frameLabel = "jump";
         else if (sawPalm) frameLabel = "go";
@@ -398,7 +358,7 @@ export default function GestureTracker() {
               const g = hr.gestures?.[i]?.[0];
               const canned = g && g.score >= MIN_SCORE ? g.categoryName : "None";
               const handedness = hr.handedness?.[i]?.[0]?.categoryName ?? "Right";
-              const pose = poseOf(canned, lm, handedness);
+              const pose = classifyPose(canned, lm, handedness);
               if (pose === "pinch") {
                 const ratio = dist(lm[4], lm[8]) / (dist(lm[0], lm[9]) || 1);
                 if (pinchRatio === null || ratio < pinchRatio) {
