@@ -7,6 +7,7 @@ import {
   CapsuleCollider,
   RigidBody,
   useRapier,
+  type RapierCollider,
   type RapierRigidBody,
 } from "@react-three/rapier";
 import Axe from "./Axe";
@@ -146,6 +147,9 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
   // Flight: the altitude the last double-tap asked for.
   const flyTarget = useRef<number | null>(null);
   const lastJumpTap = useRef(0);
+  // Pangolin: the collider is flipped to a sensor so nothing stops you.
+  const colliderRef = useRef<RapierCollider>(null);
+  const phasing = useRef(false);
 
   // The one effect Player needs during render rather than in the frame loop:
   // the collider size is a prop, so shrinking means re-rendering.
@@ -357,11 +361,26 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     const groundReach = isTiny ? 0.45 : 0.85;
     const grounded = ray && ray.collider && Math.abs(ray.timeOfImpact) <= groundReach;
 
+    // PANGOLIN: turn the capsule into a sensor and the world stops stopping
+    // you. Gravity has to go with it — without the floor pushing back you
+    // would simply fall out of the model — so phasing is a slow hover that
+    // happens to ignore walls, and Space/Shift trim the height. Flipped on
+    // transition only; Rapier does bookkeeping on every sensor change.
+    const canPhase = heroActive.includes("phase");
+    if (canPhase !== phasing.current) {
+      phasing.current = canPhase;
+      colliderRef.current?.setSensor(canPhase);
+      // Leaving phase drops you: gravity is restored below by the fly check
+      // unless flight is also on, which is exactly the wanted behaviour.
+      ref.current.setGravityScale(canPhase ? 0 : 1, true);
+    }
+
     // FLY: gravity off, Space rises and Shift drops. Toggled on transition
     // rather than every frame so we don't fight Rapier's own bookkeeping.
     if (canFly !== flying.current) {
       flying.current = canFly;
-      ref.current.setGravityScale(canFly ? 0 : 1, true);
+      // Phasing already zeroed gravity; don't hand it back underneath it.
+      if (!phasing.current) ref.current.setGravityScale(canFly ? 0 : 1, true);
     }
 
     // MONKEY: walking into a wall climbs it. The ray goes along the camera's
@@ -404,7 +423,13 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     }
     onWall.current = climbing;
 
-    if (!orbiting && !climbing && !flying.current && (direction.x || direction.z)) {
+    if (
+      !orbiting &&
+      !climbing &&
+      !flying.current &&
+      !phasing.current &&
+      (direction.x || direction.z)
+    ) {
       // setLinvel every frame would otherwise keep driving the capsule into a
       // stair riser or voxel corner after the solver already pushed it out.
       slideDir.set(direction.x, 0, direction.z);
@@ -459,7 +484,11 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
       let vz = direction.z;
       let vertical = velocity.y;
 
-      if (climbing) {
+      if (phasing.current) {
+        // Straight through: no wall slide, no ground clamp, just the walk
+        // vector plus optional vertical trim.
+        vertical = (+(jump || false) - +(crouch || false)) * FLY_SPEED * 0.6;
+      } else if (climbing) {
         // Stuck to the wall: forward/back crawl up and down it, left/right
         // slide along its face. The plain walk vector is discarded — on a
         // wall the same keys mean something different.
@@ -555,6 +584,7 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
         enabledRotations={[false, false, false]}
       >
         <CapsuleCollider
+          ref={colliderRef}
           args={tiny ? CAPSULE_TINY : CAPSULE_NORMAL}
           friction={0}
           restitution={0}

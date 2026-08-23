@@ -111,13 +111,14 @@ export default function HeroHud({
           </span>
 
           {!complete && nextSpot ? (
-            <p className="mt-0.5 max-w-[15rem] text-right text-[11px] font-semibold text-slate-500">
+            <p className="mt-0.5 max-w-[19rem] text-right text-[11px] font-semibold text-slate-500">
               Next: {nextSpot.hint}
             </p>
           ) : null}
 
-          {/* the four slots — this row IS the control surface */}
-          <div className="pointer-events-auto mt-2 grid grid-cols-4 gap-1.5">
+          {/* the power slots — one row, whatever the count. This row IS the
+              control surface */}
+          <div className="pointer-events-auto mt-2 flex flex-nowrap gap-1.5">
             {ABILITY_ORDER.map((id, i) => {
               const unlocked = found.includes(id);
               const on = active.includes(id);
@@ -129,7 +130,7 @@ export default function HeroHud({
                   disabled={!unlocked}
                   title={unlocked ? ability.power : "Find this emblem to unlock it"}
                   className={
-                    "relative flex h-[68px] w-[76px] flex-col items-center justify-center gap-0.5 rounded-xl ring-2 transition-all " +
+                    "relative flex h-[62px] w-[62px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl ring-2 transition-all " +
                     (on
                       ? "bg-amber-300 ring-amber-500"
                       : unlocked
@@ -158,7 +159,7 @@ export default function HeroHud({
                   <Emblem
                     ability={id}
                     tone={on ? "active" : unlocked ? "idle" : "locked"}
-                    className="h-8 w-8"
+                    className="h-7 w-7"
                   />
                   <span
                     className="max-w-full truncate px-1 text-[9px] font-bold"

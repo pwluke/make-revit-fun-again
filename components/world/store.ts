@@ -1,34 +1,42 @@
 import { create } from "zustand";
 
 /**
- * Animal-power hunt. Four emblems hide in the building (placed
+ * Animal-power hunt. Five emblems hide in the building (placed
  * procedurally over whatever model is streamed in — see
  * emblemPlacement.ts); walking into one permanently unlocks a way of
  * moving, toggled from the numbered slots in the HUD. Powers stack, and
  * an owned power can be used as often as the player likes.
  */
-export type AbilityId = "climb" | "tiny" | "fly" | "speed";
+export type AbilityId = "speed" | "tiny" | "fly" | "climb" | "phase";
 
-export const ABILITY_ORDER: AbilityId[] = ["climb", "tiny", "fly", "speed"];
+export const ABILITY_ORDER: AbilityId[] = [
+  "speed",
+  "tiny",
+  "fly",
+  "climb",
+  "phase",
+];
 
 /** Emblem colours, one per power. */
 export const ABILITY_COLORS: Record<AbilityId, string> = {
-  climb: "#ef4444",
+  speed: "#22c55e",
   tiny: "#8b5cf6",
   fly: "#f59e0b",
-  speed: "#22c55e",
+  climb: "#ef4444",
+  phase: "#0ea5e9",
 };
 
 export type Ability = { name: string; power: string };
 
 export const ABILITIES: Record<AbilityId, Ability> = {
+  speed: { name: "Bunny", power: "Twice as fast, and twice as high" },
+  tiny: { name: "Mouse", power: "Shrink small enough to fit through gaps" },
+  fly: { name: "Butterfly", power: "Double-tap Space to rise, again to go higher" },
   climb: {
     name: "Spider",
     power: "Walk into a wall to climb it · click far away to swing over",
   },
-  tiny: { name: "Mouse", power: "Shrink small enough to fit through gaps" },
-  fly: { name: "Butterfly", power: "Double-tap Space to rise, again to go higher" },
-  speed: { name: "Bunny", power: "Twice as fast, and twice as high" },
+  phase: { name: "Pangolin", power: "Burrow straight through walls" },
 };
 
 type HeroState = {

@@ -95,11 +95,30 @@ const BUNNY: Prim[] = [
   { k: "circle", x: 50, y: 58, r: 4, accent: true },
 ];
 
+const PANGOLIN: Prim[] = [
+  // Tail first so the body overlaps its root.
+  { k: "bar", x1: 74, y1: 66, x2: 96, y2: 52, w: 11 },
+  { k: "ellipse", x: 50, y: 58, rx: 29, ry: 21 },
+  // Head and snout, low and forward the way an anteater carries it.
+  { k: "ellipse", x: 18, y: 46, rx: 14, ry: 9, rot: 0.22 },
+  { k: "circle", x: 6, y: 42, r: 5 },
+  // Stubby legs.
+  { k: "bar", x1: 34, y1: 74, x2: 32, y2: 88, w: 8 },
+  { k: "bar", x1: 60, y1: 74, x2: 62, y2: 88, w: 8 },
+  // Overlapping plates along the back — the thing that makes it a pangolin.
+  { k: "circle", x: 30, y: 44, r: 9, accent: true },
+  { k: "circle", x: 44, y: 39, r: 10, accent: true },
+  { k: "circle", x: 58, y: 41, r: 10, accent: true },
+  { k: "circle", x: 71, y: 48, r: 8, accent: true },
+  { k: "circle", x: 15, y: 43, r: 2.6, accent: true },
+];
+
 export const EMBLEMS: Record<AbilityId, Prim[]> = {
-  climb: SPIDER,
+  speed: BUNNY,
   tiny: MOUSE,
   fly: BUTTERFLY,
-  speed: BUNNY,
+  climb: SPIDER,
+  phase: PANGOLIN,
 };
 
 // --- three.js shape building ----------------------------------------------
