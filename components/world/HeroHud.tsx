@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAbilityEmblemSpots } from "./emblemPlacement";
 import { playPowerUp, playToggle } from "./sfx";
+import { DinoOutline } from "./DinoPanel";
 import {
   ABILITIES,
   ABILITY_COLORS,
@@ -117,7 +118,11 @@ export default function HeroHud({
 
           {/* the power slots — one row, whatever the count. This row IS the
               control surface */}
-          <div className="pointer-events-auto mt-2 flex flex-nowrap gap-1.5">
+          <div className="pointer-events-auto mt-2 flex flex-nowrap items-center gap-1.5">
+            {/* The fossil hunt sits to the left of the powers: same row, but
+                a collection rather than a control, so it has no number. */}
+            <DinoOutline />
+            <span className="mx-0.5 h-10 w-px shrink-0 bg-slate-300" />
             {ABILITY_ORDER.map((id, i) => {
               const unlocked = found.includes(id);
               const on = active.includes(id);

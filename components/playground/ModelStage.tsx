@@ -8,6 +8,9 @@ import {
 } from "./icons";
 import GestureTracker from "@/components/gesture/GestureTracker";
 import HeroHud from "@/components/world/HeroHud";
+import { AbilityEmblems } from "@/components/world/AbilityEmblems";
+import { DinoFragments } from "@/components/world/DinoFragments";
+import { DinoReveal } from "@/components/world/DinoPanel";
 import { LaserTag } from "@/components/lasertag/LaserTag";
 import { LaserTagHud } from "@/components/lasertag/LaserTagHud";
 import { GesturePanel } from "./GesturePanel";
@@ -105,6 +108,15 @@ export function ModelStage() {
           onPlay={markSpun}
         >
           {mode === "lasertag" ? <LaserTag /> : null}
+          {/* The hunt is Treasure Hunt's, not the whole playground's: the
+              other modes stay uncluttered, and nothing is collectable in
+              them. */}
+          {mode === "treasure" ? (
+            <>
+              <AbilityEmblems />
+              <DinoFragments />
+            </>
+          ) : null}
         </MinecraftViewport>
         {pointerLocked ? <div className="crosshair" aria-hidden /> : null}
         {mode === "lasertag" ? <LaserTagHud /> : null}
@@ -183,9 +195,12 @@ export function ModelStage() {
         {/* Ability-card HUD (counter, unlock animation, numbered slots).
             Collection happens inside the scene, so without this a collected
             card would vanish with no feedback. */}
-        <div className="hero-hud">
-          <HeroHud />
-        </div>
+        {mode === "treasure" ? (
+          <div className="hero-hud">
+            <HeroHud />
+            <DinoReveal />
+          </div>
+        ) : null}
 
         <div className="zoom-controls">
           <button type="button" aria-label="Zoom in" onClick={zoomIn}>

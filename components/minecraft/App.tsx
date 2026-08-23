@@ -11,7 +11,6 @@ import { Player } from "./Player";
 import { Cubes, useCubeStore } from "./Cube";
 import { GestureBuilder } from "./GestureBuilder";
 import { House } from "../world/House";
-import { AbilityEmblems } from "../world/AbilityEmblems";
 import { Powerups } from "../world/Powerups";
 import { Flood } from "../world/Flood";
 import { ThemeAtmosphere } from "../world/ThemeAtmosphere";
@@ -71,7 +70,6 @@ export function MinecraftScene({ children }: { children?: ReactNode }) {
       {/* Outside <Physics>: stars and powerups are pickups, the builder only
           raycasts, and the flood is visual — you swim through it, the breath
           timer is what actually threatens you. */}
-      <AbilityEmblems />
       <Powerups />
       <MarineGarden />
       <Flood />
