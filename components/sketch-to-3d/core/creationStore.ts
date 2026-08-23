@@ -38,6 +38,16 @@ export type CreationStoreState = {
   }) => void;
   updateJob: (id: string, state: JobState) => void;
   removeCreation: (id: string) => void;
+  /**
+   * Id of the last creation the PLAYER deleted, as opposed to one the eviction
+   * cap quietly dropped.
+   *
+   * The two are indistinguishable by diffing `creations`, and they mean opposite
+   * things to a shared gallery: eviction is "stop drawing this here", deletion is
+   * "remove this for everyone". Conflating them would let one machine running
+   * past its cap wipe other people's work.
+   */
+  lastDeletedId: string | null;
 
   /** Which creation the player has selected for editing, if any. */
   selectedId: string | null;
@@ -96,12 +106,15 @@ export function createCreationStore(): StoreApi<CreationStoreState> {
     removeCreation: (id) =>
       set((state) => ({
         creations: state.creations.filter((creation) => creation.id !== id),
-        // Never leave a selection pointing at something that no longer exists —
-        // the eviction cap removes creations without asking.
+        // Never leave a selection pointing at something that no longer exists.
         selectedId: state.selectedId === id ? null : state.selectedId,
+        // Only set here, never by the eviction path in startCreation — this is
+        // what tells the sync layer the removal was deliberate.
+        lastDeletedId: id,
       })),
 
     selectedId: null,
+    lastDeletedId: null,
 
     select: (id) => set((state) => (state.selectedId === id ? state : { selectedId: id })),
 

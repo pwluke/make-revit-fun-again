@@ -16,7 +16,7 @@ import { generateFast } from "./core/trellisClient";
 import { warmAll } from "./core/warmup";
 import type { CreationMode, Generate, Progress } from "./core/types";
 import { onSceneInputUnlocked } from "./r3f/useR3FSceneBridge";
-import { useCreationPersistence } from "./useCreationPersistence";
+import { useSharedCreations } from "./useSharedCreations";
 import { SketchOverlay } from "./ui/SketchOverlay";
 
 /**
@@ -61,9 +61,11 @@ function resolveGenerateFn(mode: CreationMode): Generate {
  * the fal.ai call, both DOM/JS concerns that don't belong in the scene.
  */
 export function SketchToWorld() {
-  // Restores anything made in a previous session, and keeps storage in step
-  // from here on.
-  useCreationPersistence();
+  // Shared gallery: every machine at the booth sees every creation, and this
+  // machine publishes its own. Replaces the localStorage layer rather than
+  // sitting beside it — two sources of truth would mean deciding which wins on
+  // every reload. See useSharedCreations for the reasoning.
+  useSharedCreations();
 
   const [open, setOpen] = useState(false);
   /** Most recent generation failure, surfaced in the world and auto-dismissed. */

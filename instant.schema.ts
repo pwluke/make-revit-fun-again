@@ -32,6 +32,39 @@ const _schema = i.schema({
       verticesB64: i.string().optional(),
       visible: i.boolean().optional(),
     }),
+    /**
+     * Things people drew and generated, shared across every machine at the booth.
+     *
+     * Stores POINTERS, not assets: fal hosts the GLB and sprite files and serves
+     * them from stable URLs, so a row is a few hundred bytes. Downloading the
+     * binaries into Instant would mean 0.4-13.6 MB per creation for no benefit
+     * while fal is up, and fal being down breaks generation anyway.
+     *
+     * `spawn` and `transform` are stored as JSON strings rather than nested
+     * objects because Instant entities are flat — a triple of numbers has no
+     * native representation here.
+     */
+    creations: i.entity({
+      /** Client-generated uuid, so a creation keeps its identity across devices. */
+      creationId: i.string().unique().indexed(),
+      /** "sprite" | "mesh" | "fast" — which pipeline produced it. */
+      mode: i.string(),
+      /** What the child typed, for display and for a future gallery view. */
+      userText: i.string().optional(),
+      /** The fal URL of the GLB or the sprite PNG. The thing actually rendered. */
+      assetUrl: i.string(),
+      /** JSON: { position: [x,y,z], rotationY }. Where it was born. */
+      spawn: i.string(),
+      /** JSON: { scale, y }. Where the player has since put it. */
+      transform: i.string().optional(),
+      /** Sort key for "newest first" and for capping the gallery. */
+      createdAt: i.number().indexed(),
+      /**
+       * Which browser made it. Not auth — there are no accounts here — just
+       * enough to let a machine clean up after itself without wiping the room.
+       */
+      deviceId: i.string().optional().indexed(),
+    }),
     // Voxel / grid cells streamed from Rhino (or authored here) to seed Cube.tsx.
     points: i.entity({
       x: i.number().indexed(),
