@@ -80,6 +80,18 @@ function applyMaterialPass(scene: THREE.Group): void {
       if (!("flatShading" in materialClone)) return materialClone;
       const standardMaterial = materialClone as THREE.MeshStandardMaterial;
       standardMaterial.flatShading = true;
+      /**
+       * Force non-metal. TRELLIS emits a material with `roughnessFactor: 1` and
+       * NO `metallicFactor`, and the glTF spec defaults that to 1.0 — fully
+       * metallic. A metal surface with no environment map reflects nothing, so it
+       * renders as a BLACK SILHOUETTE and its baseColorTexture is ignored
+       * completely. Verified by dumping the GLB's material JSON.
+       *
+       * These are stylized toy figures; none of them is ever metal. Setting it
+       * here rather than per-pipeline means any future generator that omits the
+       * factor is covered too.
+       */
+      standardMaterial.metalness = 0;
       standardMaterial.needsUpdate = true;
       if (standardMaterial.map) {
         // Texture.clone() shares the underlying `.image` reference, but we
