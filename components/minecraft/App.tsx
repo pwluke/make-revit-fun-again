@@ -12,7 +12,6 @@ import { Player } from "./Player";
 import { Cubes, useCubeStore } from "./Cube";
 import { GestureBuilder } from "./GestureBuilder";
 import { House } from "../world/House";
-import { Stars } from "../world/Stars";
 import { Powerups } from "../world/Powerups";
 import { Flood } from "../world/Flood";
 import { ThemeAtmosphere } from "../world/ThemeAtmosphere";
@@ -82,6 +81,7 @@ export const minecraftKeyMap = [
   { name: "left", keys: ["a", "A"] },
   { name: "right", keys: ["d", "D"] },
   { name: "jump", keys: ["Space"] },
+  { name: "zip", keys: ["g", "G"] },
   // Only used by the fly powerup — the descend key. Harmless otherwise.
   { name: "crouch", keys: ["ShiftLeft", "ShiftRight", "Shift", "c", "C"] },
 ];
@@ -121,7 +121,6 @@ export function MinecraftScene({ children }: { children?: ReactNode }) {
       {/* Outside <Physics>: stars and powerups are pickups, the builder only
           raycasts, and the flood is visual — you swim through it, the breath
           timer is what actually threatens you. */}
-      <Stars />
       <Powerups />
       <MarineGarden />
       <DesertLandscape />
@@ -153,7 +152,10 @@ export function MinecraftScene({ children }: { children?: ReactNode }) {
           store so `useThree((s) => s.controls)` resolves. Without it the
           SceneBridge binds to null and setInputEnabled is a silent no-op —
           the sketch overlay and creation selection cannot release the
-          pointer, which reads as "the cursor never appears". */}
+          pointer, which reads as "the cursor never appears". It is also
+          how Player reaches the controls to switch them off while
+          wall-walking, where the camera is driven from the wall's frame
+          rather than world Y-up. */}
       <LookLock enabled={!selectedId && locksTheMouse(mode)} />
       {/* Arrow keys look around, in every mode but Hands. Mounted next to
           LookLock because it is the other half of the same job: the two write

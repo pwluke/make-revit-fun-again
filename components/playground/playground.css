@@ -111,7 +111,9 @@
   height: 78px;
   flex: 0 0 78px;
   display: grid;
-  grid-template-columns: 270px 1fr 270px;
+  /* Side columns are fixed so the centre pair stays optically centred
+     whatever the model name is; the centre grew when Upload joined it. */
+  grid-template-columns: 250px 1fr 250px;
   align-items: center;
   padding: 0 28px;
   background: rgba(255, 255, 255, 0.97);
@@ -196,10 +198,22 @@
   display: grid;
   place-items: center;
   flex: 0 0 40px;
+  overflow: hidden;
   border-radius: 11px;
   background: #e7e7fb;
   color: var(--brand);
   font-size: 23px;
+}
+/* Carrying a project preview rather than the live-stream glyph. */
+.playground .model-thumb.project { background: #e2e8f0; }
+.playground .model-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.playground .model-thumb b {
+  font: 800 11px var(--body);
+  color: #64748b;
 }
 .playground .model-copy {
   display: flex;
@@ -619,26 +633,6 @@
   transform: translate(-50%, -8px);
 }
 
-.playground .view-cube {
-  width: 45px;
-  height: 45px;
-  position: absolute;
-  z-index: 4;
-  right: 21px;
-  top: 21px;
-  color: #777a91;
-  font-size: 6px;
-  font-weight: 700;
-  transform: rotate(-7deg);
-  pointer-events: none;
-}
-.playground .view-cube span {
-  position: absolute;
-  display: grid;
-  place-items: center;
-  border: 1px solid #b9bbc6;
-  background: rgba(255, 255, 255, 0.75);
-}
 .playground .cube-top {
   width: 34px;
   height: 18px;
@@ -1305,6 +1299,133 @@
   color: #334155;
   font: 700 13px var(--body);
 }
+
+.playground .hero-hud {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+/* `.playground button { font: inherit }` is unlayered, so it beats the
+   Tailwind utilities inside the HUD — same fix the Hands button needed. */
+.playground .hero-hud button {
+  font: 700 11px var(--body);
+}
+
+/* Upload + the model dropdown it feeds */
+.playground .model-status { position: relative; }
+/* Centre cell of the header grid: upload on the left, model picker on the
+   right, the pair centred as one unit. `justify-self: center` on the child
+   status block is dropped here — the wrapper does the centring now. */
+.playground .header-centre {
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.playground .header-centre .model-status { justify-self: auto; }
+.playground .upload-control { display: flex; align-items: center; }
+.playground .upload-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 44px;
+  padding: 0 16px;
+  white-space: nowrap;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  font: 700 13px var(--body);
+  color: #475569;
+}
+.playground .upload-button:hover {
+  background: #eef2ff;
+  color: #4f46e5;
+  border-color: rgba(95, 99, 223, 0.35);
+}
+.playground .upload-button span:first-child { font-size: 16px; line-height: 1; }
+@media (max-width: 1000px) {
+  /* Tight header: keep the affordance, drop the word. */
+  .playground .upload-button span:last-child { display: none; }
+  .playground .upload-button { padding: 0 14px; }
+}
+.playground .model-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  width: 268px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 6px;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+.playground .model-menu-empty {
+  margin: 0;
+  padding: 14px 10px;
+  text-align: center;
+  font: 600 12px var(--body);
+  color: #94a3b8;
+}
+.playground .model-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px;
+  border-radius: 12px;
+  text-align: left;
+  background: transparent;
+}
+.playground .model-option:hover { background: #f1f5f9; }
+.playground .model-option.current { background: #eef2ff; }
+.playground .model-option-thumb {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 46px;
+  height: 36px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #e2e8f0;
+  font: 800 10px var(--body);
+  color: #64748b;
+}
+.playground .model-option-thumb.live { font-size: 18px; color: #5f63df; }
+.playground .model-option-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.playground .model-option-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+.playground .model-option-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 700 13px var(--body);
+  color: #1e293b;
+}
+.playground .model-option-copy small {
+  font: 600 11px var(--body);
+  color: #94a3b8;
+}
+.playground .model-option-remove {
+  margin-left: auto;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font: 700 12px var(--body);
+  color: #94a3b8;
+}
+.playground .model-option-remove:hover { background: #fee2e2; color: #dc2626; }
 
 /* Toolbar */
 .playground .stage-toolbar {
@@ -2010,10 +2131,7 @@
   .playground .mission-card {
     margin-bottom: 12px;
   }
-  .playground .view-cube {
-    display: none;
-  }
-  .playground .orbit-hint {
+    .playground .orbit-hint {
     top: 8px;
   }
   .playground .remix-inventory {

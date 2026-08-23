@@ -19,8 +19,10 @@ import {
 import { SCENE } from "@/lib/palette";
 import { useGestureStore } from "../gesture/store";
 import { laserTagState } from "../lasertag/laserTagStore";
-import { BreakDebris, playBreakSound, spawnBreakDebris } from "./break-fx";
+import { BreakDebris, spawnBreakDebris } from "./break-fx";
+import { playBreak, playPlace } from "@/components/world/sfx";
 import { playerOrigin } from "./player-origin";
+import { useHeroStore } from "@/components/world/store";
 import {
   buildVoxelIndex,
   cellKey,
@@ -313,7 +315,7 @@ function InstancedCubes({
       const cluster = breakCluster(target, cubesRef.current, voxelIndex, BREAK_NEIGHBORS);
       removeCubes(cluster.map((cube) => cube.position));
       spawnBreakDebris(cluster, sizeRef.current);
-      playBreakSound(cluster.length);
+      playBreak(cluster.length);
     },
     [removeCubes, voxelIndex],
   );
@@ -368,6 +370,10 @@ function InstancedCubes({
       const target = cubesRef.current[current.index];
       if (!target) return;
       if (e.button === 0) {
+        // Spider owns the left button: it shoots a web instead. Without this
+        // a click both fired the web and smashed the surface being aimed at,
+        // which then dropped the player.
+        if (useHeroStore.getState().active.includes("climb")) return;
         breakAt(current.index);
       } else if (e.button === 2) {
         // Instances are translation-only, so the local face normal is already
@@ -375,6 +381,7 @@ function InstancedCubes({
         addCube(
           ...neighborPosition(target.position, current.normal, sizeRef.current),
         );
+        playPlace();
       }
     };
     // Only while the scene holds the mouse — otherwise this would swallow the
