@@ -47,6 +47,9 @@ export const POINT_LAYERS: PointLayer[] = [
 /** Edge length of the previous InstantDB cubes. This grid is ~1/3 of that. */
 export const TARGET_BLOCK_SIZE = 1 / 3;
 
+/** Extra world-Y shift after the grid is sat on the ground. Negative = down. */
+export const BUILDING_Y_OFFSET = -2;
+
 const DEFAULT_BLOCK_SIZE: CubeCoords = [
   TARGET_BLOCK_SIZE,
   TARGET_BLOCK_SIZE,
@@ -192,7 +195,7 @@ function preparePoints(
   }
 
   const shiftX = -((minX + maxX) / 2) * scale;
-  const shiftY = blockSize[1] / 2 - minY * scale;
+  const shiftY = blockSize[1] / 2 - minY * scale + BUILDING_Y_OFFSET;
   const shiftZ = -((minZ + maxZ) / 2) * scale;
 
   const points: GridPoint[] = [];
