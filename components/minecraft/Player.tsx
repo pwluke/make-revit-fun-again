@@ -9,7 +9,7 @@ import {
   useRapier,
   type RapierRigidBody,
 } from "@react-three/rapier";
-import Axe from "./Axe";
+import { HeldItem } from "./HeldItem";
 
 type Controls = "forward" | "backward" | "left" | "right" | "jump";
 
@@ -44,12 +44,19 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     const speed = Math.hypot(velocity.x, velocity.y, velocity.z);
     // update camera
     state.camera.position.copy(ref.current.translation());
-    // update axe
-    axe.current.children[0].rotation.x = lerp(
-      axe.current.children[0].rotation.x,
-      Math.sin(+(speed > 1) * state.clock.elapsedTime * 10) / 6,
-      0.1,
-    );
+    // update the held item. children[0] is whatever HeldItem rendered — the axe,
+    // or a generated creation. It is momentarily ABSENT while a creation's GLB
+    // downloads and Suspense swaps the subtree, and an unguarded read here would
+    // throw inside the frame loop, which kills the loop outright (see the guard
+    // above for the same lesson).
+    const held = axe.current.children[0];
+    if (held) {
+      held.rotation.x = lerp(
+        held.rotation.x,
+        Math.sin(+(speed > 1) * state.clock.elapsedTime * 10) / 6,
+        0.1,
+      );
+    }
     axe.current.rotation.copy(state.camera.rotation);
     axe.current.position
       .copy(state.camera.position)
@@ -94,9 +101,15 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
       </RigidBody>
       <group
         ref={axe}
-        onPointerMissed={(e) => (axe.current.children[0].rotation.x = -0.5)}
+        onPointerMissed={() => {
+          // The held item swaps between the axe and a generated model, and a
+          // generated model suspends while it downloads — so there is no
+          // guarantee a child exists at the moment this fires.
+          const held = axe.current?.children[0];
+          if (held) held.rotation.x = -0.5;
+        }}
       >
-        <Axe position={[0.3, -0.35, 0.5]} />
+        <HeldItem />
       </group>
     </>
   );

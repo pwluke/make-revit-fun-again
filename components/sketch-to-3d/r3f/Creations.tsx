@@ -42,14 +42,21 @@ export function downscaleTexture(texture: THREE.Texture, maxSize: number): void 
   texture.needsUpdate = true;
 }
 
-/** Recentres and rescales a cloned glTF scene so it reads at a consistent size. */
-function normalizeScene(scene: THREE.Group): void {
+/**
+ * Recentres and rescales a cloned glTF scene so it reads at a consistent size.
+ *
+ * Exported because the held-item slot (HeldCreation) needs the identical
+ * treatment at a much smaller size. Duplicating it there would mean duplicating
+ * the base-sits-on-origin convention too, which the spawn-height bug already
+ * showed is easy to get subtly wrong.
+ */
+export function normalizeScene(scene: THREE.Group, targetSize = TARGET_SIZE): void {
   const box = new THREE.Box3().setFromObject(scene);
   const size = new THREE.Vector3();
   box.getSize(size);
   const largestDimension = Math.max(size.x, size.y, size.z);
   if (largestDimension > 0) {
-    const scale = TARGET_SIZE / largestDimension;
+    const scale = targetSize / largestDimension;
     scene.scale.setScalar(scale);
   }
 
@@ -71,7 +78,14 @@ function normalizeScene(scene: THREE.Group): void {
 // deliberately left shared with the drei cache. That split is also what
 // makes the disposal in LoadedModel's cleanup effect safe: it only ever
 // frees the per-instance material/texture clones, never the shared geometry.
-function applyMaterialPass(scene: THREE.Group): void {
+/**
+ * Exported alongside normalizeScene, and for a specific reason: this is where
+ * `metalness = 0` lives. TRELLIS omits metallicFactor, glTF defaults it to fully
+ * metallic, and a metal with no environment map renders as a BLACK SILHOUETTE.
+ * Any new place that mounts a generated model must go through here or it will
+ * hit that trap again.
+ */
+export function applyMaterialPass(scene: THREE.Group): void {
   scene.traverse((child) => {
     if (!(child instanceof THREE.Mesh)) return;
     const isArray = Array.isArray(child.material);
