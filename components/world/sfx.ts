@@ -211,3 +211,13 @@ export function playToggle(on: boolean) {
     to: on ? 880 : 330,
   });
 }
+
+/** Web zip: a rising whoosh with a tick at the anchor point. */
+export function playWebZip() {
+  const c = audio();
+  if (!c) return;
+  const t = c.currentTime;
+  blip(t, 300, { type: "sine", dur: 0.26, gain: 0.1, to: 900 });
+  thump(t, { freq: 500, sweepTo: 2200, dur: 0.24, gain: 0.05, q: 0.7 });
+  blip(t + 0.22, 1200, { type: "triangle", dur: 0.07, gain: 0.07 });
+}

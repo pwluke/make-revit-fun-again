@@ -14,7 +14,7 @@ import { useGestureStore } from "../gesture/store";
 import { hitBlockCenter } from "./GestureBuilder";
 import { powerupState, usePowerupStore } from "../world/powerupStore";
 import { useHeroStore } from "../world/store";
-import { playFootstep } from "../world/sfx";
+import { playFootstep, playWebZip } from "../world/sfx";
 import { useFloodStore } from "../world/floodStore";
 import { playerOrigin } from "./player-origin";
 import { TARGET_BLOCK_SIZE } from "@/lib/use-grid-points";
@@ -55,6 +55,21 @@ const WALL_REACH = TARGET_BLOCK_SIZE * 0.7;
 const WALL_PROBE_HEIGHTS = [0.2, 0, -0.25, -0.5];
 /** Fraction of walk speed pushed into the wall while climbing. */
 const CLIMB_WALL_PUSH = 0.25;
+/** Sideways crawl speed once stuck to a wall. */
+const CLIMB_STRAFE_SPEED = 2.6;
+/** Web-zip: click a surface further than the break reach to be pulled to it. */
+const ZIP_SPEED = 16;
+const ZIP_MAX_DIST = 60;
+/** Clicks nearer than this stay ordinary block-breaking. */
+const WEB_MIN_DIST = 9;
+const ZIP_ARRIVE = 1.4;
+const ZIP_TIMEOUT = 3; // seconds, so a blocked pull always lets go
+/** Flight: each double-tap of jump lifts the hover target by this much. */
+const FLY_STEP = 5;
+/** How fast the body eases toward its hover target. */
+const FLY_CLIMB_SPEED = 7;
+/** Two jump presses inside this window count as a double-tap. */
+const DOUBLE_TAP_MS = 320;
 /** Seconds after a jump during which "grounded" is ignored, so the body still
  *  resting on the floor doesn't immediately refill the jump count. */
 const JUMP_LOCKOUT = 0.2;
@@ -71,6 +86,9 @@ function eyeLift(shape: [number, number]) {
 const slideDir = new THREE.Vector3();
 const SLIDE_PROBE_HEIGHTS = [0.15, -0.2];
 const climbDir = new THREE.Vector3();
+const wallNormal = new THREE.Vector3();
+const wallRight = new THREE.Vector3();
+const zipVec = new THREE.Vector3();
 const direction = new THREE.Vector3();
 const frontVector = new THREE.Vector3();
 const sideVector = new THREE.Vector3();
@@ -121,6 +139,13 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
   const jumpLockout = useRef(0);
   const flying = useRef(false);
   const stepAccum = useRef(0);
+  // Spider: the wall we are stuck to, and the web pull in flight.
+  const onWall = useRef(false);
+  const zipTarget = useRef<THREE.Vector3 | null>(null);
+  const zipDeadline = useRef(0);
+  // Flight: the altitude the last double-tap asked for.
+  const flyTarget = useRef<number | null>(null);
+  const lastJumpTap = useRef(0);
 
   // The one effect Player needs during render rather than in the frame loop:
   // the collider size is a prop, so shrinking means re-rendering.
@@ -153,6 +178,31 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
   useEffect(() => {
     camera.rotation.set(0, 0, 0);
   }, [camera]);
+  // SPIDER web: clicking something FAR away pulls you to it. Near clicks are
+  // left alone so breaking still works — the split is the break reach itself,
+  // which is also how the player already reads "in range" vs "over there".
+  useEffect(() => {
+    const onPointerDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      if (!document.pointerLockElement) return;
+      if (!useHeroStore.getState().active.includes("climb")) return;
+      if (!ref.current) return;
+      orbitRay.setFromCamera(orbitCenter, camera);
+      const hit = orbitRay
+        .intersectObjects(scene.children, true)
+        .find((h) => {
+          const mesh = h.object as THREE.Mesh;
+          return h.distance > WEB_MIN_DIST && h.distance < ZIP_MAX_DIST && mesh.isMesh;
+        });
+      if (!hit) return;
+      zipTarget.current = hit.point.clone();
+      zipDeadline.current = performance.now() / 1000 + ZIP_TIMEOUT;
+      playWebZip();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [camera, scene]);
+
   useFrame((state, delta) => {
     // Rapier's wasm initialises asynchronously, so on a cold load this loop can
     // run a frame or two before <RigidBody> has created the body and populated
@@ -176,14 +226,6 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     const maxJumps = Math.max(powerupState.maxJumps, hasSpeedCard ? 2 : 1);
     // Portal rings ask for a teleport; the body owner is the only place that
     // can actually move it.
-    const teleport = useHeroStore.getState().consumeTeleport();
-    if (teleport) {
-      ref.current.setTranslation(
-        { x: teleport[0], y: teleport[1], z: teleport[2] },
-        true,
-      );
-      ref.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
-    }
     const velocity = ref.current.linvel();
     const speed = Math.hypot(velocity.x, velocity.y, velocity.z);
     // Camera rides above the small capsule at the original eye height.
@@ -326,7 +368,7 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     // horizontal facing, so you climb whatever you're looking at and pressing
     // into — no separate "grab" input to explain.
     let climbing = false;
-    if (canClimb && !orbiting && (forward || gestureForward)) {
+    if (canClimb && !orbiting) {
       state.camera.getWorldDirection(climbDir);
       climbDir.y = 0;
       if (climbDir.lengthSq() > 0.0001) {
@@ -335,9 +377,10 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
         // Probe at several heights, not just the body centre: a centre-only ray
         // sails over a one-block ledge — the very thing that stops you walking —
         // so the climb would refuse to start on exactly the obstacles it exists
-        // to solve. Any hit counts as a wall.
-        climbing = WALL_PROBE_HEIGHTS.some((offset) => {
-          const hit = world.castRay(
+        // to solve. Any hit counts as a wall, and the first one gives us the
+        // face we are crawling on.
+        for (const offset of WALL_PROBE_HEIGHTS) {
+          const hit = world.castRayAndGetNormal(
             new RAPIER.Ray(
               { x: origin.x, y: origin.y + offset, z: origin.z },
               climbDir,
@@ -349,10 +392,17 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
             undefined,
             ref.current,
           );
-          return !!(hit && hit.collider);
-        });
+          if (hit && hit.collider) {
+            climbing = true;
+            wallNormal.set(hit.normal.x, 0, hit.normal.z);
+            if (wallNormal.lengthSq() < 1e-6) wallNormal.copy(climbDir).negate();
+            wallNormal.normalize();
+            break;
+          }
+        }
       }
     }
+    onWall.current = climbing;
 
     if (!orbiting && !climbing && !flying.current && (direction.x || direction.z)) {
       // setLinvel every frame would otherwise keep driving the capsule into a
@@ -386,21 +436,59 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
       }
     }
 
-    if (!orbiting) {
-      const vertical = flying.current
-        ? (+(jump || false) - +(crouch || false)) * FLY_SPEED
-        : climbing
-          ? CLIMB_SPEED
-          : velocity.y;
-      // Climbing eases off the horizontal push: driving the capsule at full
-      // speed into the wall makes contact friction fight the upward slide, which
-      // dragged the measured climb down to ~0.7m/s against the 3.5 asked for.
-      // Enough push to stay attached, not enough to stick.
-      const grip = climbing ? CLIMB_WALL_PUSH : 1;
-      ref.current.setLinvel(
-        { x: direction.x * grip, y: vertical, z: direction.z * grip },
-        true,
+    // WEB ZIP owns the whole velocity while it runs, so it reads as being
+    // pulled rather than as a walk that happens to drift.
+    if (zipTarget.current) {
+      const now = performance.now() / 1000;
+      zipVec.set(
+        zipTarget.current.x - body.x,
+        zipTarget.current.y - body.y,
+        zipTarget.current.z - body.z,
       );
+      const dist = zipVec.length();
+      if (!canClimb || orbiting || dist < ZIP_ARRIVE || now > zipDeadline.current) {
+        zipTarget.current = null;
+      } else {
+        zipVec.normalize().multiplyScalar(ZIP_SPEED);
+        ref.current.setLinvel({ x: zipVec.x, y: zipVec.y, z: zipVec.z }, true);
+      }
+    }
+
+    if (!orbiting && !zipTarget.current) {
+      let vx = direction.x;
+      let vz = direction.z;
+      let vertical = velocity.y;
+
+      if (climbing) {
+        // Stuck to the wall: forward/back crawl up and down it, left/right
+        // slide along its face. The plain walk vector is discarded — on a
+        // wall the same keys mean something different.
+        const wantUp = +(forward || gestureForward) - +(backward || gestureBack);
+        const wantSide = +right - +left;
+        vertical = wantUp * CLIMB_SPEED;
+        wallRight.set(-wallNormal.z, 0, wallNormal.x).multiplyScalar(
+          wantSide * CLIMB_STRAFE_SPEED,
+        );
+        // A little push into the face keeps contact without the friction
+        // that used to drag the measured climb down to ~0.7m/s.
+        vx = wallRight.x - wallNormal.x * SPEED * CLIMB_WALL_PUSH;
+        vz = wallRight.z - wallNormal.z * SPEED * CLIMB_WALL_PUSH;
+      } else if (flying.current) {
+        if (flyTarget.current !== null) {
+          // Ease toward the altitude the last double-tap asked for, then hold
+          // it: flight is level cruising, not a climb you have to trim.
+          const gap = flyTarget.current - body.y;
+          vertical = THREE.MathUtils.clamp(
+            gap * 4,
+            -FLY_CLIMB_SPEED,
+            FLY_CLIMB_SPEED,
+          );
+        } else {
+          vertical = (+(jump || false) - +(crouch || false)) * FLY_SPEED;
+        }
+      }
+
+      ref.current.setLinvel({ x: vx, y: vertical, z: vz }, true);
     }
 
     // JUMPING. Rising-edge triggered now that a second jump exists: holding
@@ -410,6 +498,20 @@ export function Player({ lerp = THREE.MathUtils.lerp }: PlayerProps) {
     const wantJump = jump || gestureJump;
     const pressedJump = wantJump && !jumpWasDown.current;
     jumpWasDown.current = wantJump;
+
+    // BUTTERFLY: two quick taps of jump lift you to a hover, and every
+    // further double-tap adds another step of height. Switching the power
+    // off clears the target, so gravity simply takes you back down.
+    if (pressedJump && canFly) {
+      const nowMs = state.clock.elapsedTime * 1000;
+      if (nowMs - lastJumpTap.current < DOUBLE_TAP_MS) {
+        flyTarget.current = (flyTarget.current ?? body.y) + FLY_STEP;
+        lastJumpTap.current = 0;
+      } else {
+        lastJumpTap.current = nowMs;
+      }
+    }
+    if (!canFly) flyTarget.current = null;
 
     // Ignore "grounded" briefly after a jump: the body is still touching the
     // floor on the next frame or two, which would otherwise refill the jumps.

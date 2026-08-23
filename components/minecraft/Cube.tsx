@@ -23,7 +23,6 @@ import { playBreak, playPlace } from "@/components/world/sfx";
 import { playerOrigin } from "./player-origin";
 import { THEMES, type LayerId } from "@/lib/themes";
 import { useSceneTheme, useThemeStore } from "../world/themeStore";
-import { useHeroStore } from "@/components/world/store";
 
 // How far the player can reach to break or place, in world units. Also caps the
 // per-frame raycast, so a block across the map can't be edited by aiming at it.
@@ -162,9 +161,6 @@ function InstancedCubes({
   const addCube = useCubeStore((state) => state.addCube);
   const removeCubes = useCubeStore((state) => state.removeCubes);
   const [hovered, setHovered] = useState<number | null>(null);
-  // Scan mode (Iron Man / Owl): the whole model fades so its structure and
-  // the spaces behind every wall read through.
-  const xray = useHeroStore((state) => state.active.includes("scan"));
 
   // The instance buffer only ever grows; shrinking it would remount the mesh on
   // every break. `mesh.count` below is what actually hides removed instances.
@@ -306,9 +302,6 @@ function InstancedCubes({
         <meshStandardMaterial
           roughness={theme.cubeRoughness}
           metalness={theme.cubeMetalness}
-          transparent={xray}
-          opacity={xray ? 0.25 : 1}
-          depthWrite={!xray}
         />
       </instancedMesh>
       <NearbyColliders cubes={cubes} half={half} />

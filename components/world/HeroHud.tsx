@@ -5,39 +5,34 @@ import { useAbilityEmblemSpots } from "./emblemPlacement";
 import { Emblem } from "./Emblem";
 import { playPowerUp, playToggle } from "./sfx";
 import {
+  ABILITIES,
   ABILITY_COLORS,
   ABILITY_ORDER,
-  THEMES,
   useHeroStore,
   type AbilityId,
 } from "./store";
 
 /**
- * The whole ability UI lives in one top-left panel: how many cards are
- * found, the clue to the next one, the theme switch, and the six slots
- * themselves. A slot is the control — click/tap it or press its number to
- * switch that mode on and off. Modes stack, and an owned card can be used
- * as often as the player likes.
+ * The whole power UI in one top-right panel: how many emblems are found,
+ * the clue to the next one, and the four slots themselves. A slot is the
+ * control — click/tap it or press its number to switch that power on and
+ * off. Powers stack, and an owned one can be used as often as you like.
  */
 export default function HeroHud({
   anchorClass = "top-4 right-4",
 }: {
   anchorClass?: string;
 }) {
-  const theme = useHeroStore((s) => s.theme);
-  const setTheme = useHeroStore((s) => s.setTheme);
   const found = useHeroStore((s) => s.found);
   const total = useHeroStore((s) => s.total);
   const active = useHeroStore((s) => s.active);
   const pending = useHeroStore((s) => s.pendingUnlocks);
-  const toggle = useHeroStore((s) => s.toggle);
   const restart = useHeroStore((s) => s.restart);
   const spots = useAbilityEmblemSpots();
-  const skins = THEMES[theme];
   const complete = found.length === total;
   const nextSpot = spots.find((spot) => !found.includes(spot.id));
 
-  // Unlock animation, two beats: the card bursts and spins center-screen,
+  // Unlock animation, two beats: the emblem bursts and spins center-screen,
   // then flies up into the panel, whose slot pulses as it lands.
   const [unlockPhase, setUnlockPhase] = useState<"burst" | "dock" | null>(null);
   const [justLanded, setJustLanded] = useState<AbilityId | null>(null);
@@ -69,7 +64,7 @@ export default function HeroHud({
     store.toggle(id);
   };
 
-  // Number hotkeys, so modes toggle under pointer lock too.
+  // Number hotkeys, so powers toggle under pointer lock too.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const n = Number(e.key);
@@ -94,7 +89,7 @@ export default function HeroHud({
           0%, 100% { filter: brightness(1); }
           50% { filter: brightness(1.8); }
         }
-        /* Flies to the top-left panel. Animating top/left keeps the target
+        /* Flies to the top-right panel. Animating top/left keeps the target
            relative to the viewport box, not the window. */
         @keyframes card-dock {
           0% { top: 50%; left: 50%; transform: translate(-50%, -50%) scale(1); opacity: 1; }
@@ -111,29 +106,9 @@ export default function HeroHud({
         className={`pointer-events-none absolute ${anchorClass} z-10 flex flex-col items-end gap-2`}
       >
         <div className="rounded-2xl bg-white/92 px-3 py-2.5 shadow-xl ring-1 ring-slate-900/10 backdrop-blur-sm">
-          {/* header: count + theme switch */}
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-sm font-black text-slate-700">
-              Powers {found.length}/{total}
-            </span>
-            <div className="pointer-events-auto flex gap-1">
-              {(["heroes", "animals"] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTheme(t)}
-                  className={
-                    "rounded-full px-2 py-0.5 text-[11px] font-bold transition-colors " +
-                    (theme === t ? "bg-slate-800" : "bg-slate-100 hover:bg-slate-200")
-                  }
-                  // Inline: the playground's unlayered `button { color: inherit }`
-                  // beats Tailwind text utilities.
-                  style={{ color: theme === t ? "#ffffff" : "#64748b" }}
-                >
-                  {t === "heroes" ? "🦸" : "🐾"}
-                </button>
-              ))}
-            </div>
-          </div>
+          <span className="block text-right text-sm font-black text-slate-700">
+            Powers {found.length}/{total}
+          </span>
 
           {!complete && nextSpot ? (
             <p className="mt-0.5 max-w-[15rem] text-right text-[11px] font-semibold text-slate-500">
@@ -141,18 +116,18 @@ export default function HeroHud({
             </p>
           ) : null}
 
-          {/* the six slots — this row IS the control surface */}
-          <div className="pointer-events-auto mt-2 grid grid-cols-3 gap-1.5">
+          {/* the four slots — this row IS the control surface */}
+          <div className="pointer-events-auto mt-2 grid grid-cols-4 gap-1.5">
             {ABILITY_ORDER.map((id, i) => {
               const unlocked = found.includes(id);
               const on = active.includes(id);
-              const skin = skins[id];
+              const ability = ABILITIES[id];
               return (
                 <button
                   key={id}
                   onClick={() => toggleWithSound(id)}
                   disabled={!unlocked}
-                  title={unlocked ? skin.power : "Find this emblem to unlock it"}
+                  title={unlocked ? ability.power : "Find this emblem to unlock it"}
                   className={
                     "relative flex h-[68px] w-[76px] flex-col items-center justify-center gap-0.5 rounded-xl ring-2 transition-all " +
                     (on
@@ -182,16 +157,14 @@ export default function HeroHud({
                   </span>
                   <Emblem
                     ability={id}
-                    theme={theme}
                     tone={on ? "active" : unlocked ? "idle" : "locked"}
                     className="h-8 w-8"
-                    key={`${theme}-${id}`}
                   />
                   <span
                     className="max-w-full truncate px-1 text-[9px] font-bold"
                     style={{ color: on ? "#0f172a" : unlocked ? "#475569" : "#94a3b8" }}
                   >
-                    {unlocked ? (on ? "ON" : skin.name) : "locked"}
+                    {unlocked ? (on ? "ON" : ability.name) : "locked"}
                   </span>
                 </button>
               );
@@ -237,17 +210,12 @@ export default function HeroHud({
                     : undefined,
               }}
             >
-              <Emblem
-                ability={unlocking}
-                theme={theme}
-                tone="idle"
-                className="h-20 w-20"
-              />
+              <Emblem ability={unlocking} tone="idle" className="h-20 w-20" />
               <span className="text-lg font-black text-slate-800">
-                {skins[unlocking].name}
+                {ABILITIES[unlocking].name}
               </span>
               <span className="text-xs font-semibold text-slate-500">
-                {skins[unlocking].power}
+                {ABILITIES[unlocking].power}
               </span>
             </div>
           </div>

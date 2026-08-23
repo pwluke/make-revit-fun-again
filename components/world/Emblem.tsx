@@ -1,7 +1,7 @@
 "use client";
 
 import { EMBLEMS, type Prim } from "./emblems";
-import type { AbilityId, ThemeId } from "./store";
+import type { AbilityId } from "./store";
 
 /** Locked slots draw the same silhouette in flat grey: the shape is a hint
  *  at what is still out there, without giving the power away. */
@@ -53,16 +53,14 @@ function drawPrim(p: Prim, i: number, fill: string) {
 
 export function Emblem({
   ability,
-  theme,
   tone,
   className,
 }: {
   ability: AbilityId;
-  theme: ThemeId;
   tone: EmblemTone;
   className?: string;
 }) {
-  const prims = EMBLEMS[theme][ability];
+  const prims = EMBLEMS[ability];
   const { main, accent } = TONES[tone];
   return (
     <svg viewBox="0 0 100 100" aria-hidden className={className}>

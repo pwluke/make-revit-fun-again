@@ -1,84 +1,56 @@
 import { create } from "zustand";
 
 /**
- * Ability-card hunt. Six cards float in the world (placed procedurally
- * over whatever model is streamed in — see emblemPlacement.ts); walking into
- * one collects it into the dock, where it can be toggled on and off.
- * Abilities stack. The ability ids are neutral — the THEMES table skins
- * them as superheroes or as cute animals, switchable in the HUD.
+ * Animal-power hunt. Four emblems hide in the building (placed
+ * procedurally over whatever model is streamed in — see
+ * emblemPlacement.ts); walking into one permanently unlocks a way of
+ * moving, toggled from the numbered slots in the HUD. Powers stack, and
+ * an owned power can be used as often as the player likes.
  */
-export type AbilityId = "climb" | "tiny" | "fly" | "speed" | "scan" | "portal";
-export type ThemeId = "heroes" | "animals";
+export type AbilityId = "climb" | "tiny" | "fly" | "speed";
 
-export const ABILITY_ORDER: AbilityId[] = [
-  "climb",
-  "tiny",
-  "fly",
-  "speed",
-  "scan",
-  "portal",
-];
+export const ABILITY_ORDER: AbilityId[] = ["climb", "tiny", "fly", "speed"];
 
-/** Card frame colors, one per ability, shared by both themes. */
+/** Emblem colours, one per power. */
 export const ABILITY_COLORS: Record<AbilityId, string> = {
   climb: "#ef4444",
   tiny: "#8b5cf6",
-  fly: "#2563eb",
-  speed: "#facc15",
-  scan: "#ea580c",
-  portal: "#059669",
+  fly: "#f59e0b",
+  speed: "#22c55e",
 };
 
-export type AbilitySkin = { name: string; emoji: string; power: string };
+export type Ability = { name: string; power: string };
 
-export const THEMES: Record<ThemeId, Record<AbilityId, AbilitySkin>> = {
-  heroes: {
-    climb: { name: "Spider-Man", emoji: "🕷️", power: "Climb walls · G to web-zip" },
-    tiny: { name: "Ant-Man", emoji: "🐜", power: "Shrink to ant size" },
-    fly: { name: "Superman", emoji: "🦸", power: "Fly — move where you look" },
-    speed: { name: "The Flash", emoji: "⚡", power: "Double speed · double-height jump" },
-    scan: { name: "Iron Man", emoji: "🤖", power: "X-ray — see through the building" },
-    portal: { name: "Dr. Strange", emoji: "🌀", power: "Portals between linked places" },
+export const ABILITIES: Record<AbilityId, Ability> = {
+  climb: {
+    name: "Spider",
+    power: "Walk into a wall to climb it · click far away to swing over",
   },
-  animals: {
-    climb: { name: "Gecko", emoji: "🦎", power: "Climb walls · G to tongue-zip" },
-    tiny: { name: "Mouse", emoji: "🐭", power: "Shrink to mouse size" },
-    fly: { name: "Eagle", emoji: "🦅", power: "Fly — move where you look" },
-    speed: { name: "Bunny", emoji: "🐰", power: "Double speed · double-height hops" },
-    scan: { name: "Owl", emoji: "🦉", power: "Night eyes — see through the building" },
-    portal: { name: "Fox", emoji: "🦊", power: "Fox dens with two exits" },
-  },
+  tiny: { name: "Mouse", power: "Shrink small enough to fit through gaps" },
+  fly: { name: "Butterfly", power: "Double-tap Space to rise, again to go higher" },
+  speed: { name: "Bunny", power: "Twice as fast, and twice as high" },
 };
 
 type HeroState = {
-  theme: ThemeId;
-  /** Ability ids whose cards have been collected */
+  /** Ability ids whose emblems have been collected */
   found: AbilityId[];
   total: number;
-  /** Abilities currently switched on (multiple can stack) */
+  /** Powers currently switched on (multiple can stack) */
   active: AbilityId[];
   /** Unlock animations waiting to play, oldest first */
   pendingUnlocks: AbilityId[];
-  /** One-shot teleport request, consumed by the Player body owner */
-  pendingTeleport: [number, number, number] | null;
-  setTheme: (theme: ThemeId) => void;
   collect: (id: AbilityId) => void;
   shiftUnlock: () => void;
   toggle: (id: AbilityId) => void;
   isActive: (id: AbilityId) => boolean;
-  requestTeleport: (pos: [number, number, number]) => void;
-  consumeTeleport: () => [number, number, number] | null;
   restart: () => void;
 };
 
 export const useHeroStore = create<HeroState>((set, get) => ({
-  theme: "heroes",
   found: [],
   total: ABILITY_ORDER.length,
   active: [],
   pendingUnlocks: [],
-  pendingTeleport: null,
-  setTheme: (theme) => set({ theme }),
   collect: (id) => {
     if (get().found.includes(id)) return;
     set((s) => ({
@@ -96,19 +68,7 @@ export const useHeroStore = create<HeroState>((set, get) => ({
     }));
   },
   isActive: (id) => get().active.includes(id),
-  requestTeleport: (pos) => set({ pendingTeleport: pos }),
-  consumeTeleport: () => {
-    const pos = get().pendingTeleport;
-    if (pos) set({ pendingTeleport: null });
-    return pos;
-  },
-  restart: () =>
-    set({
-      found: [],
-      active: [],
-      pendingUnlocks: [],
-      pendingTeleport: null,
-    }),
+  restart: () => set({ found: [], active: [], pendingUnlocks: [] }),
 }));
 
 // Console debug hook, matching the project's __-prefixed convention:

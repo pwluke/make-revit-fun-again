@@ -38,24 +38,23 @@ function buildGeometry(prims: ReturnType<typeof emblemShapes> extends never ? ne
  */
 export function AbilityEmblems() {
   const spots = useAbilityEmblemSpots();
-  const theme = useHeroStore((s) => s.theme);
   const collect = useHeroStore((s) => s.collect);
   const groups = useRef<Map<AbilityId, THREE.Group | null>>(new Map());
   const scales = useRef<Map<AbilityId, number>>(new Map());
 
-  const geometries = useMemo(() => {
-    const set = EMBLEMS[theme];
-    return new Map(
-      (Object.keys(set) as AbilityId[]).map((id) => [
-        id,
-        {
-          main: buildGeometry(set[id], false),
-          accent: buildGeometry(set[id], true),
-        },
-      ]),
-    );
-  }, [theme]);
-  // Switching themes rebuilds every emblem; release the old buffers.
+  const geometries = useMemo(
+    () =>
+      new Map(
+        (Object.keys(EMBLEMS) as AbilityId[]).map((id) => [
+          id,
+          {
+            main: buildGeometry(EMBLEMS[id], false),
+            accent: buildGeometry(EMBLEMS[id], true),
+          },
+        ]),
+      ),
+    [],
+  );
   useEffect(
     () => () =>
       geometries.forEach(({ main, accent }) => {

@@ -1,14 +1,11 @@
 import * as THREE from "three";
-import type { AbilityId, ThemeId } from "./store";
+import type { AbilityId } from "./store";
 
 /**
  * Emblem artwork, declared once and drawn two ways: extruded into the 3D
  * world as the collectible itself, and as flat SVG in the HUD slot. One
  * spec means the thing you pick up and the thing in your slot are the same
  * silhouette, which is what makes a locked grey slot readable as a hint.
- *
- * These are original simplified marks — a spider, an ant, a cape, a bolt, a
- * faceplate, a portal — rather than any studio's trademarked logo.
  *
  * Coordinates live on a 0..100 grid with y pointing DOWN (SVG convention);
  * the three.js builder flips it.
@@ -42,8 +39,6 @@ const mirrorBar = (b: Extract<Prim, { k: "bar" }>): Prim => ({
   x2: 100 - b.x2,
 });
 
-// --- heroes ---------------------------------------------------------------
-
 const SPIDER: Prim[] = [
   { k: "ellipse", x: 50, y: 58, rx: 15, ry: 19 },
   { k: "circle", x: 50, y: 33, r: 11 },
@@ -59,75 +54,6 @@ const SPIDER: Prim[] = [
   { k: "circle", x: 55, y: 31, r: 3, accent: true },
 ];
 
-const ANT: Prim[] = [
-  { k: "circle", x: 50, y: 25, r: 11 },
-  { k: "ellipse", x: 50, y: 48, rx: 9, ry: 11 },
-  { k: "ellipse", x: 50, y: 74, rx: 14, ry: 17 },
-  ...(
-    [
-      { k: "bar", x1: 45, y1: 17, x2: 33, y2: 5, w: 4 },
-      { k: "bar", x1: 42, y1: 42, x2: 22, y2: 31, w: 4 },
-      { k: "bar", x1: 41, y1: 50, x2: 17, y2: 52, w: 4 },
-      { k: "bar", x1: 42, y1: 57, x2: 22, y2: 71, w: 4 },
-    ] as Extract<Prim, { k: "bar" }>[]
-  ).flatMap((b) => [b, mirrorBar(b)]),
-  { k: "circle", x: 45, y: 23, r: 3, accent: true },
-  { k: "circle", x: 55, y: 23, r: 3, accent: true },
-];
-
-const CAPE: Prim[] = [
-  { k: "poly", pts: [[26, 30], [74, 30], [90, 90], [50, 68], [10, 90]] },
-  { k: "circle", x: 50, y: 19, r: 10 },
-  { k: "bar", x1: 50, y1: 30, x2: 50, y2: 62, w: 13 },
-  { k: "bar", x1: 52, y1: 36, x2: 84, y2: 18, w: 8 },
-  { k: "poly", pts: [[42, 44], [58, 44], [50, 60]], accent: true },
-];
-
-const BOLT: Prim[] = [
-  {
-    k: "poly",
-    pts: [[60, 4], [24, 55], [46, 55], [38, 96], [76, 43], [52, 43]],
-  },
-];
-
-const FACEPLATE: Prim[] = [
-  { k: "poly", pts: [[50, 7], [78, 21], [80, 55], [50, 95], [20, 55], [22, 21]] },
-  { k: "bar", x1: 31, y1: 45, x2: 44, y2: 40, w: 8, accent: true },
-  { k: "bar", x1: 56, y1: 40, x2: 69, y2: 45, w: 8, accent: true },
-  { k: "bar", x1: 38, y1: 70, x2: 62, y2: 70, w: 6, accent: true },
-];
-
-const PORTAL: Prim[] = [
-  { k: "circle", x: 50, y: 50, r: 40 },
-  { k: "circle", x: 50, y: 50, r: 26, accent: true },
-  { k: "circle", x: 50, y: 50, r: 11 },
-  ...(
-    [
-      { k: "bar", x1: 50, y1: 8, x2: 50, y2: -2, w: 6 },
-      { k: "bar", x1: 92, y1: 50, x2: 102, y2: 50, w: 6 },
-    ] as Extract<Prim, { k: "bar" }>[]
-  ).flatMap((b) => [
-    b,
-    { ...b, y1: 100 - b.y1, y2: 100 - b.y2 } as Prim,
-  ]),
-];
-
-// --- animals --------------------------------------------------------------
-
-const GECKO: Prim[] = [
-  { k: "ellipse", x: 50, y: 54, rx: 12, ry: 25 },
-  { k: "circle", x: 50, y: 22, r: 11 },
-  { k: "bar", x1: 50, y1: 76, x2: 74, y2: 94, w: 7 },
-  ...(
-    [
-      { k: "bar", x1: 40, y1: 38, x2: 18, y2: 25, w: 6 },
-      { k: "bar", x1: 40, y1: 66, x2: 18, y2: 80, w: 6 },
-    ] as Extract<Prim, { k: "bar" }>[]
-  ).flatMap((b) => [b, mirrorBar(b)]),
-  { k: "circle", x: 45, y: 19, r: 3, accent: true },
-  { k: "circle", x: 55, y: 19, r: 3, accent: true },
-];
-
 const MOUSE: Prim[] = [
   { k: "circle", x: 27, y: 27, r: 15 },
   { k: "circle", x: 73, y: 27, r: 15 },
@@ -139,14 +65,23 @@ const MOUSE: Prim[] = [
   { k: "circle", x: 50, y: 55, r: 4.5, accent: true },
 ];
 
-const EAGLE: Prim[] = [
-  { k: "poly", pts: [[40, 36], [3, 18], [9, 45], [37, 59]] },
-  { k: "poly", pts: [[60, 36], [97, 18], [91, 45], [63, 59]] },
-  { k: "ellipse", x: 50, y: 56, rx: 11, ry: 22 },
-  { k: "circle", x: 50, y: 23, r: 12 },
-  { k: "poly", pts: [[42, 76], [58, 76], [50, 97]] },
-  { k: "poly", pts: [[50, 20], [66, 26], [50, 32]], accent: true },
-  { k: "circle", x: 45, y: 20, r: 3, accent: true },
+const BUTTERFLY: Prim[] = [
+  // Upper wings, then lower — big rounded shapes so it reads at slot size.
+  { k: "ellipse", x: 27, y: 34, rx: 22, ry: 17, rot: -0.42 },
+  { k: "ellipse", x: 73, y: 34, rx: 22, ry: 17, rot: 0.42 },
+  { k: "ellipse", x: 31, y: 68, rx: 16, ry: 13, rot: 0.34 },
+  { k: "ellipse", x: 69, y: 68, rx: 16, ry: 13, rot: -0.34 },
+  // Body and head.
+  { k: "ellipse", x: 50, y: 55, rx: 5, ry: 24 },
+  { k: "circle", x: 50, y: 25, r: 7 },
+  // Antennae.
+  { k: "bar", x1: 47, y1: 20, x2: 38, y2: 6, w: 3 },
+  { k: "bar", x1: 53, y1: 20, x2: 62, y2: 6, w: 3 },
+  // Wing spots, the detail that makes it a butterfly and not a moth.
+  { k: "circle", x: 26, y: 32, r: 6, accent: true },
+  { k: "circle", x: 74, y: 32, r: 6, accent: true },
+  { k: "circle", x: 31, y: 68, r: 4, accent: true },
+  { k: "circle", x: 69, y: 68, r: 4, accent: true },
 ];
 
 const BUNNY: Prim[] = [
@@ -160,42 +95,11 @@ const BUNNY: Prim[] = [
   { k: "circle", x: 50, y: 58, r: 4, accent: true },
 ];
 
-const OWL: Prim[] = [
-  { k: "poly", pts: [[25, 30], [33, 5], [43, 28]] },
-  { k: "poly", pts: [[75, 30], [67, 5], [57, 28]] },
-  { k: "ellipse", x: 50, y: 58, rx: 28, ry: 33 },
-  { k: "circle", x: 38, y: 46, r: 11, accent: true },
-  { k: "circle", x: 62, y: 46, r: 11, accent: true },
-  { k: "poly", pts: [[50, 55], [44, 64], [56, 64]], accent: true },
-];
-
-const FOX: Prim[] = [
-  {
-    k: "poly",
-    pts: [[50, 90], [19, 52], [25, 17], [41, 33], [59, 33], [75, 17], [81, 52]],
-  },
-  { k: "circle", x: 39, y: 50, r: 4, accent: true },
-  { k: "circle", x: 61, y: 50, r: 4, accent: true },
-  { k: "poly", pts: [[50, 82], [42, 66], [58, 66]], accent: true },
-];
-
-export const EMBLEMS: Record<ThemeId, Record<AbilityId, Prim[]>> = {
-  heroes: {
-    climb: SPIDER,
-    tiny: ANT,
-    fly: CAPE,
-    speed: BOLT,
-    scan: FACEPLATE,
-    portal: PORTAL,
-  },
-  animals: {
-    climb: GECKO,
-    tiny: MOUSE,
-    fly: EAGLE,
-    speed: BUNNY,
-    scan: OWL,
-    portal: FOX,
-  },
+export const EMBLEMS: Record<AbilityId, Prim[]> = {
+  climb: SPIDER,
+  tiny: MOUSE,
+  fly: BUTTERFLY,
+  speed: BUNNY,
 };
 
 // --- three.js shape building ----------------------------------------------
@@ -209,7 +113,6 @@ function barShape(b: Extract<Prim, { k: "bar" }>) {
   const dx = b.x2 - b.x1;
   const dy = b.y2 - b.y1;
   const len = Math.hypot(dx, dy) || 1;
-  // Normal in SVG space, then converted per-point below.
   const nx = (-dy / len) * (b.w / 2);
   const ny = (dx / len) * (b.w / 2);
   const pts: [number, number][] = [
