@@ -1,0 +1,277 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\views\\bim-boomview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\views\\bim-boomview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\viewmodels\\bim-boomviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\viewmodels\\bim-boomviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\commands\\startupcommand.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\commands\\startupcommand.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\services\\revitgeometryextractor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\services\\revitgeometryextractor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\application.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\application.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\bim-boom.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\bim-boom.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\models\\mergedmesh.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\models\\mergedmesh.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\models\\voxeldata.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\models\\voxeldata.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\services\\voxelizationservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\services\\voxelizationservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\services\\voxeldirectcontext3dserver.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\services\\voxeldirectcontext3dserver.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\handlers\\delegateexternaleventhandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\handlers\\delegateexternaleventhandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\views\\bim-boomview.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\views\\bim-boomview.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 1,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedHeight": 317,
+          "SelectedChildIndex": 17,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:128:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{f5cd1b51-c771-5648-966f-646d419b1e7c}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{3ae79031-e1bc-11d0-8f78-00a0c9110057}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{eefa5220-e298-11d0-8f78-00a0c9110057}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c64b9c2-e352-428e-a56d-0ace190b99a6}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:128:0:{75188d03-9892-4ae2-abf1-207126247ce5}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:128:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "BIM-BoomViewModel.cs",
+              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\ViewModels\\BIM-BoomViewModel.cs",
+              "RelativeDocumentMoniker": "BIM-Boom\\ViewModels\\BIM-BoomViewModel.cs",
+              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\ViewModels\\BIM-BoomViewModel.cs",
+              "RelativeToolTip": "BIM-Boom\\ViewModels\\BIM-BoomViewModel.cs",
+              "ViewState": "AgIAAIgAAAAAAAAAAAAcwCAAAABdAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T22:26:57.343Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "Application.cs",
+              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Application.cs",
+              "RelativeDocumentMoniker": "BIM-Boom\\Application.cs",
+              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Application.cs",
+              "RelativeToolTip": "BIM-Boom\\Application.cs",
+              "ViewState": "AgIAAAUAAAAAAAAAAAAAABQAAAAuAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:13:47.646Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "RevitGeometryExtractor.cs",
+              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Services\\RevitGeometryExtractor.cs",
+              "RelativeDocumentMoniker": "BIM-Boom\\Services\\RevitGeometryExtractor.cs",
+              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Services\\RevitGeometryExtractor.cs",
+              "RelativeToolTip": "BIM-Boom\\Services\\RevitGeometryExtractor.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAALgAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T22:09:05.253Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "StartupCommand.cs",
+              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Commands\\StartupCommand.cs",
+              "RelativeDocumentMoniker": "BIM-Boom\\Commands\\StartupCommand.cs",
+              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Commands\\StartupCommand.cs",
+              "RelativeToolTip": "BIM-Boom\\Commands\\StartupCommand.cs",
+              "ViewState": "AgIAABcAAAAAAAAAAAAqwCYAAAAtAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:17:12.2Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "BIM-Boom",
+              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\BIM-Boom.csproj",
+              "RelativeDocumentMoniker": "BIM-Boom\\BIM-Boom.csproj",
+              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\BIM-Boom.csproj",
+              "RelativeToolTip": "BIM-Boom\\BIM-Boom.csproj",
+              "ViewState": "AgIAABYAAAAAAAAAAABBwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2026-08-22T21:40:37.029Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "MergedMesh.cs",
+              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Models\\MergedMesh.cs",
+              "RelativeDocumentMoniker": "BIM-Boom\\Models\\MergedMesh.cs",
+              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Models\\MergedMesh.cs",
+              "RelativeToolTip": "BIM-Boom\\Models\\MergedMesh.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABcAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:40:50.294Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "VoxelData.cs",
+              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Models\\VoxelData.cs",
+              "RelativeDocumentMoniker": "BIM-Boom\\Models\\VoxelData.cs",
+              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Models\\VoxelData.cs",
+              "RelativeToolTip": "BIM-Boom\\Models\\VoxelData.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:40:50.341Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
+              "Title": "BIM-BoomView.xaml.cs",
+              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Views\\BIM-BoomView.xaml.cs",
+              "RelativeDocumentMoniker": "BIM-Boom\\Views\\BIM-BoomView.xaml.cs",
+              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Views\\BIM-BoomView.xaml.cs",
+              "RelativeToolTip": "BIM-Boom\\Views\\BIM-BoomView.xaml.cs",
+              "ViewState": "AgIAAAMAAAAAAAAAAEBQwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:44:12.196Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "BIM-BoomView.xaml",
+              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Views\\BIM-BoomView.xaml",
+              "RelativeDocumentMoniker": "BIM-Boom\\Views\\BIM-BoomView.xaml",
+              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Views\\BIM-BoomView.xaml",
+              "RelativeToolTip": "BIM-Boom\\Views\\BIM-BoomView.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-08-22T21:44:03.003Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "VoxelizationService.cs",
+              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Services\\VoxelizationService.cs",
+              "RelativeDocumentMoniker": "BIM-Boom\\Services\\VoxelizationService.cs",
+              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Services\\VoxelizationService.cs",
+              "RelativeToolTip": "BIM-Boom\\Services\\VoxelizationService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAKIAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:42:09.478Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "DelegateExternalEventHandler.cs",
+              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Handlers\\DelegateExternalEventHandler.cs",
+              "RelativeDocumentMoniker": "BIM-Boom\\Handlers\\DelegateExternalEventHandler.cs",
+              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Handlers\\DelegateExternalEventHandler.cs",
+              "RelativeToolTip": "BIM-Boom\\Handlers\\DelegateExternalEventHandler.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAACcAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:43:11.845Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "VoxelDirectContext3DServer.cs",
+              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Services\\VoxelDirectContext3DServer.cs",
+              "RelativeDocumentMoniker": "BIM-Boom\\Services\\VoxelDirectContext3DServer.cs",
+              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Services\\VoxelDirectContext3DServer.cs",
+              "RelativeToolTip": "BIM-Boom\\Services\\VoxelDirectContext3DServer.cs",
+              "ViewState": "AgIAAEEAAAAAAAAAAMBTwL4AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:42:42.73Z",
+              "EditorCaption": ""
+            }
+          ]
+        },
+        {
+          "DockedHeight": 19,
+          "SelectedChildIndex": -1,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{d78612c7-9962-4b83-95d9-268046dad23a}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{34e76e81-ee4a-11d0-ae2e-00a0c90fffc3}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:1:0:{d212f56b-c48a-434c-a121-1c5d80b59b9f}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

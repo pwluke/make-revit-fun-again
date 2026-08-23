@@ -1,0 +1,4 @@
+D:\GitHub\make-revit-fun-again\revit-add-in\BIM-Boom\obj\Debug.R23\BIM-Boom.csproj.AssemblyReference.cache
+D:\GitHub\make-revit-fun-again\revit-add-in\BIM-Boom\obj\Debug.R23\Views\BIM-BoomView.g.cs
+D:\GitHub\make-revit-fun-again\revit-add-in\BIM-Boom\obj\Debug.R23\BIM-Boom_MarkupCompile.cache
+D:\GitHub\make-revit-fun-again\revit-add-in\BIM-Boom\obj\Debug.R23\BIM-Boom_MarkupCompile.lref

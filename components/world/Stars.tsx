@@ -94,7 +94,10 @@ export function Stars() {
           }}
           position={spot.pos}
         >
-          <mesh geometry={geometry} castShadow>
+          {/* No castShadow: the shadow map is cached and only re-rendered
+              when the world changes, so a bobbing caster would drag a stale
+              shadow behind it. The emissive glow is what makes these read. */}
+          <mesh geometry={geometry}>
             {/* The interface's own gold. Emissive is pushed harder than it was
                 because the stars are now the only thing in the frame bright
                 enough to trip the bloom threshold — which is what makes them

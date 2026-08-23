@@ -15,6 +15,9 @@ import { Powerups } from "../world/Powerups";
 import { Flood } from "../world/Flood";
 import { ThemeAtmosphere } from "../world/ThemeAtmosphere";
 import { MarineGarden } from "../world/MarineGarden";
+import { StaticShadows } from "../canvas/StaticShadows";
+import { useThemeStore } from "../world/themeStore";
+import { useCubeStore } from "./Cube";
 
 // The original was made by Maksim Ivanow: https://www.youtube.com/watch?v=Lc2JvBXMesY&t=124s
 // This example needs pointer-lock, that works only if you open it in a new window
@@ -30,10 +33,17 @@ export const minecraftKeyMap = [
   { name: "crouch", keys: ["ShiftLeft", "ShiftRight", "Shift", "c", "C"] },
 ];
 
-export function MinecraftScene() {
+export function MinecraftScene({ children }: { children?: ReactNode }) {
+  // What makes the shadow map stale: edits to the world, and a theme swap that
+  // moves the key light.
+  const added = useCubeStore((state) => state.added);
+  const removed = useCubeStore((state) => state.removed);
+  const themeId = useThemeStore((state) => state.id);
+
   return (
     <>
       <ThemeAtmosphere />
+      <StaticShadows deps={[added, removed, themeId]} />
       <Physics gravity={[0, -30, 0]}>
         <Ground />
         <Player />
@@ -47,6 +57,10 @@ export function MinecraftScene() {
       <Powerups />
       <MarineGarden />
       <Flood />
+      {/* Slot for a per-mode add-on — see components/lasertag. Out here for the
+          same reason the pickups are: it raycasts and animates, it doesn't
+          collide. Callers that pass nothing render exactly the tree above. */}
+      {children}
       <GestureBuilder />
       <PointerLockControls />
       <PostFX />

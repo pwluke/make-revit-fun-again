@@ -26,8 +26,10 @@ const BLOCKED_BELOW = 3;
 /** Keep procedural stars from crowding each other or the authored ones. */
 const MIN_SEPARATION = 6;
 
-/** mulberry32 — small deterministic PRNG, enough for scattering a few props. */
-function seededRandom(seed: number) {
+/** mulberry32 — small deterministic PRNG, enough for scattering a few props.
+ *  Exported so other scatterers (components/lasertag/botArena.ts) reuse this
+ *  one rather than each carrying their own copy. */
+export function seededRandom(seed: number) {
   let a = seed >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;
@@ -40,7 +42,7 @@ function seededRandom(seed: number) {
 /** -Z is the direction the player faces at spawn, so call that north. */
 const COMPASS = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"];
 
-function bearing(x: number, z: number) {
+export function bearing(x: number, z: number) {
   const angle = Math.atan2(x, -z); // 0 = -Z = north, clockwise
   const index = Math.round((angle / (Math.PI * 2)) * 8 + 8) % 8;
   return COMPASS[index];
