@@ -10,7 +10,7 @@ import { Player } from "./Player";
 import { Cubes } from "./Cube";
 import { GestureBuilder } from "./GestureBuilder";
 import { House } from "../world/House";
-import { AbilityCards } from "../world/AbilityCards";
+import { AbilityEmblems } from "../world/AbilityEmblems";
 import { Portals } from "../world/Portals";
 import { Powerups } from "../world/Powerups";
 import { Flood } from "../world/Flood";
@@ -44,7 +44,7 @@ export function MinecraftScene() {
       {/* Outside <Physics>: stars and powerups are pickups, the builder only
           raycasts, and the flood is visual — you swim through it, the breath
           timer is what actually threatens you. */}
-      <AbilityCards />
+      <AbilityEmblems />
       <Portals />
       <Powerups />
       <Flood />

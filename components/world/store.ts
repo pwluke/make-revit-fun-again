@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 /**
  * Ability-card hunt. Six cards float in the world (placed procedurally
- * over whatever model is streamed in — see cardPlacement.ts); walking into
+ * over whatever model is streamed in — see emblemPlacement.ts); walking into
  * one collects it into the dock, where it can be toggled on and off.
  * Abilities stack. The ability ids are neutral — the THEMES table skins
  * them as superheroes or as cute animals, switchable in the HUD.

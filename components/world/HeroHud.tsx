@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAbilityCardSpots } from "./cardPlacement";
+import { useAbilityEmblemSpots } from "./emblemPlacement";
+import { Emblem } from "./Emblem";
 import {
   ABILITY_COLORS,
   ABILITY_ORDER,
@@ -26,7 +27,7 @@ export default function HeroHud({ topClass = "top-4" }: { topClass?: string }) {
   const pending = useHeroStore((s) => s.pendingUnlocks);
   const toggle = useHeroStore((s) => s.toggle);
   const restart = useHeroStore((s) => s.restart);
-  const spots = useAbilityCardSpots();
+  const spots = useAbilityEmblemSpots();
   const skins = THEMES[theme];
   const complete = found.length === total;
   const nextSpot = spots.find((spot) => !found.includes(spot.id));
@@ -98,7 +99,7 @@ export default function HeroHud({ topClass = "top-4" }: { topClass?: string }) {
           {/* header: count + theme switch */}
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm font-black text-slate-700">
-              Cards {found.length}/{total}
+              Powers {found.length}/{total}
             </span>
             <div className="pointer-events-auto flex gap-1">
               {(["heroes", "animals"] as const).map((t) => (
@@ -136,7 +137,7 @@ export default function HeroHud({ topClass = "top-4" }: { topClass?: string }) {
                   key={id}
                   onClick={() => toggle(id)}
                   disabled={!unlocked}
-                  title={unlocked ? skin.power : "Find this card to unlock it"}
+                  title={unlocked ? skin.power : "Find this emblem to unlock it"}
                   className={
                     "relative flex h-[68px] w-[76px] flex-col items-center justify-center gap-0.5 rounded-xl ring-2 transition-all " +
                     (on
@@ -164,11 +165,13 @@ export default function HeroHud({ topClass = "top-4" }: { topClass?: string }) {
                   >
                     {i + 1}
                   </span>
-                  <span
-                    className={"text-3xl leading-none " + (unlocked ? "" : "opacity-30 grayscale")}
-                  >
-                    {unlocked ? skin.emoji : "🃏"}
-                  </span>
+                  <Emblem
+                    ability={id}
+                    theme={theme}
+                    tone={on ? "active" : unlocked ? "idle" : "locked"}
+                    className="h-8 w-8"
+                    key={`${theme}-${id}`}
+                  />
                   <span
                     className="max-w-full truncate px-1 text-[9px] font-bold"
                     style={{ color: on ? "#0f172a" : unlocked ? "#475569" : "#94a3b8" }}
@@ -184,7 +187,7 @@ export default function HeroHud({ topClass = "top-4" }: { topClass?: string }) {
         {complete ? (
           <div className="pointer-events-auto flex items-center gap-3 rounded-2xl bg-amber-300 px-3 py-2 shadow-lg ring-1 ring-amber-500/30">
             <span className="text-sm font-bold text-slate-900">
-              🎉 Every card found!
+              🎉 Every power found!
             </span>
             <button
               onClick={restart}
@@ -219,7 +222,12 @@ export default function HeroHud({ topClass = "top-4" }: { topClass?: string }) {
                     : undefined,
               }}
             >
-              <span className="text-6xl leading-none">{skins[unlocking].emoji}</span>
+              <Emblem
+                ability={unlocking}
+                theme={theme}
+                tone="idle"
+                className="h-20 w-20"
+              />
               <span className="text-lg font-black text-slate-800">
                 {skins[unlocking].name}
               </span>
