@@ -15,6 +15,7 @@ import { Stars } from "../world/Stars";
 import { Powerups } from "../world/Powerups";
 import { Flood } from "../world/Flood";
 import { ThemeAtmosphere } from "../world/ThemeAtmosphere";
+import { MarineGarden } from "../world/MarineGarden";
 import { StaticShadows } from "../canvas/StaticShadows";
 import { useFastMode, useThemeStore } from "../world/themeStore";
 import { creationStore } from "@/components/sketch-to-3d/core/creationStore";
@@ -71,6 +72,7 @@ export function MinecraftScene({ children }: { children?: ReactNode }) {
           timer is what actually threatens you. */}
       <Stars />
       <Powerups />
+      <MarineGarden />
       <Flood />
       {/* Slot for a per-mode add-on — see components/lasertag. Out here for the
           same reason the pickups are: it raycasts and animates, it doesn't
