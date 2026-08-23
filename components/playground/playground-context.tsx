@@ -53,8 +53,6 @@ type PlaygroundContextValue = {
   saveSketch: () => void;
   clearSketch: () => void;
   sketchVersion: number;
-  treasures: number[];
-  findTreasure: (id: number) => void;
   rewardedModes: ModeId[];
   toast: ToastCopy;
   toastVisible: boolean;
@@ -100,8 +98,6 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
   const [sketchDrawn, setSketchDrawn] = useState(false);
   const [sketchSaved, setSketchSaved] = useState(false);
   const [sketchVersion, setSketchVersion] = useState(0);
-  const [treasures, setTreasures] = useState<number[]>([]);
-  const treasuresRef = useRef<number[]>([]);
   const [rewardedModes, setRewardedModes] = useState<ModeId[]>([]);
   const rewardedRef = useRef<ModeId[]>([]);
   const [toast, setToast] = useState<ToastCopy>({
@@ -256,19 +252,6 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
     setSketchVersion((version) => version + 1);
   }, []);
 
-  const findTreasure = useCallback(
-    (id: number) => {
-      if (treasuresRef.current.includes(id)) return;
-      const next = [...treasuresRef.current, id];
-      treasuresRef.current = next;
-      setTreasures(next);
-      setStars((count) => count + 5);
-      showToast("Treasure found!", "You found a bonus 5-star surprise.");
-      tone(820, 0.12);
-    },
-    [showToast, tone],
-  );
-
   const toggleSound = useCallback(() => {
     setSound((enabled) => {
       const next = !enabled;
@@ -355,7 +338,6 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
       inkPicked,
       sketchDrawn,
       sketchSaved,
-      treasures,
       botsTagged,
       botTotal,
       animalsFound,
@@ -389,7 +371,6 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
     sketchSaved,
     spun,
     tone,
-    treasures,
     waterLevel,
   ]);
 
@@ -416,8 +397,6 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
       saveSketch,
       clearSketch,
       sketchVersion,
-      treasures,
-      findTreasure,
       rewardedModes,
       toast,
       toastVisible,
@@ -439,7 +418,6 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
       clearSketch,
       connection,
       connectionText,
-      findTreasure,
       floor,
       fov,
       fullscreen,
@@ -469,7 +447,6 @@ export function PlaygroundProvider({ children }: { children: ReactNode }) {
       toggleFullscreen,
       toggleSound,
       tone,
-      treasures,
       zoomIn,
       zoomOut,
     ],

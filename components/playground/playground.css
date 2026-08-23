@@ -957,47 +957,6 @@
 }
 
 /* Activity overlays */
-.playground .treasure-marker {
-  display: none;
-  width: 40px;
-  height: 40px;
-  position: absolute;
-  z-index: 8;
-  border: 4px solid white;
-  border-radius: 50% 50% 50% 8px;
-  background: var(--coral);
-  color: white;
-  box-shadow: 0 5px 16px rgba(95, 35, 55, 0.25);
-  font: 700 18px var(--display);
-  animation: playground-bob 1.7s ease-in-out infinite;
-}
-.playground[data-mode="treasure"] .treasure-marker {
-  display: grid;
-  place-items: center;
-}
-.playground .treasure-marker.found {
-  background: var(--gold);
-  animation: playground-pop 0.4s both;
-}
-.playground .marker-one {
-  left: 52%;
-  top: 16%;
-}
-.playground .marker-two {
-  left: 46%;
-  top: 58%;
-  animation-delay: 0.2s;
-}
-.playground .marker-three {
-  right: 11%;
-  top: 59%;
-  animation-delay: 0.4s;
-}
-@keyframes playground-bob {
-  50% {
-    transform: translateY(-8px);
-  }
-}
 @keyframes playground-pop {
   50% {
     transform: scale(1.3) rotate(10deg);

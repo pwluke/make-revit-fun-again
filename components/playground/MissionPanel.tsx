@@ -27,7 +27,6 @@ export function MissionPanel() {
     inkPicked,
     sketchDrawn,
     sketchSaved,
-    treasures,
     rewardedModes,
   } = usePlayground();
 
@@ -38,7 +37,6 @@ export function MissionPanel() {
     inkPicked,
     sketchDrawn,
     sketchSaved,
-    treasures,
     botsTagged,
     botTotal,
     animalsFound,
