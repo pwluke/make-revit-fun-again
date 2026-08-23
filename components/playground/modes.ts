@@ -179,6 +179,13 @@ export type PlayProgress = {
   /** Scan-bots tagged this Laser Tag round, and how many the player chose. */
   botsTagged: number;
   botTotal: number;
+  /** Treasure Hunt: animal emblems found, powers ever switched on, and
+   *  dinosaur fragments dug up — each against its own total. */
+  animalsFound: number;
+  animalsTotal: number;
+  powersUsed: number;
+  fossilsFound: number;
+  fossilsTotal: number;
 };
 
 export function getMission(mode: ModeId, progress: PlayProgress): MissionStep[] {
@@ -266,11 +273,29 @@ export function getMission(mode: ModeId, progress: PlayProgress): MissionStep[] 
   }
 
   if (mode === "treasure") {
-    return [1, 2, 3].map((number) => ({
-      title: `Find treasure ${number}`,
-      detail: "Tap a hidden question mark",
-      done: progress.treasures.includes(number),
-    }));
+    return [
+      {
+        title: "Find all the animals",
+        detail: `${progress.animalsFound}/${progress.animalsTotal} emblems — walk into one to collect it`,
+        done:
+          progress.animalsTotal > 0 &&
+          progress.animalsFound >= progress.animalsTotal,
+      },
+      {
+        title: "Use every animal power",
+        detail: `${progress.powersUsed}/${progress.animalsTotal} tried — press 1-4 to switch one on`,
+        done:
+          progress.animalsTotal > 0 &&
+          progress.powersUsed >= progress.animalsTotal,
+      },
+      {
+        title: "Rebuild the dinosaur",
+        detail: `${progress.fossilsFound}/${progress.fossilsTotal} fragments — they hide on every floor`,
+        done:
+          progress.fossilsTotal > 0 &&
+          progress.fossilsFound >= progress.fossilsTotal,
+      },
+    ];
   }
 
   return [

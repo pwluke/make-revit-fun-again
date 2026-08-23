@@ -65,6 +65,10 @@ type HeroState = {
   active: AbilityId[];
   /** Unlock animations waiting to play, oldest first */
   pendingUnlocks: AbilityId[];
+  /** Every power that has been switched on at least once. Separate from
+   *  `active`, which only says what is on right now — the mission asks
+   *  whether each has been TRIED. */
+  everUsed: AbilityId[];
   collect: (id: AbilityId) => void;
   shiftUnlock: () => void;
   toggle: (id: AbilityId) => void;
@@ -77,6 +81,7 @@ export const useHeroStore = create<HeroState>((set, get) => ({
   total: ABILITY_ORDER.length,
   active: [],
   pendingUnlocks: [],
+  everUsed: [],
   collect: (id) => {
     if (get().found.includes(id)) return;
     // Switched on the instant you pick it up: the power is the reward, so
@@ -84,7 +89,9 @@ export const useHeroStore = create<HeroState>((set, get) => ({
     // It stays on until they turn it off.
     set((s) => ({
       found: [...s.found, id],
+      // Auto-activating on pickup counts as trying it.
       active: s.active.includes(id) ? s.active : [...s.active, id],
+      everUsed: s.everUsed.includes(id) ? s.everUsed : [...s.everUsed, id],
       pendingUnlocks: [...s.pendingUnlocks, id],
     }));
   },
@@ -95,10 +102,12 @@ export const useHeroStore = create<HeroState>((set, get) => ({
       active: s.active.includes(id)
         ? s.active.filter((a) => a !== id)
         : [...s.active, id],
+      everUsed: s.everUsed.includes(id) ? s.everUsed : [...s.everUsed, id],
     }));
   },
   isActive: (id) => get().active.includes(id),
-  restart: () => set({ found: [], active: [], pendingUnlocks: [] }),
+  restart: () =>
+    set({ found: [], active: [], pendingUnlocks: [], everUsed: [] }),
 }));
 
 // Console debug hook, matching the project's __-prefixed convention:
