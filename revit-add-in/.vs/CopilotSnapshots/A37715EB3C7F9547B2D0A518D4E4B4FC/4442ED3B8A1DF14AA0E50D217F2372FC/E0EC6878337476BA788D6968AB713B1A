@@ -1,0 +1,22 @@
+﻿using Autodesk.Revit.Attributes;
+using BIM_Boom.ViewModels;
+using BIM_Boom.Views;
+using Nice3point.Revit.Toolkit.External;
+
+namespace BIM_Boom.Commands
+{
+    /// <summary>
+    ///     External command entry point.
+    /// </summary>
+    [UsedImplicitly]
+    [Transaction(TransactionMode.Manual)]
+    public class StartupCommand : ExternalCommand
+    {
+        public override void Execute()
+        {
+            var viewModel = new BIM_BoomViewModel();
+            var view = new BIM_BoomView(viewModel);
+            view.ShowDialog();
+        }
+    }
+}

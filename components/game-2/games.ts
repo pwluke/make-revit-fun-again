@@ -1,16 +1,15 @@
-// The four game modes, in render order: ascending start age, which is also the
-// difficulty ramp (playful stacking -> spatial puzzle -> design studio -> city).
-// This array is the single source of truth for the landing page and the
-// /play/[tier] routes — rename a bracket or swap a game name here only.
+// The four games, in render order. This array is the single source of truth for
+// the landing page and the /play/[game] routes — add a game or swap its art
+// here only.
 
-export type AgeTier = {
+export type Game = {
   /** URL segment and React key. */
   slug: string;
-  /** Eyebrow copy — the audience this mode is built for. */
-  ageLabel: string;
+  /** Eyebrow copy — what kind of game this is, in two or three words. */
+  kindLabel: string;
   title: string;
   tagline: string;
-  /** Where the tile navigates. `/minecraft` is the one mode that exists today. */
+  /** Where the tile navigates. `/minecraft` is the one game that exists today. */
   href: string;
   /**
    * Runtime URL string, not a bundled import — same convention as
@@ -28,58 +27,55 @@ export type AgeTier = {
   palette: { from: string; to: string; accent: string };
 };
 
-export const AGE_TIERS: AgeTier[] = [
+export const GAMES: Game[] = [
   {
-    slug: "ages-6-12",
-    ageLabel: "Ages 6–12",
-    title: "Cloud Harbour",
-    tagline: "Snap bright little houses into towers that float above the sea.",
+    slug: "bimcraft",
+    kindLabel: "Voxel Builder",
+    title: "BIMCraft",
+    tagline: "Break your model down to blocks, then build it back your way.",
     href: "/minecraft",
-    image: "/6-12.png",
+    image: "/bimcraft.jpg",
     imageAlt:
-      "A candy-coloured island of stacked houses on stilts, floating in a bright blue sky",
-    // 1672x941 is far wider than the 4:5 frame, and the island sits right of
-    // centre — a centre crop would slice the stacked tower off.
-    focus: "64% 50%",
-    palette: { from: "#7FDCE8", to: "#E8615A", accent: "#F5C860" },
+      "A voxel player standing in a lantern-lit swamp of glowing mushrooms and mangrove blocks",
+    // 763x402 is wider than the 4:5 frame, but the player sits close enough to
+    // centre that the default crop keeps them in shot.
+    palette: { from: "#4E8F6B", to: "#12262B", accent: "#FFC46B" },
   },
   {
-    slug: "ages-12-18",
-    ageLabel: "Ages 12–18",
-    title: "Impossible Halls",
-    tagline: "Twist stairs and arches until a route appears where none should.",
-    href: "/play/ages-12-18",
+    slug: "sketch-to-3d",
+    kindLabel: "Draw & Extrude",
+    title: "Sketch To 3D",
+    tagline: "Scribble a plan on the grid and watch it stand up in seconds.",
+    href: "/play/sketch-to-3d",
     image: "/12-18.webp",
     imageAlt:
       "Coral-pink isometric towers and arches folding into an impossible staircase",
     palette: { from: "#F0685E", to: "#A8DCC8", accent: "#F2C33C" },
   },
   {
-    slug: "ages-18-65",
-    ageLabel: "Ages 18–65",
-    title: "Courtyard Studio",
-    tagline: "Cut a section through your own house and furnish every room.",
-    href: "/play/ages-18-65",
+    slug: "treasure-hunt",
+    kindLabel: "Model Scavenger",
+    title: "Treasure Hunt",
+    tagline: "Hunt clues room by room before the clock runs out on you.",
+    href: "/play/treasure-hunt",
     image: "/18-65.jpg",
     imageAlt:
       "A pastel collage section through a small house opening onto a garden with chickens and an orange tree",
     palette: { from: "#F2EDE4", to: "#4E9AA0", accent: "#F0C9C4" },
   },
   {
-    slug: "ages-65-plus",
-    ageLabel: "Ages 65+",
-    title: "Sandstone Empire",
-    tagline: "Grow a warm-stone city of domes, towers and shaded streets.",
-    href: "/play/ages-65-plus",
-    // The literal "+" is a valid path character; next/image percent-encodes it
-    // into its own `url` query param, so it round-trips.
-    image: "/65+.jpg",
+    slug: "laser-tag-scan",
+    kindLabel: "Point Cloud Arena",
+    title: "Laser Tag Scan",
+    tagline: "Tag rivals across a point cloud you reveal one sweep at a time.",
+    href: "/play/laser-tag-scan",
+    image: "/call-of-duty.jpg",
     imageAlt:
-      "A sunlit historical city of sandstone domes and towers under a hazy sky",
-    palette: { from: "#D9A96A", to: "#A8BFCC", accent: "#7A5230" },
+      "Soldiers advancing through a hazy valley as helicopters drop in behind them",
+    palette: { from: "#B9C4AC", to: "#2F3A2A", accent: "#D6E3B4" },
   },
 ];
 
-export function findTier(slug: string): AgeTier | undefined {
-  return AGE_TIERS.find((tier) => tier.slug === slug);
+export function findGame(slug: string): Game | undefined {
+  return GAMES.find((game) => game.slug === slug);
 }
