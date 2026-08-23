@@ -16,9 +16,9 @@ namespace BIM_Boom
 
         private void CreateRibbon()
         {
-            var panel = Application.CreatePanel("Level Up", "BIM-Boom");
+            var panel = Application.CreatePanel("Let's Play Revit!", "BIM-blocks");
 
-            panel.AddPushButton<StartupCommand>("Voxelize & Stream")
+            panel.AddPushButton<StartupCommand>("Export Model")
                 .SetImage("/BIM-Boom;component/Resources/Icons/games16.png")
                 .SetLargeImage("/BIM-Boom;component/Resources/Icons/games32.png");
         }

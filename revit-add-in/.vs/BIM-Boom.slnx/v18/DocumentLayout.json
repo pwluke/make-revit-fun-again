@@ -1,54 +1,61 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\",
+  "WorkspaceRootPath": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\views\\bim-boomview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
-      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\views\\bim-boomview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+      "AbsoluteMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|d:\\github\\make-revit-fun-again\\revit-add-in\\bim-boom\\application.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\application.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\viewmodels\\bim-boomviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\viewmodels\\bim-boomviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|d:\\github\\make-revit-fun-again\\revit-add-in\\bim-boom\\views\\bim-boomview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\views\\bim-boomview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\commands\\startupcommand.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\commands\\startupcommand.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\mromero\\.copilot\\plans\\plan-whole-project-grid-cache-simplified-sliders.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}|MarkdownSecurePreview"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\services\\revitgeometryextractor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\services\\revitgeometryextractor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|d:\\github\\make-revit-fun-again\\revit-add-in\\bim-boom\\services\\revitgeometryextractor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\services\\revitgeometryextractor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\application.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\application.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|d:\\github\\make-revit-fun-again\\revit-add-in\\bim-boom\\commands\\startupcommand.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\commands\\startupcommand.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\bim-boom.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
-      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\bim-boom.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+      "AbsoluteMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|d:\\github\\make-revit-fun-again\\revit-add-in\\bim-boom\\bim-boom.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\bim-boom.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\models\\mergedmesh.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\models\\mergedmesh.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|d:\\github\\make-revit-fun-again\\revit-add-in\\bim-boom\\models\\mergedmesh.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\models\\mergedmesh.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\models\\voxeldata.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\models\\voxeldata.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|d:\\github\\make-revit-fun-again\\revit-add-in\\bim-boom\\models\\voxeldata.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\models\\voxeldata.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\services\\voxelizationservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\services\\voxelizationservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|d:\\github\\make-revit-fun-again\\revit-add-in\\bim-boom\\views\\bim-boomview.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\views\\bim-boomview.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\services\\voxeldirectcontext3dserver.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\services\\voxeldirectcontext3dserver.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|d:\\github\\make-revit-fun-again\\revit-add-in\\bim-boom\\services\\voxelizationservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\services\\voxelizationservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\handlers\\delegateexternaleventhandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\handlers\\delegateexternaleventhandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|d:\\github\\make-revit-fun-again\\revit-add-in\\bim-boom\\handlers\\delegateexternaleventhandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\handlers\\delegateexternaleventhandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|c:\\users\\mromero\\source\\repos\\bim-boom\\bim-boom\\views\\bim-boomview.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{3C1B01F4-455C-4748-993C-F8245B4E5F23}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\views\\bim-boomview.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|d:\\github\\make-revit-fun-again\\revit-add-in\\bim-boom\\services\\voxeldirectcontext3dserver.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\services\\voxeldirectcontext3dserver.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|d:\\github\\make-revit-fun-again\\revit-add-in\\bim-boom\\services\\projectgridcache.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\services\\projectgridcache.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|d:\\github\\make-revit-fun-again\\revit-add-in\\bim-boom\\viewmodels\\bim-boomviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BEA33756-9196-148D-4D69-CE11E4009F27}|BIM-Boom\\BIM-Boom.csproj|solutionrelative:bim-boom\\viewmodels\\bim-boomviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -58,7 +65,7 @@
       "DocumentGroups": [
         {
           "DockedHeight": 317,
-          "SelectedChildIndex": 17,
+          "SelectedChildIndex": 12,
           "Children": [
             {
               "$type": "Bookmark",
@@ -98,129 +105,147 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "BIM-BoomViewModel.cs",
-              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\ViewModels\\BIM-BoomViewModel.cs",
-              "RelativeDocumentMoniker": "BIM-Boom\\ViewModels\\BIM-BoomViewModel.cs",
-              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\ViewModels\\BIM-BoomViewModel.cs",
-              "RelativeToolTip": "BIM-Boom\\ViewModels\\BIM-BoomViewModel.cs",
-              "ViewState": "AgIAAIgAAAAAAAAAAAAcwCAAAABdAAAAAAAAAA==",
+              "DocumentIndex": 12,
+              "Title": "ProjectGridCache.cs",
+              "DocumentMoniker": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\Services\\ProjectGridCache.cs",
+              "RelativeDocumentMoniker": "BIM-Boom\\Services\\ProjectGridCache.cs",
+              "ToolTip": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\Services\\ProjectGridCache.cs",
+              "RelativeToolTip": "BIM-Boom\\Services\\ProjectGridCache.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAANAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-08-22T22:26:57.343Z",
+              "WhenOpened": "2026-08-23T13:18:43.544Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "Application.cs",
-              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Application.cs",
-              "RelativeDocumentMoniker": "BIM-Boom\\Application.cs",
-              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Application.cs",
-              "RelativeToolTip": "BIM-Boom\\Application.cs",
-              "ViewState": "AgIAAAUAAAAAAAAAAAAAABQAAAAuAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-08-22T21:13:47.646Z",
-              "EditorCaption": ""
+              "DocumentIndex": 2,
+              "Title": "plan-whole-project-grid-cache-simplified-sliders.md [Preview]",
+              "DocumentMoniker": "C:\\Users\\mromero\\.copilot\\plans\\plan-whole-project-grid-cache-simplified-sliders.md",
+              "ToolTip": "C:\\Users\\mromero\\.copilot\\plans\\plan-whole-project-grid-cache-simplified-sliders.md [Preview]",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001818|",
+              "WhenOpened": "2026-08-23T13:18:07.714Z",
+              "EditorCaption": " [Preview]"
             },
             {
               "$type": "Document",
               "DocumentIndex": 3,
               "Title": "RevitGeometryExtractor.cs",
-              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Services\\RevitGeometryExtractor.cs",
+              "DocumentMoniker": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\Services\\RevitGeometryExtractor.cs",
               "RelativeDocumentMoniker": "BIM-Boom\\Services\\RevitGeometryExtractor.cs",
-              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Services\\RevitGeometryExtractor.cs",
+              "ToolTip": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\Services\\RevitGeometryExtractor.cs",
               "RelativeToolTip": "BIM-Boom\\Services\\RevitGeometryExtractor.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAALgAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAFoAAAAAAAAAAAAiwLgAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-08-22T22:09:05.253Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "StartupCommand.cs",
-              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Commands\\StartupCommand.cs",
-              "RelativeDocumentMoniker": "BIM-Boom\\Commands\\StartupCommand.cs",
-              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Commands\\StartupCommand.cs",
-              "RelativeToolTip": "BIM-Boom\\Commands\\StartupCommand.cs",
-              "ViewState": "AgIAABcAAAAAAAAAAAAqwCYAAAAtAAAAAAAAAA==",
+              "DocumentIndex": 0,
+              "Title": "Application.cs",
+              "DocumentMoniker": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\Application.cs",
+              "RelativeDocumentMoniker": "BIM-Boom\\Application.cs",
+              "ToolTip": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\Application.cs",
+              "RelativeToolTip": "BIM-Boom\\Application.cs",
+              "ViewState": "AgIAAAUAAAAAAAAAAAAAABQAAAA9AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-08-22T21:17:12.2Z",
+              "WhenOpened": "2026-08-22T21:13:47.646Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
+              "DocumentIndex": 13,
+              "Title": "BIM-BoomViewModel.cs",
+              "DocumentMoniker": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\ViewModels\\BIM-BoomViewModel.cs",
+              "RelativeDocumentMoniker": "BIM-Boom\\ViewModels\\BIM-BoomViewModel.cs",
+              "ToolTip": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\ViewModels\\BIM-BoomViewModel.cs",
+              "RelativeToolTip": "BIM-Boom\\ViewModels\\BIM-BoomViewModel.cs",
+              "ViewState": "AgIAAG0BAAAAAAAAAIBJwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T13:19:46.16Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "BIM-BoomView.xaml",
+              "DocumentMoniker": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\Views\\BIM-BoomView.xaml",
+              "RelativeDocumentMoniker": "BIM-Boom\\Views\\BIM-BoomView.xaml",
+              "ToolTip": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\Views\\BIM-BoomView.xaml",
+              "RelativeToolTip": "BIM-Boom\\Views\\BIM-BoomView.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-08-23T13:20:34.577Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "StartupCommand.cs",
+              "DocumentMoniker": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\Commands\\StartupCommand.cs",
+              "RelativeDocumentMoniker": "BIM-Boom\\Commands\\StartupCommand.cs",
+              "ToolTip": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\Commands\\StartupCommand.cs",
+              "RelativeToolTip": "BIM-Boom\\Commands\\StartupCommand.cs",
+              "ViewState": "AgIAABcAAAAAAAAAAAAqwCYAAAAtAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:17:12.2Z"
+            },
+            {
+              "$type": "Document",
               "DocumentIndex": 5,
-              "Title": "BIM-Boom",
-              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\BIM-Boom.csproj",
+              "Title": "BIM-Boom.csproj",
+              "DocumentMoniker": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\BIM-Boom.csproj",
               "RelativeDocumentMoniker": "BIM-Boom\\BIM-Boom.csproj",
-              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\BIM-Boom.csproj",
+              "ToolTip": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\BIM-Boom.csproj",
               "RelativeToolTip": "BIM-Boom\\BIM-Boom.csproj",
               "ViewState": "AgIAABYAAAAAAAAAAABBwAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
-              "WhenOpened": "2026-08-22T21:40:37.029Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-08-22T21:40:37.029Z"
             },
             {
               "$type": "Document",
               "DocumentIndex": 6,
               "Title": "MergedMesh.cs",
-              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Models\\MergedMesh.cs",
+              "DocumentMoniker": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\Models\\MergedMesh.cs",
               "RelativeDocumentMoniker": "BIM-Boom\\Models\\MergedMesh.cs",
-              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Models\\MergedMesh.cs",
+              "ToolTip": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\Models\\MergedMesh.cs",
               "RelativeToolTip": "BIM-Boom\\Models\\MergedMesh.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAABcAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-08-22T21:40:50.294Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-08-22T21:40:50.294Z"
             },
             {
               "$type": "Document",
               "DocumentIndex": 7,
               "Title": "VoxelData.cs",
-              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Models\\VoxelData.cs",
+              "DocumentMoniker": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\Models\\VoxelData.cs",
               "RelativeDocumentMoniker": "BIM-Boom\\Models\\VoxelData.cs",
-              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Models\\VoxelData.cs",
+              "ToolTip": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\Models\\VoxelData.cs",
               "RelativeToolTip": "BIM-Boom\\Models\\VoxelData.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-08-22T21:40:50.341Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 11,
-              "Title": "BIM-BoomView.xaml.cs",
-              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Views\\BIM-BoomView.xaml.cs",
-              "RelativeDocumentMoniker": "BIM-Boom\\Views\\BIM-BoomView.xaml.cs",
-              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Views\\BIM-BoomView.xaml.cs",
-              "RelativeToolTip": "BIM-Boom\\Views\\BIM-BoomView.xaml.cs",
-              "ViewState": "AgIAAAMAAAAAAAAAAEBQwAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-08-22T21:44:12.196Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "BIM-BoomView.xaml",
-              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Views\\BIM-BoomView.xaml",
-              "RelativeDocumentMoniker": "BIM-Boom\\Views\\BIM-BoomView.xaml",
-              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Views\\BIM-BoomView.xaml",
-              "RelativeToolTip": "BIM-Boom\\Views\\BIM-BoomView.xaml",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
-              "WhenOpened": "2026-08-22T21:44:03.003Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-08-22T21:40:50.341Z"
             },
             {
               "$type": "Document",
               "DocumentIndex": 8,
+              "Title": "BIM-BoomView.xaml.cs",
+              "DocumentMoniker": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\Views\\BIM-BoomView.xaml.cs",
+              "RelativeDocumentMoniker": "BIM-Boom\\Views\\BIM-BoomView.xaml.cs",
+              "ToolTip": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\Views\\BIM-BoomView.xaml.cs",
+              "RelativeToolTip": "BIM-Boom\\Views\\BIM-BoomView.xaml.cs",
+              "ViewState": "AgIAAAMAAAAAAAAAAEBQwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:44:12.196Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
               "Title": "VoxelizationService.cs",
-              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Services\\VoxelizationService.cs",
+              "DocumentMoniker": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\Services\\VoxelizationService.cs",
               "RelativeDocumentMoniker": "BIM-Boom\\Services\\VoxelizationService.cs",
-              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Services\\VoxelizationService.cs",
+              "ToolTip": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\Services\\VoxelizationService.cs",
               "RelativeToolTip": "BIM-Boom\\Services\\VoxelizationService.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAKIAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAEABAAAAAAAAAIBJwKIAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-08-22T21:42:09.478Z",
               "EditorCaption": ""
@@ -229,27 +254,25 @@
               "$type": "Document",
               "DocumentIndex": 10,
               "Title": "DelegateExternalEventHandler.cs",
-              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Handlers\\DelegateExternalEventHandler.cs",
+              "DocumentMoniker": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\Handlers\\DelegateExternalEventHandler.cs",
               "RelativeDocumentMoniker": "BIM-Boom\\Handlers\\DelegateExternalEventHandler.cs",
-              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Handlers\\DelegateExternalEventHandler.cs",
+              "ToolTip": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\Handlers\\DelegateExternalEventHandler.cs",
               "RelativeToolTip": "BIM-Boom\\Handlers\\DelegateExternalEventHandler.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAACcAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-08-22T21:43:11.845Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-08-22T21:43:11.845Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 9,
+              "DocumentIndex": 11,
               "Title": "VoxelDirectContext3DServer.cs",
-              "DocumentMoniker": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Services\\VoxelDirectContext3DServer.cs",
+              "DocumentMoniker": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\Services\\VoxelDirectContext3DServer.cs",
               "RelativeDocumentMoniker": "BIM-Boom\\Services\\VoxelDirectContext3DServer.cs",
-              "ToolTip": "C:\\Users\\mromero\\source\\repos\\BIM-Boom\\BIM-Boom\\Services\\VoxelDirectContext3DServer.cs",
+              "ToolTip": "D:\\GitHub\\make-revit-fun-again\\revit-add-in\\BIM-Boom\\Services\\VoxelDirectContext3DServer.cs",
               "RelativeToolTip": "BIM-Boom\\Services\\VoxelDirectContext3DServer.cs",
               "ViewState": "AgIAAEEAAAAAAAAAAMBTwL4AAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-08-22T21:42:42.73Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-08-22T21:42:42.73Z"
             }
           ]
         },

@@ -200,4 +200,126 @@ public static class VoxelizationService
         return minDim < 2.0 * cellSize;
     }
 
+    /// <summary>
+    /// Cutout voxelization against a pre-built whole-project grid.
+    /// <para>
+    /// Instead of generating a new lattice per selection, this takes the
+    /// candidate grid points (already bbox-prefiltered by
+    /// <see cref="ProjectGridCache.PreFilterByBBox"/>) and keeps only those
+    /// within <paramref name="tolerance"/> of the selection's mesh surface.
+    /// The kept points inherit the color of the nearest triangle.
+    /// </para>
+    /// </summary>
+    /// <param name="gridCache">The cached whole-project grid.</param>
+    /// <param name="candidateIndices">
+    /// Indices into <see cref="ProjectGridCache.Points"/> that passed the
+    /// bbox pre-filter — only these are tested against the mesh.
+    /// </param>
+    /// <param name="mesh">Triangle soup of the selected elements.</param>
+    /// <param name="tolerance">Distance threshold (feet) for keeping a point.</param>
+    /// <param name="maxVoxels">Hard cap.</param>
+    public static List<VoxelData> CutoutFromGrid(
+        ProjectGridCache gridCache,
+        List<int> candidateIndices,
+        MergedMesh mesh,
+        double tolerance,
+        int maxVoxels)
+    {
+        if (mesh.Vertices.Count < 3 || candidateIndices.Count == 0)
+            return [];
+
+        // For each candidate point, find the closest triangle and keep it if
+        // within tolerance. We invert the loop compared to VoxelizeSurface:
+        // because we have a small-ish candidate set (bbox-prefiltered) but
+        // potentially many triangles, we build the triangle index first and
+        // test each candidate against the triangles whose bbox overlaps.
+        //
+        // For moderate meshes (< ~200k triangles), the brute-force
+        // triangle-scatter approach from VoxelizeSurface is actually faster
+        // than a per-point search over all triangles, so we reuse that same
+        // pattern: scatter each triangle into a dictionary keyed by cell index,
+        // then intersect that dictionary with the candidate set.
+
+        double cellXY = gridCache.CellSizeXY;
+        double cellZ = gridCache.LayerHeight;
+        int triangleCount = mesh.Vertices.Count / 3;
+
+        // cell index → (best distance, triangle index)
+        var best = new Dictionary<(int I, int J, int K), (double Distance, int Triangle)>();
+
+        for (int t = 0; t < triangleCount; t++)
+        {
+            var v0 = mesh.Vertices[t * 3];
+            var v1 = mesh.Vertices[t * 3 + 1];
+            var v2 = mesh.Vertices[t * 3 + 2];
+
+            int iMin = CellFloor(Math.Min(v0.X, Math.Min(v1.X, v2.X)) - tolerance, cellXY);
+            int iMax = CellCeil(Math.Max(v0.X, Math.Max(v1.X, v2.X)) + tolerance, cellXY);
+            int jMin = CellFloor(Math.Min(v0.Y, Math.Min(v1.Y, v2.Y)) - tolerance, cellXY);
+            int jMax = CellCeil(Math.Max(v0.Y, Math.Max(v1.Y, v2.Y)) + tolerance, cellXY);
+            int kMin = CellFloorZ(Math.Min(v0.Z, Math.Min(v1.Z, v2.Z)) - tolerance, cellZ);
+            int kMax = CellCeilZ(Math.Max(v0.Z, Math.Max(v1.Z, v2.Z)) + tolerance, cellZ);
+
+            for (int i = iMin; i <= iMax; i++)
+            {
+                double x = (i + 0.5) * cellXY;
+                for (int j = jMin; j <= jMax; j++)
+                {
+                    double y = (j + 0.5) * cellXY;
+                    for (int k = kMin; k <= kMax; k++)
+                    {
+                        double z = (k + 0.5) * cellZ;
+                        double distance = PointTriangleDistance(x, y, z, v0, v1, v2);
+                        if (distance > tolerance) continue;
+
+                        var key = (i, j, k);
+                        if (best.TryGetValue(key, out var current))
+                        {
+                            if (distance < current.Distance) best[key] = (distance, t);
+                        }
+                        else
+                        {
+                            if (best.Count >= maxVoxels) continue;
+                            best[key] = (distance, t);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Now intersect with the candidate set from the grid cache to ensure
+        // we only emit points that exist in the project grid.
+        var candidateSet = new HashSet<(int, int, int)>();
+        foreach (var idx in candidateIndices)
+            candidateSet.Add(gridCache.Indices[idx]);
+
+        var voxels = new List<VoxelData>();
+        foreach (var entry in best)
+        {
+            if (!candidateSet.Contains(entry.Key)) continue;
+
+            var color = entry.Value.Triangle >= 0 && entry.Value.Triangle < mesh.TriangleColors.Count
+                ? mesh.TriangleColors[entry.Value.Triangle]
+                : (R: (byte)160, G: (byte)160, B: (byte)160, A: (byte)255);
+
+            voxels.Add(new VoxelData(
+                (entry.Key.I + 0.5) * cellXY,
+                (entry.Key.J + 0.5) * cellXY,
+                (entry.Key.K + 0.5) * cellZ,
+                color.R, color.G, color.B, color.A, cellXY));
+        }
+
+        return voxels;
+    }
+
+    private static int CellFloorZ(double value, double cellSize)
+    {
+        return (int)Math.Floor(value / cellSize - 0.5);
+    }
+
+    private static int CellCeilZ(double value, double cellSize)
+    {
+        return (int)Math.Ceiling(value / cellSize - 0.5);
+    }
+
 }
