@@ -99,8 +99,21 @@ export function TopBar() {
       </div>
 
       <div className="model-status" aria-label="Current model stream status">
-        <span className="model-thumb" aria-hidden="true">
-          ⌂
+        {/* The picker wears whichever project is open: its preview if it has
+            one, its file type if not, and the live-stream glyph otherwise. */}
+        <span
+          className={`model-thumb${active ? " project" : ""}`}
+          aria-hidden="true"
+        >
+          {active ? (
+            active.preview ? (
+              <img src={active.preview} alt="" />
+            ) : (
+              <b>{active.kind}</b>
+            )
+          ) : (
+            "⌂"
+          )}
         </span>
         <span className="model-copy">
           <strong>{active ? active.name : modelName}</strong>
