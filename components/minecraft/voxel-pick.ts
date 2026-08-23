@@ -73,6 +73,80 @@ export function buildVoxelIndex(
   return { cells, origin, size };
 }
 
+/** Lattice cell containing a world position. */
+export function cellOf(
+  index: VoxelIndex,
+  position: CubeCoords,
+): [number, number, number] {
+  const { origin, size } = index;
+  return [
+    size[0] ? Math.round((position[0] - origin[0]) / size[0]) : 0,
+    size[1] ? Math.round((position[1] - origin[1]) / size[1]) : 0,
+    size[2] ? Math.round((position[2] - origin[2]) / size[2]) : 0,
+  ];
+}
+
+/**
+ * The `count` occupied cells nearest a position, excluding the position's own
+ * cell, as indices into the cube array.
+ *
+ * Searched as expanding shells around the origin cell rather than by scoring
+ * every cube in the world. Breaking took the latter route — ~270k distance
+ * computations and a sort of the results, per break — when the answer is
+ * always within a couple of cells.
+ *
+ * Shells expand until enough have been found *and* the next shell cannot
+ * contain anything closer, so the result matches a full scan rather than
+ * approximating it. A brick standing on its own widens the search instead of
+ * returning early with too few.
+ */
+export function nearestInstances(
+  index: VoxelIndex,
+  position: CubeCoords,
+  count: number,
+  maxRadius = 12,
+): number[] {
+  const { cells, origin, size } = index;
+  if (count <= 0 || !cells.size) return [];
+
+  const [cx, cy, cz] = cellOf(index, position);
+  const minSize = Math.min(size[0], size[1], size[2]) || 1;
+  const found: { instance: number; distanceSq: number }[] = [];
+
+  for (let r = 1; r <= maxRadius; r++) {
+    // The shell at Chebyshev distance r: the surface of the cube of cells, so
+    // the interior isn't revisited on each expansion.
+    for (let ix = cx - r; ix <= cx + r; ix++) {
+      for (let iy = cy - r; iy <= cy + r; iy++) {
+        for (let iz = cz - r; iz <= cz + r; iz++) {
+          const onShell =
+            Math.abs(ix - cx) === r ||
+            Math.abs(iy - cy) === r ||
+            Math.abs(iz - cz) === r;
+          if (!onShell) continue;
+          const instance = cells.get(cellKey(ix, iy, iz));
+          if (instance === undefined) continue;
+          const dx = (ix - cx) * size[0];
+          const dy = (iy - cy) * size[1];
+          const dz = (iz - cz) * size[2];
+          found.push({ instance, distanceSq: dx * dx + dy * dy + dz * dz });
+        }
+      }
+    }
+
+    if (found.length >= count) {
+      found.sort((a, b) => a.distanceSq - b.distanceSq);
+      // Anything in the next shell is at least this far away; if the current
+      // worst keeper already beats that, no later shell can improve on it.
+      const nextShellMin = r * minSize;
+      if (found[count - 1].distanceSq <= nextShellMin * nextShellMin) break;
+    }
+  }
+
+  found.sort((a, b) => a.distanceSq - b.distanceSq);
+  return found.slice(0, count).map((entry) => entry.instance);
+}
+
 export type VoxelHit = {
   /** Index into the cube array the index was built from. */
   instanceId: number;
