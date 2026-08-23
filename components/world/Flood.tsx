@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
-import { SCENE } from "@/lib/palette";
 import {
   BREATH_RECOVERY,
   BREATH_SECONDS,
@@ -14,6 +13,7 @@ import {
   resetFloodState,
   useFloodStore,
 } from "./floodStore";
+import { useSceneTheme } from "./themeStore";
 
 /** Wide enough to reach the horizon on the 1000x1000 ground plane. */
 const SURFACE_SIZE = 1000;
@@ -28,6 +28,7 @@ const SWELL_SPEED = 0.7;
  * whether the camera (the player's eye) is under it, drain or refill breath.
  */
 export function Flood() {
+  const theme = useSceneTheme();
   const surface = useRef<THREE.Mesh>(null);
   const drown = useFloodStore((s) => s.drown);
   const respawnToken = useFloodStore((s) => s.respawnToken);
@@ -81,7 +82,7 @@ export function Flood() {
           Glassier and paler than open water would be — this is the pool in the
           reference art, and the sun's glint off it is most of what sells it. */}
       <meshStandardMaterial
-        color={SCENE.water}
+        color={theme.flood}
         transparent
         opacity={0.5}
         depthWrite={false}

@@ -242,6 +242,7 @@ export function occupiedPointCoords(points: GridPoint[] | undefined) {
       id: point.id,
       position: [point.x, point.y, point.z] as CubeCoords,
       color: point.color,
+      layer: point.layer,
     }));
 }
 

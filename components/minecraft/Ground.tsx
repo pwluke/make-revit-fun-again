@@ -6,6 +6,7 @@ import {
   type RigidBodyProps,
 } from "@react-three/rapier";
 import { SCENE } from "@/lib/palette";
+import { useSceneTheme } from "../world/themeStore";
 
 /** World units per tile. Four keeps the seams from aliasing into moiré at the
  *  horizon while still reading as a ruled floor rather than a void. */
@@ -50,6 +51,7 @@ function useTileTexture() {
 }
 
 export function Ground(props: RigidBodyProps) {
+  const theme = useSceneTheme();
   const texture = useTileTexture();
   return (
     <RigidBody {...props} type="fixed" colliders={false}>
@@ -57,11 +59,14 @@ export function Ground(props: RigidBodyProps) {
         <planeGeometry args={[PLANE, PLANE]} />
         {/* Low roughness and a trace of metalness give the polished-plaster
             sheen the reference art has underfoot, and give the sun something
-            to glance off so the plane isn't a flat field of one value. */}
+            to glance off so the plane isn't a flat field of one value. Clay
+            keeps the ruled pastel tile; the other themes drop the map and
+            tint the plane with their ground colour. */}
         <meshStandardMaterial
-          map={texture}
-          roughness={0.5}
-          metalness={0.06}
+          map={theme.groundTexture ? texture : null}
+          color={theme.groundTexture ? "#ffffff" : theme.ground}
+          roughness={theme.groundRoughness}
+          metalness={theme.groundMetalness}
         />
       </mesh>
       <CuboidCollider args={[PLANE, 2, PLANE]} position={[0, -2, 0]} />
