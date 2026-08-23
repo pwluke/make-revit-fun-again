@@ -26,6 +26,15 @@ import type { Creation } from "./core/types";
  */
 const GALLERY_LIMIT = 8;
 
+/**
+ * How long to wait after the last transform change before writing it.
+ *
+ * A corner drag fires setTransform on every pointermove — 60+ times a second.
+ * Writing each would flood the socket to say the same thing repeatedly, so only
+ * the value the drag settles on is sent.
+ */
+const TRANSFORM_WRITE_DELAY_MS = 200;
+
 export function useSharedCreations(): void {
   const deviceId = useMemo(() => getDeviceId(), []);
   const { data } = db.useQuery({ creations: {} });
@@ -36,6 +45,20 @@ export function useSharedCreations(): void {
    * back from the query, which is a loop.
    */
   const published = useRef(new Set<string>());
+
+  /**
+   * Creations with a local transform edit that has not been confirmed by the
+   * server yet.
+   *
+   * Incoming query data is authoritative for everything EXCEPT these — without
+   * that exception, the echo of an in-flight write (or simply someone else
+   * creating something, which re-pushes the whole query result) would snap the
+   * object back mid-drag. Classic local-echo suppression.
+   */
+  const pendingTransforms = useRef(new Map<string, string>());
+
+  /** Debounce timers per creation, so one settling drag writes once. */
+  const writeTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
   // --- inbound: the gallery becomes the scene ------------------------------
   useEffect(() => {
@@ -53,13 +76,70 @@ export function useSharedCreations(): void {
     for (const creation of remote) published.current.add(creation.id);
 
     const state = creationStore.getState();
+    const localById = new Map(state.creations.map((creation) => [creation.id, creation]));
+
+    const reconciled = remote.map((incoming) => {
+      // A transform this device is still writing wins over the server's copy.
+      // Otherwise a drag fights the echo of its own updates, and any unrelated
+      // change to the gallery (someone else creating something re-pushes the
+      // whole query result) would snap the object back to where it was.
+      if (!pendingTransforms.current.has(incoming.id)) return incoming;
+      const local = localById.get(incoming.id);
+      return local ? { ...incoming, transform: local.transform } : incoming;
+    });
+
     // Keep locally in-flight jobs: they are not in the gallery yet, and dropping
     // them would make a generation vanish mid-wait.
     const inFlight = state.creations.filter((creation) => creation.state.status !== "ready");
-    const merged = [...remote, ...inFlight].slice(-GALLERY_LIMIT);
+    const merged = [...reconciled, ...inFlight].slice(-GALLERY_LIMIT);
 
     state.hydrate(merged);
   }, [data]);
+
+  // --- outbound: transform edits sync back ----------------------------------
+  useEffect(() => {
+    const syncTransforms = (creations: Creation[]) => {
+      for (const creation of creations) {
+        // Only things already in the gallery; brand-new ones are handled by the
+        // publish effect below, which writes the transform along with the row.
+        if (!published.current.has(creation.id)) continue;
+
+        const encoded = JSON.stringify(creation.transform);
+        if (pendingTransforms.current.get(creation.id) === encoded) continue;
+        pendingTransforms.current.set(creation.id, encoded);
+
+        // Restart the timer on every change, so a drag writes once when it
+        // stops rather than 60 times a second while it moves.
+        clearTimeout(writeTimers.current.get(creation.id));
+        writeTimers.current.set(
+          creation.id,
+          setTimeout(() => {
+            writeTimers.current.delete(creation.id);
+            db.transact(db.tx.creations[creation.id].update({ transform: encoded }))
+              .then(() => {
+                // Only stop suppressing the server's copy once ours has landed.
+                if (pendingTransforms.current.get(creation.id) === encoded) {
+                  pendingTransforms.current.delete(creation.id);
+                }
+              })
+              .catch((err: unknown) => {
+                pendingTransforms.current.delete(creation.id);
+                console.warn("[sketch-to-3d] could not sync transform", err);
+              });
+          }, TRANSFORM_WRITE_DELAY_MS),
+        );
+      }
+    };
+
+    syncTransforms(creationStore.getState().creations);
+    const unsubscribe = creationStore.subscribe((state) => syncTransforms(state.creations));
+
+    return () => {
+      unsubscribe();
+      for (const timer of writeTimers.current.values()) clearTimeout(timer);
+      writeTimers.current.clear();
+    };
+  }, []);
 
   // --- outbound: finished creations join the gallery ------------------------
   useEffect(() => {

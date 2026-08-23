@@ -18,15 +18,18 @@ const rules = {
    * that outlives the event — if this app is ever hosted permanently, this rule
    * is the first thing that needs revisiting.
    *
-   * `update` is omitted intentionally: a creation is written once and then
-   * deleted or left alone. Nothing edits someone else's row.
+   * `update` is open too, so moving and resizing a creation syncs to every
+   * machine. That means anyone can rearrange anyone's work — which is the same
+   * bargain `delete` already makes, and the same one the voxel world makes by
+   * letting anybody break anybody's blocks. Arranging things together is the
+   * point; a booth is not a place for ownership.
    */
   creations: {
     allow: {
       view: "true",
       create: "true",
       delete: "true",
-      update: "false",
+      update: "true",
     },
   },
 } satisfies InstantRules;
