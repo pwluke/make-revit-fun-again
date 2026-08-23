@@ -1,5 +1,10 @@
 import Link from "next/link";
 import App from "@/components/minecraft/App";
+import GestureTracker from "@/components/gesture/GestureTracker";
+import TreasureHud from "@/components/world/TreasureHud";
+import PowerupHud from "@/components/world/PowerupHud";
+import FloodHud from "@/components/world/FloodHud";
+import { ThemeFrame, ThemeHud } from "@/components/world/ThemeHud";
 import { SketchToWorld } from "@/components/sketch-to-3d/SketchToWorld";
 import { PaletteHUD } from "@/components/sketch3d/ui/PaletteHUD";
 
@@ -9,20 +14,26 @@ import { PaletteHUD } from "@/components/sketch3d/ui/PaletteHUD";
 // intrinsic 150px. `h-dvh` on its own is a definite height.
 export default function MinecraftGame() {
   return (
-    <main className="relative h-dvh w-full select-none overflow-hidden bg-sky-200">
-      {/* PointerLockControls uses selector="#game-surface" (see
-          components/minecraft/App.tsx) to scope its re-lock-on-click listener to
-          this div. Clicks on <SketchToWorld />'s overlay, which renders after it
-          and sits on top, therefore do not re-lock and steal the cursor. */}
+    <ThemeFrame className="relative h-dvh w-full select-none overflow-hidden">
+      {/* #game-surface is REQUIRED, and was re-added during the merge with main,
+          which had dropped it. PointerLockControls uses selector="#game-surface"
+          (components/minecraft/App.tsx) to scope its re-lock-on-click listener.
+          drei resolves that selector with querySelectorAll, so if the element is
+          missing it attaches NO listener at all and the pointer can never
+          re-lock after Escape — the game simply stops responding to the mouse.
+
+          Scoping it here also keeps clicks on the sketch overlay (colour
+          swatches, the drawing canvas, "Make it real") from re-locking and
+          stealing the cursor mid-draw. */}
       <div id="game-surface" className="absolute inset-0">
         <App />
       </div>
-      {/* DOM-side half of the sketch feature: draw overlay + mode toggle. Must be
+      <ThemeHud />
+      {/* DOM-side half of the sketch feature: draw overlay + mode strip. Must be
           outside the R3F <Canvas>, which is why it lives here rather than in App. */}
       <SketchToWorld />
       {/* DOM half of the 3D-lines feature (press B): colour/width palette and all
-          of its key bindings. Renders nothing until draw mode is on. Same reason
-          as SketchToWorld — it is DOM, so it cannot live inside the R3F Canvas. */}
+          of its key bindings. Renders nothing until draw mode is on. */}
       <PaletteHUD />
       {/* Crosshair — PointerLockControls hides the cursor, so the scene needs
           its own aiming reticle. */}
@@ -38,13 +49,15 @@ export default function MinecraftGame() {
       >
         ← All games
       </Link>
-      {/* No longer mentions placing blocks: dirt voxels are disabled in
-          MinecraftScene, so that instruction described something the player
-          cannot do. The creation modes are advertised by <ModeStrip /> at the
-          top instead. */}
       <p className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-white/80">
-        Click to look around · WASD to move · Space to jump
+        Click to look around · WASD to move · Space to jump · Left click to
+        break a cluster · Right click to place one · or press Hands and build
+        with gestures
       </p>
-    </main>
+      <GestureTracker />
+      <TreasureHud />
+      <PowerupHud />
+      <FloodHud />
+    </ThemeFrame>
   );
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AGE_TIERS, findTier } from "@/components/game-2/tiers";
+import { AGE_TIERS, findTier } from "@/components/game-2/games";
 
 export function generateStaticParams() {
   return AGE_TIERS.map((tier) => ({ tier: tier.slug }));

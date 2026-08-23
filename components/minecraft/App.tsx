@@ -1,12 +1,20 @@
 "use client";
 
 import { type ReactNode } from "react";
-import { Sky, PointerLockControls, KeyboardControls } from "@react-three/drei";
+import { PointerLockControls, KeyboardControls } from "@react-three/drei";
 import { Physics } from "@react-three/rapier";
+import { useStore } from "zustand";
 import { SceneCanvas } from "@/components/canvas/SceneCanvas";
+import { PostFX } from "@/components/canvas/PostFX";
 import { Ground } from "./Ground";
 import { Player } from "./Player";
-import { useStore } from "zustand";
+import { Cubes } from "./Cube";
+import { GestureBuilder } from "./GestureBuilder";
+import { House } from "../world/House";
+import { Stars } from "../world/Stars";
+import { Powerups } from "../world/Powerups";
+import { Flood } from "../world/Flood";
+import { ThemeAtmosphere } from "../world/ThemeAtmosphere";
 import { creationStore } from "@/components/sketch-to-3d/core/creationStore";
 import { Creations } from "@/components/sketch-to-3d/r3f/Creations";
 import { GroundGuide } from "@/components/sketch3d/r3f/GroundGuide";
@@ -15,7 +23,7 @@ import { Strokes } from "@/components/sketch3d/r3f/Strokes";
 
 // The original was made by Maksim Ivanow: https://www.youtube.com/watch?v=Lc2JvBXMesY&t=124s
 // This example needs pointer-lock, that works only if you open it in a new window
-// Controls: WASD + left click
+// Controls: WASD + left click, or the camera gestures behind the Hands button
 
 export const minecraftKeyMap = [
   { name: "forward", keys: ["ArrowUp", "w", "W"] },
@@ -23,6 +31,8 @@ export const minecraftKeyMap = [
   { name: "left", keys: ["ArrowLeft", "a", "A"] },
   { name: "right", keys: ["ArrowRight", "d", "D"] },
   { name: "jump", keys: ["Space"] },
+  // Only used by the fly powerup — the descend key. Harmless otherwise.
+  { name: "crouch", keys: ["ShiftLeft", "ShiftRight", "Shift", "c", "C"] },
 ];
 
 export function MinecraftScene() {
@@ -37,61 +47,49 @@ export function MinecraftScene() {
 
   return (
     <>
-      <Sky sunPosition={[100, 20, 100]} />
-      <ambientLight intensity={0.3 * Math.PI} />
-      <pointLight
-        castShadow
-        intensity={0.8 * Math.PI}
-        decay={0}
-        position={[100, 100, 100]}
-      />
+      <ThemeAtmosphere />
       <Physics gravity={[0, -30, 0]}>
         <Ground />
         <Player />
-        {/* Dirt voxels are disabled entirely — they were the frame-rate problem.
-            <Cubes /> renders one rapier RigidBody (mesh + SIX materials) per
-            occupied point returned by `db.useQuery({ points: {} })`, an unbounded
-            InstantDB query. Cube.tsx's own comment notes the approach "wouldn't
-            allow for more than a few thousand boxes" and needs instancing to scale.
-            Note its filter is `occupied !== false`, so points where `occupied` is
-            merely undefined render too.
-
-            Restoring is one line — <Cubes /> — plus, for click-to-place building,
-            a seed cube: <Cube position={[0, 0.5, -10]} /> (Ground has no click
-            handler, so without a seed there is nothing to place blocks against).
-            Both need `Cube`/`Cubes` re-imported from "./Cube".
-
-            Removed so the scene renders the player's own creations, not scaffolding. */}
+        <House />
+        <Cubes />
         {/* Renders whatever the player has drawn, and registers the SceneBridge
             that the DOM-side overlay calls back through. */}
         <Creations />
       </Physics>
-      {/* Third creation mode: freehand 3D lines (press B). Deliberately OUTSIDE
-          <Physics> — strokes carry no colliders and do not belong in the physics
-          world. SketchController is headless (it only reads the camera and binds
-          pointer events); Strokes mounts the stroke meshes. The DOM half of this
-          feature, <PaletteHUD />, is a sibling of the canvas in
+      {/* Outside <Physics>: stars and powerups are pickups, the builder only
+          raycasts, and the flood is visual — you swim through it, the breath
+          timer is what actually threatens you. */}
+      <Stars />
+      <Powerups />
+      <Flood />
+      <GestureBuilder />
+      {/* Also outside <Physics>: strokes carry no colliders and do not belong in
+          the physics world. SketchController is headless (it only reads the
+          camera and binds pointer events); Strokes mounts the stroke meshes. The
+          DOM half of this feature, <PaletteHUD />, is a sibling of the canvas in
           app/minecraft/page.js — it cannot live here, inside <Canvas>. */}
       <SketchController />
       <Strokes />
       {/* Shows where the invisible drawing plane meets the ground. Only visible
           in draw mode, and it freezes with the plane the moment a stroke starts. */}
       <GroundGuide />
-      {/* Both props here are load-bearing, for different reasons.
+      {/* Both props are load-bearing, and were RE-ADDED during the merge with
+          main, which had reverted to a bare <PointerLockControls />. Do not
+          simplify this back.
 
-          `selector`: without it drei attaches a document-level `click` listener
-          that re-locks the pointer on ANY click anywhere on the page (see
-          node_modules/@react-three/drei/core/PointerLockControls.js:60-63). That
-          re-locks on clicks inside the sketch overlay — colour swatches, the
-          drawing canvas, "Make it real" — hiding the cursor mid-draw. Scoping it
-          to #game-surface (the wrapper div in app/minecraft/page.js) restricts
-          re-locking to clicks on the game itself.
+          `selector`: without it drei attaches a DOCUMENT-level click listener
+          that re-locks the pointer on any click anywhere on the page (see
+          node_modules/@react-three/drei/core/PointerLockControls.js:60-63) —
+          including clicks inside the sketch overlay, hiding the cursor mid-draw.
 
-          `makeDefault`: publishes the controls into R3F's store so that
-          `useThree((s) => s.controls)` resolves. drei does that in an effect, so
-          without it the scene bridge binds to null on first render and pointer
-          lock never releases when the overlay opens. */}
+          `makeDefault`: publishes the controls into R3F's store so
+          `useThree((s) => s.controls)` resolves. Without it the SceneBridge binds
+          to null and setInputEnabled becomes a silent no-op, so neither the
+          drawing overlay nor creation selection can release the pointer — which
+          reads as "the cursor never appears", with no error anywhere. */}
       {!selectedId && <PointerLockControls makeDefault selector="#game-surface" />}
+      <PostFX />
     </>
   );
 }

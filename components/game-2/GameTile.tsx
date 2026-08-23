@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import type { CSSProperties } from "react";
-import type { AgeTier } from "./tiers";
+import type { AgeTier } from "./games";
 
 // A client component only because of `onError`: the tier art lives in
 // `public/game-tiles/` and may not be there yet, so a failed load has to swap

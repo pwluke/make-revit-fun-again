@@ -1,6 +1,6 @@
-import { AgeTile } from "./AgeTile";
+import { AgeTile } from "./GameTile";
 import { ModeToggle } from "./ModeToggle";
-import { AGE_TIERS } from "./tiers";
+import { AGE_TIERS } from "./games";
 
 // Server component — only the tiles need client state.
 export default function Landing() {

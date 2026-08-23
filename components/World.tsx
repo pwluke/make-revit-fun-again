@@ -7,6 +7,7 @@ import {
   MinecraftScene,
 } from "@/components/minecraft/App";
 import { RhinoScene } from "@/components/rhino/RhinoScene";
+import { ThemeHud } from "@/components/world/ThemeHud";
 import { db } from "@/lib/db";
 
 type SceneId = "rhino" | "minecraft";
@@ -53,6 +54,7 @@ export function World() {
         </p>
       ) : (
         <>
+          <ThemeHud />
           <div
             aria-hidden
             className="pointer-events-none absolute top-1/2 left-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white"
