@@ -23,6 +23,8 @@ export const minecraftKeyMap = [
   { name: "left", keys: ["ArrowLeft", "a", "A"] },
   { name: "right", keys: ["ArrowRight", "d", "D"] },
   { name: "jump", keys: ["Space"] },
+  // Only used by the fly powerup — the descend key. Harmless otherwise.
+  { name: "crouch", keys: ["ShiftLeft", "ShiftRight", "Shift", "c", "C"] },
 ];
 
 export function MinecraftScene() {
