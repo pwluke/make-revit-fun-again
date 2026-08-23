@@ -273,7 +273,9 @@ export function Bots({
 
         if (bot.losIn <= 0) {
           bot.losIn = LOS_INTERVAL;
-          bot.hasLos = distance <= preset.range && hasLineOfSight(bot, state, sight);
+          muzzle.copy(bot.pos).setY(bot.pos.y + BOT_EYE);
+          bot.hasLos =
+            distance <= preset.range && hasLineOfSight(muzzle, state, sight);
         }
         if (bot.hasLos) {
           bot.sighted += dt;
@@ -419,24 +421,25 @@ export function Bots({
 }
 
 /**
- * Can this bot see the player? A ray from its visor to the camera, blocked by
+ * Can something at `from` see the player? A ray to the camera, blocked by
  * anything that isn't another bot. Walls stop bots shooting through the school,
  * the same way they stop the player — and for the same reason it has to be a
  * scene raycast rather than a rapier one: colliders only exist within 4 units
  * of the player.
+ *
+ * Exported for the Inspector, who does the same check from the roof.
  */
-function hasLineOfSight(
-  bot: BotRuntime,
+export function hasLineOfSight(
+  from: THREE.Vector3,
   state: { scene: THREE.Scene; camera: THREE.Camera },
   sight: THREE.Raycaster,
 ) {
-  muzzle.copy(bot.pos).setY(bot.pos.y + BOT_EYE);
-  toPlayer.subVectors(state.camera.position, muzzle);
+  toPlayer.subVectors(state.camera.position, from);
   const distance = toPlayer.length();
   if (distance < 0.001) return true;
   toPlayer.divideScalar(distance);
 
-  sight.set(muzzle, toPlayer);
+  sight.set(from, toPlayer);
   sight.far = distance;
   const blocking = sight
     .intersectObjects(state.scene.children, true)

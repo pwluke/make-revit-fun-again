@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import {
+  BOSS_HITS,
+  BOSS_ID,
+  BOSS_NAME,
   BOT_COUNT_OPTIONS,
   DIFFICULTIES,
   MAX_HEALTH,
@@ -17,6 +20,22 @@ function BotPip({ filled }: { filled: boolean }) {
     <svg viewBox="0 0 24 24" aria-hidden className={`bot-pip${filled ? " filled" : ""}`}>
       <rect x="6" y="9" width="12" height="11" rx="2" />
       <circle cx="12" cy="6" r="3" />
+    </svg>
+  );
+}
+
+/** The Inspector's pip: the same silhouette under a hard hat, so he reads as
+ *  one of the row and as the odd one out at the same time. */
+function BossPip({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden
+      className={`bot-pip boss-pip${filled ? " filled" : ""}`}
+    >
+      <rect x="4" y="11" width="16" height="10" rx="2" />
+      <circle cx="12" cy="8" r="3" />
+      <path d="M3 6h18a9 9 0 0 0-18 0z" />
     </svg>
   );
 }
@@ -105,6 +124,12 @@ function SetupCard() {
           ? "You have 100 health. Use the walls."
           : "The bots are unarmed — take your time."}
       </p>
+      {/* Not an option, so it sits below the button as a warning rather than
+          above it as a choice. */}
+      <p className="setup-boss">
+        {BOSS_NAME} is on the roof — {BOSS_HITS} hits to put him down
+        {draft.returnFire ? ", and he hits harder than the bots." : "."}
+      </p>
     </div>
   );
 }
@@ -122,6 +147,8 @@ export function LaserTagHud() {
   const hits = useLaserTagStore((s) => s.hits);
   const hint = useLaserTagStore((s) => s.hint);
   const health = useLaserTagStore((s) => s.health);
+  const bossHits = useLaserTagStore((s) => s.bossHits);
+  const bossPresent = useLaserTagStore((s) => s.bossPresent);
   const hurtToken = useLaserTagStore((s) => s.hurtToken);
   const playAgain = useLaserTagStore((s) => s.playAgain);
   const backToSetup = useLaserTagStore((s) => s.backToSetup);
@@ -147,7 +174,12 @@ export function LaserTagHud() {
     );
   }
 
-  const pipCount = total || config.botCount;
+  const bossDown = tagged.includes(BOSS_ID);
+  // The boss is in `total` and in `tagged`, but he gets his own pip and his own
+  // bar — so the scan-bot row counts both without him.
+  const botPips = (total || config.botCount) - (bossPresent ? 1 : 0);
+  const botsTagged = tagged.filter((id) => id !== BOSS_ID).length;
+  const bossLeft = Math.max(0, BOSS_HITS - bossHits);
 
   return (
     <div className="laser-hud">
@@ -164,14 +196,27 @@ export function LaserTagHud() {
             Tagged {tagged.length}/{total || "—"}
           </strong>
           <div className="laser-pips">
-            {Array.from({ length: pipCount }).map((_, i) => (
-              <BotPip key={i} filled={i < tagged.length} />
+            {Array.from({ length: Math.max(0, botPips) }).map((_, i) => (
+              <BotPip key={i} filled={i < botsTagged} />
             ))}
+            {bossPresent ? <BossPip filled={bossDown} /> : null}
           </div>
         </div>
         <p className="laser-stats">
           Shots {shots} · Hits {hits}
         </p>
+        {/* The boss track. Only while he is up — once he is down the pip says
+            so, and a full-width empty bar would just be noise. */}
+        {bossPresent && !bossDown ? (
+          <div
+            className="laser-boss"
+            role="img"
+            aria-label={`${BOSS_NAME}, ${bossLeft} hits to go`}
+          >
+            <span style={{ width: `${(bossLeft / BOSS_HITS) * 100}%` }} />
+            <b>{BOSS_NAME.toUpperCase()}</b>
+          </div>
+        ) : null}
         {config.returnFire ? (
           <div className="laser-health" role="img" aria-label={`Health ${health}`}>
             <span style={{ width: `${(health / MAX_HEALTH) * 100}%` }} />
@@ -187,15 +232,19 @@ export function LaserTagHud() {
         <div className={`laser-win${phase === "lost" ? " lost" : ""}`}>
           <strong>
             {phase === "won"
-              ? pipCount === 1
-                ? "Bot tagged!"
-                : `All ${pipCount} tagged!`
+              ? bossPresent
+                ? `${BOSS_NAME} is down!`
+                : botPips === 1
+                  ? "Bot tagged!"
+                  : `All ${botPips} tagged!`
               : "You got scanned!"}
           </strong>
           <p>
             {phase === "won"
               ? `${shots} shot${shots === 1 ? "" : "s"} to clear the school.`
-              : `${tagged.length} of ${total} tagged before you went down.`}
+              : bossDown || !bossPresent
+                ? `${tagged.length} of ${total} tagged before you went down.`
+                : `${BOSS_NAME} was still standing when you went down.`}
           </p>
           <div className="laser-win-actions">
             <button type="button" onClick={playAgain}>
