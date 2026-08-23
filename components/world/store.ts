@@ -26,17 +26,23 @@ export const ABILITY_COLORS: Record<AbilityId, string> = {
   phase: "#0ea5e9",
 };
 
-export type Ability = { name: string; power: string };
+export type Ability = { name: string; emoji: string; power: string };
 
 export const ABILITIES: Record<AbilityId, Ability> = {
-  speed: { name: "Bunny", power: "Twice as fast, and twice as high" },
-  tiny: { name: "Mouse", power: "Shrink small enough to fit through gaps" },
-  fly: { name: "Butterfly", power: "Double-tap Space to rise, again to go higher" },
+  speed: { name: "Bunny", emoji: "🐰", power: "Twice as fast, and twice as high" },
+  tiny: { name: "Mouse", emoji: "🐭", power: "Shrink to fit through gaps" },
+  fly: {
+    name: "Butterfly",
+    emoji: "🦋",
+    power: "Double-tap Space to rise, again to go higher",
+  },
   climb: {
     name: "Spider",
+    emoji: "🕷️",
     power: "Walk into a wall to climb it · click far away to swing over",
   },
-  phase: { name: "Pangolin", power: "Burrow straight through walls" },
+  // No pangolin emoji exists; the hedgehog is the nearest scaly-ball animal.
+  phase: { name: "Pangolin", emoji: "🦔", power: "Burrow straight through walls" },
 };
 
 type HeroState = {

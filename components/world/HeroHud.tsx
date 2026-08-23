@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useAbilityEmblemSpots } from "./emblemPlacement";
-import { Emblem } from "./Emblem";
 import { playPowerUp, playToggle } from "./sfx";
 import {
   ABILITIES,
@@ -156,11 +155,19 @@ export default function HeroHud({
                   >
                     {i + 1}
                   </span>
-                  <Emblem
-                    ability={id}
-                    tone={on ? "active" : unlocked ? "idle" : "locked"}
-                    className="h-7 w-7"
-                  />
+                  {/* Locked slots show the same animal flattened to a
+                      grey shape: enough to guess at, not enough to
+                      give away. */}
+                  <span
+                    className="text-2xl leading-none"
+                    style={
+                      unlocked
+                        ? undefined
+                        : { filter: "grayscale(1) brightness(0.55) contrast(1.6)" }
+                    }
+                  >
+                    {ability.emoji}
+                  </span>
                   <span
                     className="max-w-full truncate px-1 text-[9px] font-bold"
                     style={{ color: on ? "#0f172a" : unlocked ? "#475569" : "#94a3b8" }}
@@ -211,7 +218,9 @@ export default function HeroHud({
                     : undefined,
               }}
             >
-              <Emblem ability={unlocking} tone="idle" className="h-20 w-20" />
+              <span className="text-6xl leading-none">
+                {ABILITIES[unlocking].emoji}
+              </span>
               <span className="text-lg font-black text-slate-800">
                 {ABILITIES[unlocking].name}
               </span>
