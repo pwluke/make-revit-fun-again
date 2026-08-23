@@ -3,6 +3,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { THEME_ORDER, THEMES } from "@/lib/themes";
 import { useThemeStore } from "./themeStore";
+import { useFloodStore } from "./floodStore";
 import { cn } from "@/lib/utils";
 
 /**
@@ -15,6 +16,8 @@ export function ThemeHud({ className }: { className?: string }) {
   const setTheme = useThemeStore((state) => state.setTheme);
   const fast = useThemeStore((state) => state.fast);
   const setFast = useThemeStore((state) => state.setFast);
+  const creative = useFloodStore((state) => state.creative);
+  const setCreative = useFloodStore((state) => state.setCreative);
   const current = THEMES[id];
 
   return (
@@ -78,12 +81,34 @@ export function ThemeHud({ className }: { className?: string }) {
         >
           ⚡ Fast
         </button>
+
+        {/* Creative mode. Sits with Fast because they are the same kind of
+            control — session settings rather than world appearance — and both
+            are toggles rather than a choice among options. */}
+        <button
+          type="button"
+          aria-pressed={creative}
+          title={
+            creative
+              ? "Creative mode on — the water is frozen and you cannot drown"
+              : "Creative mode — stop the water rising so you can build in peace"
+          }
+          onClick={() => setCreative(!creative)}
+          className={cn(
+            "flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] font-bold transition",
+            creative
+              ? "bg-emerald-400 text-emerald-950 ring-2 ring-slate-800"
+              : "bg-slate-200 text-slate-600 ring-2 ring-white hover:bg-slate-300",
+          )}
+        >
+          🛠 Creative
+        </button>
       </div>
       <p className="rounded-full bg-black/40 px-2.5 py-0.5 text-[11px] font-semibold text-white/90 backdrop-blur-sm">
         {current.name}
-        {fast ? (
-          <span className="font-medium text-amber-300"> · fast mode</span>
-        ) : (
+        {creative && <span className="font-medium text-emerald-300"> · creative</span>}
+        {fast && <span className="font-medium text-amber-300"> · fast</span>}
+        {!creative && !fast && (
           <span className="hidden font-medium text-white/70 sm:inline">
             {" "}
             · {current.blurb}
