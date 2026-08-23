@@ -96,6 +96,57 @@ function maskRemoved(state: CubeStore, positions: CubeCoords[]) {
   };
 }
 
+/**
+ * Pack a lattice cell into one number so the occupancy set can be a Set<number>
+ * rather than a Set<string>. Interior culling does six lookups per cube across
+ * ~317k cubes; building two million strings for that is most of the cost.
+ *
+ * ±32k cells per axis, which is far more than the model needs, and the packed
+ * value stays well inside the 2^53 range doubles represent exactly.
+ */
+const CELL_BIAS = 32768;
+const CELL_SPAN = CELL_BIAS * 2;
+const cellKey = (ix: number, iy: number, iz: number) =>
+  (ix + CELL_BIAS) * CELL_SPAN * CELL_SPAN + (iy + CELL_BIAS) * CELL_SPAN + (iz + CELL_BIAS);
+
+/**
+ * Drop cubes that are completely surrounded — they can never be seen, but they
+ * are drawn, shadowed, raycast and collided against like any other.
+ *
+ * The model is a voxelised building, so most of its volume is interior: this is
+ * the cheapest large win available, and it compounds with everything else
+ * (fewer instances makes the crosshair raycast proportionally cheaper too).
+ *
+ * Errors here are one-sided by construction. A cell key that fails to match its
+ * neighbour — floating point drift along the lattice, say — makes a cube look
+ * *exposed*, so it is kept and drawn. The failure mode is a cube too many, not
+ * a hole in the wall.
+ */
+function cullEnclosed(cubes: CubeInstance[], size: CubeCoords): CubeInstance[] {
+  const [sx, sy, sz] = size;
+  if (!sx || !sy || !sz) return cubes;
+
+  const cellOf = (p: CubeCoords) =>
+    [Math.round(p[0] / sx), Math.round(p[1] / sy), Math.round(p[2] / sz)] as const;
+
+  const occupied = new Set<number>();
+  for (const cube of cubes) occupied.add(cellKey(...cellOf(cube.position)));
+
+  const visible: CubeInstance[] = [];
+  for (const cube of cubes) {
+    const [ix, iy, iz] = cellOf(cube.position);
+    const enclosed =
+      occupied.has(cellKey(ix + 1, iy, iz)) &&
+      occupied.has(cellKey(ix - 1, iy, iz)) &&
+      occupied.has(cellKey(ix, iy + 1, iz)) &&
+      occupied.has(cellKey(ix, iy - 1, iz)) &&
+      occupied.has(cellKey(ix, iy, iz + 1)) &&
+      occupied.has(cellKey(ix, iy, iz - 1));
+    if (!enclosed) visible.push(cube);
+  }
+  return visible;
+}
+
 function breakCluster(
   origin: CubeInstance,
   cubes: CubeInstance[],
@@ -135,8 +186,10 @@ export const Cubes = () => {
       push(point.position, themed);
     }
     for (const coords of added) push(coords, theme.playerBlock);
-    return out;
-  }, [data?.points, added, removed, theme]);
+    // Recomputed whenever the world changes, so breaking a wall re-exposes the
+    // cubes behind it on the same pass that removed the wall.
+    return cullEnclosed(out, blockSize);
+  }, [data?.points, added, removed, theme, blockSize]);
 
   return (
     <>
