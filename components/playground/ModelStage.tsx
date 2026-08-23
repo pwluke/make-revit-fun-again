@@ -20,7 +20,6 @@ import {
   ITEM_EMOJI,
   MODES,
   PAINT_COLORS,
-  TREASURES,
 } from "./modes";
 import { usePlayground } from "./playground-context";
 import { SketchOverlay } from "./SketchOverlay";
@@ -44,8 +43,6 @@ export function ModelStage() {
     paintColor,
     placedItems,
     placeItem,
-    treasures,
-    findTreasure,
   } = usePlayground();
   const config = MODES[mode];
   const [pointerLocked, setPointerLocked] = useState(false);
@@ -137,20 +134,6 @@ export function ModelStage() {
           >
             {ITEM_EMOJI[item.item]}
           </span>
-        ))}
-
-        {TREASURES.map((treasure) => (
-          <button
-            key={treasure.id}
-            type="button"
-            className={`treasure-marker ${treasure.className}${
-              treasures.includes(treasure.id) ? " found" : ""
-            }`}
-            aria-label={treasure.label}
-            onClick={() => findTreasure(treasure.id)}
-          >
-            {treasures.includes(treasure.id) ? "★" : "?"}
-          </button>
         ))}
 
         <SketchOverlay />

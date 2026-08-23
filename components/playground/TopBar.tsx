@@ -68,27 +68,18 @@ export function TopBar() {
         </span>
       </a>
 
-      <div className="model-status" aria-label="Current model stream status">
-        <span className="model-thumb" aria-hidden="true">
-          ⌂
-        </span>
-        <span className="model-copy">
-          <strong>{active ? active.name : modelName}</strong>
-          <small>
-            <i className={connection === "live" ? undefined : connection} />
-            <span>{connectionText}</span>
-          </small>
-        </span>
-        {/* Upload sits left of the chevron: it is how the list gets longer,
-            so it belongs with the list rather than over in the profile area. */}
+      {/* Its own control, separate from the model picker beside it: one adds
+          a project, the other chooses between them. */}
+      <div className="upload-control">
         <button
           type="button"
-          className="icon-button upload-button"
+          className="upload-button"
           aria-label="Upload a project"
           title="Upload a project"
           onClick={() => fileRef.current?.click()}
         >
-          ↥<span>Upload project</span>
+          <span aria-hidden="true">↥</span>
+          <span>Upload project</span>
         </button>
         <input
           ref={fileRef}
@@ -102,6 +93,19 @@ export function TopBar() {
             event.target.value = "";
           }}
         />
+      </div>
+
+      <div className="model-status" aria-label="Current model stream status">
+        <span className="model-thumb" aria-hidden="true">
+          ⌂
+        </span>
+        <span className="model-copy">
+          <strong>{active ? active.name : modelName}</strong>
+          <small>
+            <i className={connection === "live" ? undefined : connection} />
+            <span>{connectionText}</span>
+          </small>
+        </span>
         <button
           type="button"
           className="icon-button chevron"

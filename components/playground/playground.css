@@ -1171,21 +1171,31 @@
 
 /* Upload + the model dropdown it feeds */
 .playground .model-status { position: relative; }
+.playground .upload-control { display: flex; align-items: center; }
 .playground .upload-button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  width: auto;
-  padding: 0 10px;
+  gap: 7px;
+  height: 44px;
+  padding: 0 16px;
   white-space: nowrap;
-  font: 700 12px var(--body);
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  font: 700 13px var(--body);
   color: #475569;
 }
-.playground .upload-button span { font: inherit; }
-@media (max-width: 900px) {
+.playground .upload-button:hover {
+  background: #eef2ff;
+  color: #4f46e5;
+  border-color: rgba(95, 99, 223, 0.35);
+}
+.playground .upload-button span:first-child { font-size: 16px; line-height: 1; }
+@media (max-width: 1000px) {
   /* Tight header: keep the affordance, drop the word. */
-  .playground .upload-button span { display: none; }
-  .playground .upload-button { padding: 0; }
+  .playground .upload-button span:last-child { display: none; }
+  .playground .upload-button { padding: 0 14px; }
 }
 .playground .model-menu {
   position: absolute;
