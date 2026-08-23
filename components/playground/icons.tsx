@@ -53,6 +53,17 @@ export function LaserTagIcon() {
   );
 }
 
+export function RaceIcon() {
+  return (
+    <svg viewBox="0 0 48 48">
+      {/* A stepped climb to a flag on the top step, over a waterline that has
+          already swallowed the bottom one. */}
+      <path d="M5 42h10V32h10V22h10V12h8" />
+      <path d="M43 12v9M3 44c3.5-3 7-3 10.5 0s7 3 10.5 0 7-3 10.5 0 7 3 10.5 0" />
+    </svg>
+  );
+}
+
 export function SoundOnIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -92,4 +103,5 @@ export const ACTIVITY_ICONS = {
   remix: RemixIcon,
   treasure: TreasureIcon,
   lasertag: LaserTagIcon,
+  race: RaceIcon,
 } as const;

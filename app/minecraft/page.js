@@ -50,7 +50,8 @@ export default function MinecraftGame() {
         ← All games
       </Link>
       <p className="pointer-events-none absolute bottom-16 left-1/2 -translate-x-1/2 text-xs text-white/80">
-        Click the world to look around · WASD to move · Esc to free the mouse
+        Click the world to look around · WASD to move · arrow keys to look · Esc
+        to free the mouse
       </p>
       <GestureTracker />
       <TreasureHud />

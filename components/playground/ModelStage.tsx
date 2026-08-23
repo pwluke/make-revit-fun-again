@@ -9,6 +9,7 @@ import {
 import GestureTracker from "@/components/gesture/GestureTracker";
 import { LaserTag } from "@/components/lasertag/LaserTag";
 import { LaserTagHud } from "@/components/lasertag/LaserTagHud";
+import FloodHud from "@/components/world/FloodHud";
 import { GesturePanel } from "./GesturePanel";
 import { MinecraftViewport } from "./MinecraftViewport";
 import {
@@ -22,11 +23,29 @@ import { usePlayground } from "./playground-context";
 import { SketchOverlay } from "./SketchOverlay";
 import { StageToolbar } from "./StageToolbar";
 import { ThemeHud } from "@/components/world/ThemeHud";
+import {
+  useControlMode,
+  type ControlModeId,
+} from "@/components/controls/controlModeStore";
 import TreasureHud from "@/components/world/TreasureHud";
 import PowerupHud from "@/components/world/PowerupHud";
-import FloodHud from "@/components/world/FloodHud";
 import { SketchToWorld } from "@/components/sketch-to-3d/SketchToWorld";
 import { PaletteHUD } from "@/components/sketch3d/ui/PaletteHUD";
+import type { ModeId } from "./modes";
+
+/**
+ * First-run nudge inside the viewport. The control mode wins over the activity:
+ * "Click to look around" is a lie in keyboard and hands mode, and being told to
+ * click something that will not respond is worse than no hint at all.
+ */
+function lookHint(control: ControlModeId, mode: ModeId): string {
+  if (control === "keyboard") return "Arrow keys to look · WASD to walk";
+  if (control === "hands") return "Turn your head to look around";
+  if (control === "draw") return "Click to look, then hold to draw";
+  if (mode === "lasertag") return "Click to take aim";
+  if (mode === "race") return "Click to look, WASD to run";
+  return "Click to look around";
+}
 
 export function ModelStage() {
   const {
@@ -49,6 +68,7 @@ export function ModelStage() {
     findTreasure,
   } = usePlayground();
   const config = MODES[mode];
+  const control = useControlMode();
   const [pointerLocked, setPointerLocked] = useState(false);
   const wallColor = paintedColors[paintedColors.length - 1];
 
@@ -102,7 +122,15 @@ export function ModelStage() {
         </div>
       </div>
 
-      <div className={`model-viewport mode-${mode}`} data-mode={mode}>
+      {/* `data-control` is here rather than only in the toolbar so the CSS can
+          stand the flat sketch overlay down when the child asks for real 3D
+          lines — it is a sibling of the look-lock element, so while it is up it
+          swallows the click that would grab the pointer. */}
+      <div
+        className={`model-viewport mode-${mode}`}
+        data-mode={mode}
+        data-control={control}
+      >
         <MinecraftViewport
           fov={fov}
           sceneEpoch={sceneEpoch}
@@ -110,15 +138,27 @@ export function ModelStage() {
         >
           {mode === "lasertag" ? <LaserTag /> : null}
         </MinecraftViewport>
-        {pointerLocked ? <div className="crosshair" aria-hidden /> : null}
+        {/* Keyboard mode never takes the lock, but the centre of the screen is
+            still where the arrow keys aim, so it needs the reticle just as
+            much. */}
+        {pointerLocked || control === "keyboard" ? (
+          <div className="crosshair" aria-hidden />
+        ) : null}
         {mode === "lasertag" ? <LaserTagHud /> : null}
+        {/* Water depth, breath and the drowned card. Only in the race: every
+            other mode runs creative, where the flood is frozen and there is
+            nothing for this to report. */}
+        {mode === "race" ? <FloodHud /> : null}
 
         <div className={`orbit-hint${spun ? " hidden" : ""}`}>
-          <span>↔</span>{" "}
-          {mode === "lasertag" ? "Click to take aim" : "Click to look around"}
+          <span>↔</span> {lookHint(control, mode)}
         </div>
 
-        <ThemeHud className="top-4 left-4 right-auto items-start" />
+        {/* No 🛠 Creative button: the activity rail owns creative mode now. */}
+        <ThemeHud
+          className="top-4 left-4 right-auto items-start"
+          creativeToggle={false}
+        />
 
         {/* The DOM half of the shared world, mounted here for the same reason
             app/minecraft/page.js mounts it: none of this can live inside

@@ -1,87 +1,55 @@
 "use client";
 
-import { useStore } from "zustand";
-import { useGestureStore } from "@/components/gesture/store";
-import { creationStore } from "@/components/sketch-to-3d/core/creationStore";
-import { sketchStore } from "@/components/sketch3d/core/strokeStore";
+import {
+  CONTROL_MODES,
+  setControlMode,
+  useControlMode,
+} from "@/components/controls/controlModeStore";
 
-type Mode = "look" | "draw" | "hands";
+/** Hotkey worth advertising, where one exists. */
+const HOTKEY: Record<string, string> = { pointerlock: "click", draw: "B" };
 
 /**
- * Clickable look / draw / hands switcher.
+ * Clickable switcher for the four control modes.
  *
- * Pointer lock hides the cursor, so while you are looking around this is only
- * a display — Esc (or Hands) gives the cursor back, then the buttons work.
- * The three modes share one mouse: Look is FPS pointer-lock (main's default),
- * Draw is the in-world 3D lines (B), Hands is the gesture camera.
+ * Pointer lock hides the cursor, so while you are looking around with the mouse
+ * this is only a display — Esc (or Keys, or Hands) gives the cursor back, then
+ * the buttons work. All four modes share one mouse and one camera, which is why
+ * they are radio buttons rather than toggles: see
+ * components/controls/controlModeStore.ts for who takes what.
  */
 export function ControlBar() {
-  const drawMode = useStore(sketchStore, (state) => state.drawMode);
-  const handsOn = useGestureStore((state) => state.active);
-  const mode: Mode = handsOn ? "hands" : drawMode ? "draw" : "look";
+  const mode = useControlMode();
 
   return (
     // White rather than the translucent black it started as, matching ThemeHud's
     // swatch strip — the light chrome is what this codebase uses for things you
     // click, and the dark pills for things you only read.
     <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 rounded-full bg-white/90 p-1 font-sans shadow-lg ring-1 ring-slate-900/10 backdrop-blur-sm">
-      <ModeButton
-        label="Look"
-        hotkey="click"
-        active={mode === "look"}
-        onClick={() => setMode("look")}
-      />
-      <ModeButton
-        label="Draw"
-        hotkey="B"
-        active={mode === "draw"}
-        onClick={() => setMode("draw")}
-      />
-      <ModeButton
-        label="Hands"
-        hotkey=""
-        active={mode === "hands"}
-        onClick={() => setMode("hands")}
-      />
+      {CONTROL_MODES.map((item) => (
+        <ModeButton
+          key={item.id}
+          label={item.label}
+          hotkey={HOTKEY[item.id] ?? ""}
+          title={item.help}
+          active={mode === item.id}
+          onClick={() => setControlMode(item.id)}
+        />
+      ))}
     </div>
   );
-}
-
-function setMode(next: Mode) {
-  const sketch = sketchStore.getState();
-  const hands = useGestureStore.getState();
-  const bridge = creationStore.getState().bridge;
-
-  if (next === "look") {
-    sketch.setDrawMode(false);
-    hands.setActive(false);
-    // Re-lock if the controls are already mounted (Esc'd out of look).
-    // Coming from Hands, LookLock remounts on the next paint — the following
-    // click on the world is what actually grabs the pointer, same as main.
-    bridge?.setInputEnabled(true);
-    return;
-  }
-
-  if (next === "draw") {
-    hands.setActive(false);
-    sketch.setDrawMode(true);
-    bridge?.setInputEnabled(true);
-    return;
-  }
-
-  sketch.setDrawMode(false);
-  hands.setActive(true);
-  bridge?.setInputEnabled(false);
 }
 
 function ModeButton({
   label,
   hotkey,
+  title,
   active,
   onClick,
 }: {
   label: string;
   hotkey: string;
+  title: string;
   active: boolean;
   onClick: () => void;
 }) {
@@ -89,6 +57,7 @@ function ModeButton({
     <button
       type="button"
       aria-pressed={active}
+      title={title}
       onClick={(event) => {
         // Don't let the click bubble into a look-lock listener if this bar
         // ever sits inside the canvas host.

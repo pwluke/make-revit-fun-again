@@ -19,17 +19,19 @@ import { ThemeAtmosphere } from "../world/ThemeAtmosphere";
 import { MarineGarden } from "../world/MarineGarden";
 import { StaticShadows } from "../canvas/StaticShadows";
 import { useFastMode, useThemeStore } from "../world/themeStore";
-import { useGestureStore } from "../gesture/store";
 import { creationStore } from "@/components/sketch-to-3d/core/creationStore";
 import { Creations } from "@/components/sketch-to-3d/r3f/Creations";
 import { RemotePlayers } from "@/components/multiplayer/r3f/RemotePlayers";
+import { ArrowLook } from "@/components/controls/ArrowLook";
+import { locksTheMouse, useControlMode } from "@/components/controls/controlModeStore";
 import { GroundGuide } from "@/components/sketch3d/r3f/GroundGuide";
 import { SketchController } from "@/components/sketch3d/r3f/SketchController";
 import { Strokes } from "@/components/sketch3d/r3f/Strokes";
 
 // The original was made by Maksim Ivanow: https://www.youtube.com/watch?v=Lc2JvBXMesY&t=124s
 // This example needs pointer-lock, that works only if you open it in a new window
-// Controls: WASD + left click, or the camera gestures behind the Hands button
+// Controls: WASD walks and the arrow keys look, on top of one of four input
+// modes — see components/controls/controlModeStore.ts.
 
 /**
  * Click-to-look, bound to the canvas wrapper rather than a page-level id.
@@ -42,7 +44,8 @@ import { Strokes } from "@/components/sketch3d/r3f/Strokes";
  *
  * Tagging the R3F canvas parent always exists inside <Canvas>, so every host
  * gets lock. Overlay / HUD clicks are siblings of that parent, so they do
- * not re-lock. Hands and creation-edit unmount this so the cursor stays free.
+ * not re-lock. Keyboard mode, Hands and creation-edit unmount this so the
+ * cursor stays free.
  */
 function LookLock({ enabled }: { enabled: boolean }) {
   const gl = useThree((state) => state.gl);
@@ -63,11 +66,17 @@ function LookLock({ enabled }: { enabled: boolean }) {
   return <PointerLockControls makeDefault selector={selector} />;
 }
 
+/**
+ * WASD walks. The arrow keys deliberately do NOT appear here any more: they are
+ * the look controls now (components/controls/ArrowLook.tsx), which is what makes
+ * keyboard mode a mode rather than "mouse-look with no mouse". Aliasing them
+ * back onto movement would give four keys two jobs at once.
+ */
 export const minecraftKeyMap = [
-  { name: "forward", keys: ["ArrowUp", "w", "W"] },
-  { name: "backward", keys: ["ArrowDown", "s", "S"] },
-  { name: "left", keys: ["ArrowLeft", "a", "A"] },
-  { name: "right", keys: ["ArrowRight", "d", "D"] },
+  { name: "forward", keys: ["w", "W"] },
+  { name: "backward", keys: ["s", "S"] },
+  { name: "left", keys: ["a", "A"] },
+  { name: "right", keys: ["d", "D"] },
   { name: "jump", keys: ["Space"] },
   // Only used by the fly powerup — the descend key. Harmless otherwise.
   { name: "crouch", keys: ["ShiftLeft", "ShiftRight", "Shift", "c", "C"] },
@@ -82,7 +91,9 @@ export function MinecraftScene({ children }: { children?: ReactNode }) {
   // three-stdlib's disconnect() leaves domElement set, so lock() still fires.
   // Unmounting is the only clean answer.
   const selectedId = useStore(creationStore, (state) => state.selectedId);
-  const handsOn = useGestureStore((state) => state.active);
+  // Which of the four control modes is live. Hands used to be read straight off
+  // the gesture store here; the mode covers that case and the three others.
+  const mode = useControlMode();
   const fast = useFastMode();
   // What makes the shadow map stale: edits to the world, and a theme swap that
   // moves the key light.
@@ -135,7 +146,11 @@ export function MinecraftScene({ children }: { children?: ReactNode }) {
           SceneBridge binds to null and setInputEnabled is a silent no-op —
           the sketch overlay and creation selection cannot release the
           pointer, which reads as "the cursor never appears". */}
-      <LookLock enabled={!selectedId && !handsOn} />
+      <LookLock enabled={!selectedId && locksTheMouse(mode)} />
+      {/* Arrow keys look around, in every mode but Hands. Mounted next to
+          LookLock because it is the other half of the same job: the two write
+          the same camera quaternion, and in mouse mode they compose. */}
+      <ArrowLook />
       {/* The post chain is seven full-screen passes and by far the most
           expensive thing in the frame. Fast mode drops it entirely — see the
           ⚡ Fast button in ThemeHud. Unmounted rather than disabled so the
