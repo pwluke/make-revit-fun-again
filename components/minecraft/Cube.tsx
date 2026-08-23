@@ -23,9 +23,8 @@ import {
   spawnBreakDebris,
 } from "./break-fx";
 import { playerOrigin } from "./player-origin";
-
-/** Warm clay for blocks the player places, against the pastel point layers. */
-const PLAYER_BLOCK_COLOR = "#d9a07a";
+import { THEMES, type LayerId } from "@/lib/themes";
+import { useSceneTheme, useThemeStore } from "../world/themeStore";
 
 // How far the player can reach to break or place, in world units. Also caps the
 // per-frame raycast, so a block across the map can't be edited by aiming at it.
@@ -149,6 +148,8 @@ function breakCluster(
 export const Cubes = () => {
   const added = useCubeStore((state) => state.added);
   const removed = useCubeStore((state) => state.removed);
+  const themeId = useThemeStore((state) => state.id);
+  const theme = THEMES[themeId];
   const { data, blockSize } = useGridPoints();
 
   const cubes = useMemo(() => {
@@ -161,11 +162,12 @@ export const Cubes = () => {
       out.push({ position: coords, color });
     };
     for (const point of occupiedPointCoords(data?.points)) {
-      push(point.position, point.color);
+      const themed = theme.layers[point.layer as LayerId] ?? point.color;
+      push(point.position, themed);
     }
-    for (const coords of added) push(coords, PLAYER_BLOCK_COLOR);
+    for (const coords of added) push(coords, theme.playerBlock);
     return out;
-  }, [data?.points, added, removed]);
+  }, [data?.points, added, removed, theme]);
 
   return (
     <>
@@ -191,6 +193,7 @@ function InstancedCubes({
   const cage = useMemo(() => cubeCageGeometry(size), [size]);
   useEffect(() => () => cage.dispose(), [cage]);
 
+  const theme = useSceneTheme();
   const camera = useThree((state) => state.camera);
   const addCube = useCubeStore((state) => state.addCube);
   const removeCubes = useCubeStore((state) => state.removeCubes);
@@ -316,8 +319,8 @@ function InstancedCubes({
       >
         <boxGeometry args={size} />
         <meshStandardMaterial
-          roughness={0.55}
-          metalness={0.05}
+          roughness={theme.cubeRoughness}
+          metalness={theme.cubeMetalness}
           polygonOffset
           polygonOffsetFactor={1}
           polygonOffsetUnits={1}
@@ -330,7 +333,7 @@ function InstancedCubes({
         frustumCulled={false}
         raycast={() => {}}
       >
-        <meshBasicMaterial color="#2c2118" />
+        <meshBasicMaterial color={theme.edge} />
       </instancedMesh>
       <NearbyColliders cubes={cubes} half={half} />
       {hoverPos && (

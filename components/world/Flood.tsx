@@ -13,6 +13,7 @@ import {
   resetFloodState,
   useFloodStore,
 } from "./floodStore";
+import { useSceneTheme } from "./themeStore";
 
 /** Wide enough to reach the horizon on the 1000x1000 ground plane. */
 const SURFACE_SIZE = 1000;
@@ -27,6 +28,7 @@ const SWELL_SPEED = 0.7;
  * whether the camera (the player's eye) is under it, drain or refill breath.
  */
 export function Flood() {
+  const theme = useSceneTheme();
   const surface = useRef<THREE.Mesh>(null);
   const drown = useFloodStore((s) => s.drown);
   const respawnToken = useFloodStore((s) => s.respawnToken);
@@ -78,7 +80,7 @@ export function Flood() {
       {/* DoubleSide so the surface still reads from below, and depthWrite off
           so it doesn't punch a hole in what's behind it when seen underwater. */}
       <meshStandardMaterial
-        color="#2f7fb8"
+        color={theme.flood}
         transparent
         opacity={0.62}
         depthWrite={false}

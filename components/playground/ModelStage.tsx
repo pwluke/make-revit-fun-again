@@ -19,6 +19,7 @@ import {
 import { usePlayground } from "./playground-context";
 import { SketchOverlay } from "./SketchOverlay";
 import { StageToolbar } from "./StageToolbar";
+import { ThemeHud } from "@/components/world/ThemeHud";
 
 export function ModelStage() {
   const {
@@ -105,6 +106,8 @@ export function ModelStage() {
         <div className={`orbit-hint${spun ? " hidden" : ""}`}>
           <span>↔</span> Click to look around
         </div>
+
+        <ThemeHud className="top-4 left-4 right-auto items-start" />
 
         {placedItems.map((item) => (
           <span

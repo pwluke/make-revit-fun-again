@@ -3,10 +3,10 @@ import * as THREE from "three";
 import { CuboidCollider, RigidBody } from "@react-three/rapier";
 import {
   HOUSE_BRICKS,
-  HOUSE_COLORS,
   houseVoxels,
   type HouseMaterial,
 } from "./houseData";
+import { useSceneTheme } from "./themeStore";
 
 const dummy = new THREE.Object3D();
 
@@ -28,6 +28,7 @@ function VoxelBatch({
     ref.current.computeBoundingSphere();
   }, [positions]);
 
+  const theme = useSceneTheme();
   const transparent = mat === "glass";
   return (
     <instancedMesh
@@ -41,11 +42,17 @@ function VoxelBatch({
     >
       <boxGeometry />
       <meshStandardMaterial
-        color={HOUSE_COLORS[mat]}
+        color={theme.house[mat]}
         transparent={transparent}
         opacity={transparent ? 0.42 : 1}
-        roughness={transparent ? 0.1 : mat === "panel" ? 0.7 : 0.9}
-        metalness={transparent ? 0.1 : 0}
+        roughness={
+          transparent
+            ? 0.1
+            : mat === "panel"
+              ? theme.housePanelRoughness
+              : theme.houseRoughness
+        }
+        metalness={transparent ? 0.1 : theme.houseMetalness}
       />
     </instancedMesh>
   );
