@@ -20,6 +20,7 @@ import { StaticShadows } from "../canvas/StaticShadows";
 import { useFastMode, useThemeStore } from "../world/themeStore";
 import { creationStore } from "@/components/sketch-to-3d/core/creationStore";
 import { Creations } from "@/components/sketch-to-3d/r3f/Creations";
+import { RemotePlayers } from "@/components/multiplayer/r3f/RemotePlayers";
 import { GroundGuide } from "@/components/sketch3d/r3f/GroundGuide";
 import { SketchController } from "@/components/sketch3d/r3f/SketchController";
 import { Strokes } from "@/components/sketch3d/r3f/Strokes";
@@ -74,6 +75,11 @@ export function MinecraftScene({ children }: { children?: ReactNode }) {
       <Powerups />
       <MarineGarden />
       <Flood />
+      {/* Also outside <Physics>, and that is the design: other players are
+          drawn, not simulated. Each client owns only its own capsule, which is
+          what keeps this free of authority and rollback machinery. It also owns
+          the room connection — mounting it is what makes this tab multiplayer. */}
+      <RemotePlayers />
       {/* Slot for a per-mode add-on — see components/lasertag. Out here for the
           same reason the pickups are: it raycasts and animates, it doesn't
           collide. Callers that pass nothing render exactly the tree above. */}
