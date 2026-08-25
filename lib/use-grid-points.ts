@@ -1,6 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  extractRawPoints,
+  findBuiltInBuilding,
+  readActiveBuildingId,
+  type BuildingLayer,
+  type RawPoint,
+} from "./building-projects";
 
 export type CubeCoords = [x: number, y: number, z: number];
 
@@ -14,35 +21,8 @@ export type GridPoint = {
   layer: string;
 };
 
-type RawPoint = {
-  x: number;
-  y: number;
-  z: number;
-};
-
-export type PointLayer = {
-  id: string;
-  file: string;
-  color: string;
-  enabled: boolean;
-};
-
-/**
- * Ten warm pastel layers, one `_voxels.json` file each. Colors stay distinct
- * so walls / floors / roof read apart once they stack on the shared grid.
- */
-export const POINT_LAYERS: PointLayer[] = [
-  { id: "S-FNDN", file: "/S-FNDN_voxels.json", color: "#e8d2b0", enabled: true },
-  { id: "A-FLOR", file: "/A-FLOR_voxels.json", color: "#f8d3a3", enabled: true },
-  { id: "A-FLOR-OTLN", file: "/A-FLOR-OTLN_voxels.json", color: "#f3b8c2", enabled: true },
-  { id: "A-WALL", file: "/A-WALL_voxels.json", color: "#f4c7a1", enabled: true },
-  { id: "I-WALL", file: "/I-WALL_voxels.json", color: "#f5a99a", enabled: true },
-  { id: "A-COLS", file: "/A-COLS_voxels.json", color: "#eed49a", enabled: true },
-  { id: "S-STRS", file: "/S-STRS_voxels.json", color: "#f2b8a8", enabled: true },
-  { id: "A-CLNG", file: "/A-CLNG_voxels.json", color: "#f6e3a8", enabled: true },
-  { id: "A-ROOF", file: "/A-ROOF_voxels.json", color: "#e8a990", enabled: true },
-  { id: "A-GENM", file: "/A-GENM_voxels.json", color: "#f5c4c8", enabled: true },
-];
+/** Kept as the old name so scene code that imports it does not have to change. */
+export type PointLayer = BuildingLayer;
 
 /** Edge length of the previous InstantDB cubes. This grid is ~1/3 of that. */
 export const TARGET_BLOCK_SIZE = 1 / 3;
@@ -72,57 +52,94 @@ const initialState: GridState = {
 
 let snapshot: GridState = initialState;
 const listeners = new Set<(state: GridState) => void>();
-let loadStarted = false;
+let autoLoadStarted = false;
+/** Bumped per load so a slow building that lost the race cannot overwrite. */
+let loadToken = 0;
 
 function emit(next: GridState) {
   snapshot = next;
   for (const listener of listeners) listener(next);
 }
 
-function ensureLoad() {
-  if (loadStarted) return;
-  loadStarted = true;
+async function readLayer(layer: BuildingLayer): Promise<RawPoint[]> {
+  if (layer.points) return layer.points;
+  if (!layer.file) throw new Error(`Layer ${layer.id} has no file and no points`);
+  const response = await fetch(layer.file);
+  if (!response.ok) {
+    throw new Error(`Could not load ${layer.file} (${response.status})`);
+  }
+  return extractRawPoints(await response.json(), layer.file);
+}
+
+/**
+ * Swap the building on screen. Everything that reads `useGridPoints` — cubes,
+ * the laser-tag arena, star and fossil placement — re-derives from the new
+ * points, so this is the single switch the picker throws.
+ *
+ * A layer that fails is skipped rather than fatal: half a building beats an
+ * error screen, and uploads routinely miss a layer or two. Only a building
+ * where every layer failed reports an error.
+ */
+export function setBuildingLayers(layers: BuildingLayer[]) {
+  autoLoadStarted = true;
+  const token = ++loadToken;
+  emit({ ...snapshot, isLoading: true, error: null });
 
   void (async () => {
-    try {
-      const enabled = POINT_LAYERS.filter((layer) => layer.enabled);
-      const loaded = await Promise.all(
-        enabled.map(async (layer) => {
-          const response = await fetch(layer.file);
-          if (!response.ok) {
-            throw new Error(`Could not load ${layer.file} (${response.status})`);
-          }
-          const json: unknown = await response.json();
-          return { layer, raw: extractRawPoints(json, layer.file) };
-        }),
-      );
-      const prepared = preparePoints(loaded);
-      emit({
-        points: prepared.points,
-        blockSize: prepared.blockSize,
-        isLoading: false,
-        error: null,
-      });
-    } catch (cause) {
+    const enabled = layers.filter((layer) => layer.enabled);
+    const loaded: { layer: BuildingLayer; raw: RawPoint[] }[] = [];
+    const failures: string[] = [];
+
+    await Promise.all(
+      enabled.map(async (layer) => {
+        try {
+          loaded.push({ layer, raw: await readLayer(layer) });
+        } catch (cause) {
+          failures.push(cause instanceof Error ? cause.message : String(cause));
+        }
+      }),
+    );
+
+    if (token !== loadToken) return;
+
+    if (loaded.length === 0) {
       emit({
         ...snapshot,
         isLoading: false,
-        error: cause instanceof Error ? cause : new Error(String(cause)),
+        error: new Error(failures[0] ?? "This building has no layers to show"),
       });
+      return;
     }
+    if (failures.length > 0) {
+      console.warn(`[buildings] skipped ${failures.length} layer(s):`, failures);
+    }
+
+    // `enabled` order, not completion order, or the colour of a shared cell
+    // would change from one load to the next.
+    loaded.sort(
+      (a, b) => enabled.indexOf(a.layer) - enabled.indexOf(b.layer),
+    );
+    const prepared = preparePoints(loaded);
+    emit({
+      points: prepared.points,
+      blockSize: prepared.blockSize,
+      isLoading: false,
+      error: null,
+    });
   })();
 }
 
-function extractRawPoints(json: unknown, file: string): RawPoint[] {
-  if (Array.isArray(json)) return json as RawPoint[];
-  if (
-    json &&
-    typeof json === "object" &&
-    Array.isArray((json as { points?: unknown }).points)
-  ) {
-    return (json as { points: RawPoint[] }).points;
-  }
-  throw new Error(`${file} must be an array or { points: [] }`);
+/**
+ * First mount with nobody having chosen a building yet. Only built-ins can be
+ * resolved here — an uploaded id lives in IndexedDB, and reaching for it would
+ * make this module depend on the store that depends on this module. The store
+ * calls `setBuildingLayers` as soon as it has hydrated.
+ */
+function ensureLoad() {
+  if (autoLoadStarted) return;
+  const saved = findBuiltInBuilding(readActiveBuildingId());
+  if (!saved) return;
+  setBuildingLayers(saved.layers);
 }
 
 /**

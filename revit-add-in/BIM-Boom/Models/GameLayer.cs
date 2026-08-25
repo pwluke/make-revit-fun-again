@@ -40,7 +40,7 @@ public sealed class GameLayer
 public static class GameLayers
 {
     /// <summary>
-    /// The ten layers the game loads, in the same order as POINT_LAYERS.
+    /// The ten layers the game loads, in the same order as LAYER_ORDER.
     /// <para>
     /// Doors and windows are deliberately absent. They are openings: voxelising
     /// their panels and glazing walls up every doorway, and the game's bots and

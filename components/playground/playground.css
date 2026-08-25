@@ -1102,11 +1102,22 @@
   font: 600 12px var(--body);
   color: #94a3b8;
 }
+/* A row is a wrapper, not a button: the delete ✕ is its own control and a
+   button cannot legally nest inside another button. */
 .playground .model-option {
   display: flex;
   align-items: center;
-  gap: 10px;
   width: 100%;
+  padding-right: 6px;
+  border-radius: 12px;
+  background: transparent;
+}
+.playground .model-option-open {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
   padding: 7px;
   border-radius: 12px;
   text-align: left;

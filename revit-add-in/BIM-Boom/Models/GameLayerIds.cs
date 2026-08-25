@@ -4,11 +4,15 @@ namespace BIM_Boom.Models;
 /// The layer names the web game loads, and nothing else — deliberately free of
 /// any Revit reference, so the exporter and its tests can run outside Revit.
 /// <para>
-/// These are not free-form. They must match POINT_LAYERS in
-/// <c>lib/use-grid-points.ts</c> exactly: the app fetches
-/// <c>/{id}_voxels.json</c> for each one and colours it by id in
-/// <c>lib/themes.ts</c>. The names follow the AIA CAD layer convention the
-/// original hand-made export used.
+/// These are not free-form. They must match LAYER_ORDER in
+/// <c>lib/building-projects.ts</c> exactly: the app fetches
+/// <c>/building-projects/{building}/{id}_voxels.json</c> for each one and
+/// colours it by id in <c>lib/themes.ts</c>. The names follow the AIA CAD
+/// layer convention the original hand-made export used.
+/// </para>
+/// <para>
+/// A folder of these files is also exactly what the web app's "Upload
+/// building" picker accepts, so an export can be dropped straight in.
 /// </para>
 /// </summary>
 public static class GameLayerIds
@@ -24,7 +28,7 @@ public static class GameLayerIds
     public const string Roof = "A-ROOF";
     public const string Generic = "A-GENM";
 
-    /// <summary>In POINT_LAYERS order.</summary>
+    /// <summary>In LAYER_ORDER order.</summary>
     public static readonly string[] All =
     [
         Foundation,

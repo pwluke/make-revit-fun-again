@@ -16,6 +16,7 @@ import {
   useGridPoints,
   type CubeCoords,
 } from "@/lib/use-grid-points";
+import { useBuildingStore } from "@/lib/building-store";
 import { SCENE } from "@/lib/palette";
 import { useGestureStore } from "../gesture/store";
 import { laserTagState } from "../lasertag/laserTagStore";
@@ -67,6 +68,8 @@ type CubeStore = {
   addCube: (x: number, y: number, z: number) => void;
   removeCube: (x: number, y: number, z: number) => void;
   removeCubes: (positions: CubeCoords[]) => void;
+  /** Drop every edit. Used when a different building loads. */
+  reset: () => void;
 };
 
 // Exported so gesture-driven building (GestureBuilder) can queue cubes
@@ -104,6 +107,9 @@ export const useCubeStore = create<CubeStore>((set) => ({
     set((state) => maskRemoved(state, positions));
     publishLocalEdit({ kind: "remove", positions });
   },
+  // Local only, and deliberately not published: the coordinates mean nothing
+  // in the building the other players are still standing in.
+  reset: () => set({ added: [], removed: new Set<string>() }),
 }));
 
 /**
@@ -204,9 +210,18 @@ function breakCluster(
 export const Cubes = () => {
   const added = useCubeStore((state) => state.added);
   const removed = useCubeStore((state) => state.removed);
+  const reset = useCubeStore((state) => state.reset);
   const themeId = useThemeStore((state) => state.id);
   const theme = THEMES[themeId];
+  const activeBuildingId = useBuildingStore((state) => state.activeId);
   const { data, blockSize } = useGridPoints();
+
+  // Edits are coordinates in the building they were made in. Carrying them
+  // into the next one leaves bricks floating in mid-air and holes punched
+  // through walls that were never broken.
+  useEffect(() => {
+    reset();
+  }, [activeBuildingId, reset]);
 
   const cubes = useMemo(() => {
     const seen = new Set<string>();
