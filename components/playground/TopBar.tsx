@@ -1,13 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SoundOnIcon } from "./icons";
 import { usePlayground } from "./playground-context";
-import {
-  formatSize,
-  projectFromFile,
-  useProjectStore,
-} from "./projectStore";
+import { useBuildingStore } from "@/lib/building-store";
 
 export function TopBar() {
   const {
@@ -18,32 +14,40 @@ export function TopBar() {
     showToast,
     connection,
     connectionText,
-    modelName,
   } = usePlayground();
-  const projects = useProjectStore((s) => s.projects);
-  const selectedId = useProjectStore((s) => s.selectedId);
-  const addProject = useProjectStore((s) => s.add);
-  const selectProject = useProjectStore((s) => s.select);
-  const removeProject = useProjectStore((s) => s.remove);
+  const buildings = useBuildingStore((s) => s.buildings);
+  const activeId = useBuildingStore((s) => s.activeId);
+  const busy = useBuildingStore((s) => s.busy);
+  const buildingError = useBuildingStore((s) => s.error);
+  const hydrate = useBuildingStore((s) => s.hydrate);
+  const importFiles = useBuildingStore((s) => s.importFiles);
+  const selectBuilding = useBuildingStore((s) => s.select);
+  const removeBuilding = useBuildingStore((s) => s.remove);
   const fileRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
 
-  const onFiles = (files: FileList | null) => {
+  useEffect(() => {
+    void hydrate();
+  }, [hydrate]);
+
+  useEffect(() => {
+    if (buildingError) showToast("That did not work", buildingError);
+  }, [buildingError, showToast]);
+
+  const onFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    let last = "";
-    for (const file of Array.from(files)) {
-      const project = projectFromFile(file);
-      addProject(project);
-      last = project.name;
-    }
-    setOpen(true);
+    const result = await importFiles(Array.from(files));
+    if (!result) return;
+    setOpen(false);
     showToast(
-      "Project uploaded",
-      `${last} is in your model list. Pick it to open it.`,
+      `${result.name} is open`,
+      result.skipped > 0
+        ? `${result.skipped} file(s) were skipped — the rest are saved on this device.`
+        : "Saved on this device, so it is still here next time.",
     );
   };
 
-  const active = projects.find((p) => p.id === selectedId);
+  const active = buildings.find((building) => building.id === activeId);
 
   return (
     <header className="topbar">
@@ -68,7 +72,7 @@ export function TopBar() {
         </span>
       </a>
 
-      {/* Centre column. Two separate controls — one adds a project, the other
+      {/* Centre column. Two separate controls — one adds a building, the other
           chooses between them — but they share this cell, because the header
           grid has exactly three columns and a fourth child would shove the
           profile area out of its own. */}
@@ -77,46 +81,34 @@ export function TopBar() {
         <button
           type="button"
           className="upload-button"
-          aria-label="Upload a project"
-          title="Upload a project"
+          aria-label="Upload a building"
+          title="Pick the *_voxels.json files for one building"
+          disabled={busy}
           onClick={() => fileRef.current?.click()}
         >
           <span aria-hidden="true">↥</span>
-          <span>Upload project</span>
+          <span>{busy ? "Reading\u2026" : "Upload building"}</span>
         </button>
         <input
           ref={fileRef}
           type="file"
           multiple
-          accept="image/*,.glb,.gltf,.obj,.ifc,.rvt,.3dm"
+          accept=".json,application/json"
           className="sr-only"
           onChange={(event) => {
-            onFiles(event.target.files);
+            void onFiles(event.target.files);
             // Reset so picking the same file twice still fires a change.
             event.target.value = "";
           }}
         />
       </div>
 
-      <div className="model-status" aria-label="Current model stream status">
-        {/* The picker wears whichever project is open: its preview if it has
-            one, its file type if not, and the live-stream glyph otherwise. */}
-        <span
-          className={`model-thumb${active ? " project" : ""}`}
-          aria-hidden="true"
-        >
-          {active ? (
-            active.preview ? (
-              <img src={active.preview} alt="" />
-            ) : (
-              <b>{active.kind}</b>
-            )
-          ) : (
-            "⌂"
-          )}
+      <div className="model-status" aria-label="Current building">
+        <span className="model-thumb project" aria-hidden="true">
+          {active?.origin === "upload" ? <b>JSON</b> : "⌂"}
         </span>
         <span className="model-copy">
-          <strong>{active ? active.name : modelName}</strong>
+          <strong>{active ? active.name : "No building"}</strong>
           <small>
             <i className={connection === "live" ? undefined : connection} />
             <span>{connectionText}</span>
@@ -125,7 +117,7 @@ export function TopBar() {
         <button
           type="button"
           className="icon-button chevron"
-          aria-label="Choose another model"
+          aria-label="Choose another building"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
@@ -134,69 +126,50 @@ export function TopBar() {
 
         {open ? (
           <div className="model-menu" role="menu">
-            <button
-              type="button"
-              className={`model-option${selectedId === null ? " current" : ""}`}
-              onClick={() => {
-                selectProject(null);
-                setOpen(false);
-              }}
-            >
-              <span className="model-option-thumb live" aria-hidden="true">⌂</span>
-              <span className="model-option-copy">
-                <strong>{modelName}</strong>
-                <small>{connectionText}</small>
-              </span>
-            </button>
-
-            {projects.length === 0 ? (
-              <p className="model-menu-empty">
-                Upload a project to see it here.
-              </p>
-            ) : (
-              projects.map((project) => (
+            {buildings.map((building) => (
+              <div
+                key={building.id}
+                className={`model-option${building.id === activeId ? " current" : ""}`}
+              >
                 <button
-                  key={project.id}
                   type="button"
-                  className={`model-option${selectedId === project.id ? " current" : ""}`}
+                  className="model-option-open"
                   onClick={() => {
-                    selectProject(project.id);
+                    void selectBuilding(building.id);
                     setOpen(false);
-                    showToast(project.name, "Opened from your uploads.");
                   }}
                 >
-                  <span className="model-option-thumb" aria-hidden="true">
-                    {project.preview ? (
-                      <img src={project.preview} alt="" />
-                    ) : (
-                      <b>{project.kind}</b>
-                    )}
+                  <span
+                    className={`model-option-thumb${building.origin === "builtin" ? " live" : ""}`}
+                    aria-hidden="true"
+                  >
+                    {building.origin === "builtin" ? "⌂" : <b>JSON</b>}
                   </span>
                   <span className="model-option-copy">
-                    <strong>{project.name}</strong>
-                    <small>{formatSize(project.size)} · {project.kind}</small>
+                    <strong>{building.name}</strong>
+                    <small>{building.detail}</small>
                   </span>
-                  <span
+                </button>
+                {building.origin === "upload" ? (
+                  <button
+                    type="button"
                     className="model-option-remove"
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`Remove ${project.name}`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      removeProject(project.id);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.stopPropagation();
-                        removeProject(project.id);
-                      }
+                    aria-label={`Delete ${building.name}`}
+                    title="Delete this building"
+                    onClick={() => {
+                      void removeBuilding(building.id);
+                      showToast(building.name, "Deleted from this device.");
                     }}
                   >
                     ✕
-                  </span>
-                </button>
-              ))
-            )}
+                  </button>
+                ) : null}
+              </div>
+            ))}
+
+            <p className="model-menu-empty">
+              Upload one <code>*_voxels.json</code> per layer to add your own.
+            </p>
           </div>
         ) : null}
       </div>
