@@ -105,6 +105,13 @@ export type PeerState = {
   y: number;
   z: number;
   yaw: number;
+  /**
+   * Whether they are in a live Laser Tag round, and therefore both able to
+   * shoot and able to be shot. Not optional here even though the wire field is:
+   * `decodePresence` resolves the absent case to `false` once, so no caller has
+   * to decide what a missing flag means.
+   */
+  armed: boolean;
 };
 
 /**
@@ -131,7 +138,112 @@ export function decodePresence(raw: unknown): PeerState | null {
     y: candidate.y,
     z: candidate.z,
     yaw: candidate.yaw,
+    // Anything but an explicit `true` is unarmed. A peer on an older build, or
+    // one whose first presence slice has not filled in yet, is scenery rather
+    // than a target — the direction that fails safe.
+    armed: candidate.armed === true,
   };
+}
+
+/**
+ * Health a player loses per hit from another player, applied by the VICTIM from
+ * this constant rather than read off the wire. Attacker-supplied damage is the
+ * one thing in this protocol a client could trivially cheat with, and the fix
+ * costs nothing: the number lives on both ends and never travels.
+ *
+ * Sized against the bot presets in laserTagStore: seven hits to put someone
+ * down, so a duel is a duel and not a coin flip on who clicks first.
+ */
+export const PVP_DAMAGE = 15;
+
+/**
+ * Sanity bound on a peer id from the wire. Instant's own ids are UUID-shaped;
+ * this only exists so a hostile client cannot make every other client carry a
+ * megabyte string around in a Map key.
+ */
+export const MAX_PEER_ID_LENGTH = 64;
+
+/** One laser bolt. `targetId` is "" when the shot hit scenery. */
+export type ShotOp = {
+  targetId: string;
+  from: Vec3;
+  to: Vec3;
+};
+
+/** The flat row Instant broadcasts. Nested values are JSON strings. */
+export type ShotMessage = {
+  targetId: string;
+  from: string;
+  to: string;
+};
+
+export function encodeShot(op: ShotOp): ShotMessage {
+  return {
+    targetId: op.targetId,
+    from: JSON.stringify(op.from),
+    to: JSON.stringify(op.to),
+  };
+}
+
+/**
+ * Same null-not-throw contract as `decodeEdit`, and the same NaN paranoia: these
+ * endpoints go straight into a bolt's instance matrix in laser-fx, where a
+ * non-finite value collapses the bolt mesh's bounding sphere and takes every
+ * other bolt on screen with it.
+ */
+export function decodeShot(raw: unknown): ShotOp | null {
+  if (!raw || typeof raw !== "object") return null;
+  const candidate = raw as ShotMessage;
+
+  // "" is the miss case and is valid; anything non-string, or absurdly long, is
+  // not. A target id that matches nobody is harmless — it simply hits no one.
+  if (typeof candidate.targetId !== "string") return null;
+  if (candidate.targetId.length > MAX_PEER_ID_LENGTH) return null;
+
+  const from = parseVec3(candidate.from);
+  const to = parseVec3(candidate.to);
+  if (!from || !to) return null;
+
+  return { targetId: candidate.targetId, from, to };
+}
+
+/** The victim's acknowledgement that a shot landed on them. */
+export type TagOp = {
+  shooterId: string;
+  down: boolean;
+};
+
+export type TagMessage = TagOp;
+
+export function encodeTag(op: TagOp): TagMessage {
+  return { shooterId: op.shooterId, down: op.down };
+}
+
+export function decodeTag(raw: unknown): TagOp | null {
+  if (!raw || typeof raw !== "object") return null;
+  const candidate = raw as TagMessage;
+  if (typeof candidate.shooterId !== "string" || !candidate.shooterId) {
+    return null;
+  }
+  if (candidate.shooterId.length > MAX_PEER_ID_LENGTH) return null;
+  if (typeof candidate.down !== "boolean") return null;
+  return { shooterId: candidate.shooterId, down: candidate.down };
+}
+
+function parseVec3(raw: unknown): Vec3 | null {
+  if (typeof raw !== "string") return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed) || parsed.length !== 3) return null;
+  const [x, y, z] = parsed as unknown[];
+  if (!isFiniteNumber(x) || !isFiniteNumber(y) || !isFiniteNumber(z)) {
+    return null;
+  }
+  return [x, y, z];
 }
 
 /**

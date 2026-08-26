@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { clearPeers, peerCount, peerList, syncPeers } from "./peers";
+import {
+  armedPeerCount,
+  clearPeers,
+  peerById,
+  peerCount,
+  peerList,
+  syncPeers,
+} from "./peers";
 import type { PeerState } from "./protocol";
 
 const at = (x: number, yaw = 0): PeerState => ({
@@ -8,6 +15,7 @@ const at = (x: number, yaw = 0): PeerState => ({
   y: 2,
   z: 3,
   yaw,
+  armed: false,
 });
 
 const listed = () => [...peerList()];
@@ -77,5 +85,35 @@ describe("syncPeers", () => {
     syncPeers(new Map());
     syncPeers(new Map([["a", at(50)]]));
     expect(listed()[0].drawn.x).toBe(50);
+  });
+
+  it("updates the armed flag in place", () => {
+    // A peer starting a round has to become shootable without losing the
+    // interpolation state that keeps their avatar smooth.
+    syncPeers(new Map([["a", at(0)]]));
+    syncPeers(new Map([["a", { ...at(0), armed: true }]]));
+    expect(peerById("a")?.armed).toBe(true);
+  });
+});
+
+describe("armedPeerCount", () => {
+  it("counts only peers in a live round", () => {
+    syncPeers(
+      new Map([
+        ["a", { ...at(0), armed: true }],
+        ["b", at(1)],
+        ["c", { ...at(2), armed: true }],
+      ]),
+    );
+    expect(armedPeerCount()).toBe(2);
+    expect(peerCount()).toBe(3);
+  });
+});
+
+describe("peerById", () => {
+  it("returns undefined for someone who has left", () => {
+    syncPeers(new Map([["a", at(0)]]));
+    syncPeers(new Map());
+    expect(peerById("a")).toBeUndefined();
   });
 });

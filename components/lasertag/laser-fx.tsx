@@ -52,6 +52,14 @@ export const ENEMY_BOLT = "#ff7a59";
  *  the roof is recognisable as his before you have found where he is. */
 export const BOSS_BOLT = "#ff2f45";
 
+/**
+ * Fallback tint for another player's fire. Normally a rival's bolt is drawn in
+ * THEIR avatar colour, which is strictly better information — you learn who is
+ * shooting at you from the bolt itself. This is only for the moment before that
+ * player's presence has reached this tab, when their colour is not known yet.
+ */
+export const RIVAL_BOLT = "#4fd1c5";
+
 export function spawnBolt(
   from: THREE.Vector3,
   to: THREE.Vector3,

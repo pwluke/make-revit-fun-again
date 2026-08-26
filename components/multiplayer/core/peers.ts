@@ -62,6 +62,7 @@ export function syncPeers(next: Map<string, PeerState>): void {
       existing.y = state.y;
       existing.z = state.z;
       existing.yaw = state.yaw;
+      existing.armed = state.armed;
     } else {
       peers.set(id, {
         id,
@@ -87,6 +88,24 @@ export function peerList(): IterableIterator<Peer> {
 
 export function peerCount(): number {
   return peers.size;
+}
+
+/**
+ * One peer by id, for resolving a hit back to the player it landed on. Returns
+ * the live entry, not a copy, for the same reason `peerList` does.
+ */
+export function peerById(id: string): Peer | undefined {
+  return peers.get(id);
+}
+
+/** How many peers are in a live Laser Tag round. Drives whether the HUD shows
+ *  a health bar at all — see LaserTagHud. */
+export function armedPeerCount(): number {
+  let count = 0;
+  for (const peer of peers.values()) {
+    if (peer.armed) count++;
+  }
+  return count;
 }
 
 /** Drop everyone. For leaving the room, and for test isolation. */
