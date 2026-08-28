@@ -85,11 +85,17 @@ export type Targetable = {
  * `maxDistance` is how far the shot actually travels: the caller passes the
  * distance to whatever scenery it hit, so a player standing behind a wall is
  * not hit through it. That is the whole occlusion story — no second raycast.
+ *
+ * THERE IS NO MINIMUM DISTANCE, deliberately. The scene raycast in LaserTag
+ * needs one — a held gun model floats ~1m in front of the eye and every shot
+ * would hit it — but nothing of yours is ever in this list, so the same guard
+ * applied here only makes a player standing on top of you unshootable. It was
+ * a parameter once; it is gone rather than defaulted to 0 so it cannot come
+ * back by accident.
  */
 export function pickPeerHit(
   origin: Vec,
   direction: Vec,
-  minDistance: number,
   maxDistance: number,
   peers: Iterable<Targetable>,
 ): PeerHit | null {
@@ -99,7 +105,7 @@ export function pickPeerHit(
     if (!peer.armed) continue;
     const distance = rayBoxDistance(origin, direction, peer.drawn);
     if (distance === null) continue;
-    if (distance < minDistance || distance > maxDistance) continue;
+    if (distance > maxDistance) continue;
     if (!best || distance < best.distance) {
       best = { id: peer.id, distance };
     }
@@ -112,8 +118,9 @@ export function pickPeerHit(
  *
  * Returns the ENTRY distance, and returns 0 for a ray starting inside the box —
  * so a muzzle already inside someone counts as a point-blank hit rather than as
- * a miss out the far side. Callers still apply their own minimum reach; see
- * MIN_REACH in LaserTag.tsx.
+ * a miss out the far side. `pickPeerHit` passes that 0 straight through: at
+ * knife range the bolt has nowhere to travel, and the alternative is a rushing
+ * player being untouchable.
  */
 function rayBoxDistance(origin: Vec, direction: Vec, centre: Vec): number | null {
   let near = 0;

@@ -165,9 +165,10 @@ const _schema = i.schema({
          * bystanders and not just to the two players involved.
          *
          * DELIBERATELY CARRIES NO DAMAGE NUMBER. The victim applies the shared
-         * `PVP_DAMAGE` constant, so a client cannot dial up how hard its own
-         * shots land. What a shooter gets to assert is only where it aimed and
-         * who it believes it hit — see core/protocol.ts.
+         * `PVP_DAMAGE` constant, so every hit costs the same on every screen.
+         * What a shooter asserts here is only where it aimed and who it believes
+         * it hit — and nothing checks either claim. See core/protocol.ts for
+         * what that does and does not buy.
          */
         shot: i.entity({
           /** Peer id of the player hit, or "" for a shot that hit scenery. */
@@ -187,7 +188,11 @@ const _schema = i.schema({
         tag: i.entity({
           /** Peer id of the shooter being credited. */
           shooterId: i.string(),
-          /** True when that hit was the one that took them to zero health. */
+          /**
+           * True when that hit was the one that took them to zero health, which
+           * is the only case a message is sent for at all — a non-fatal hit is
+           * already on the shooter's own hit counter and has nothing to add.
+           */
           down: i.boolean(),
         }),
       },

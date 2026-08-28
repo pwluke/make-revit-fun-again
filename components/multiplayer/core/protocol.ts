@@ -147,9 +147,18 @@ export function decodePresence(raw: unknown): PeerState | null {
 
 /**
  * Health a player loses per hit from another player, applied by the VICTIM from
- * this constant rather than read off the wire. Attacker-supplied damage is the
- * one thing in this protocol a client could trivially cheat with, and the fix
- * costs nothing: the number lives on both ends and never travels.
+ * this constant rather than read off the wire. Keeping the number off the
+ * protocol is free — it lives on both ends already — so there is no reason to
+ * let a shooter name it.
+ *
+ * DO NOT READ THAT AS A SECURITY BOUNDARY. Nothing here is verified: any client
+ * can claim to have hit you from across the map, through a wall, while stood on
+ * the setup card, as fast as it likes, and the victim will take the damage and
+ * hand back the tag. That is a deliberate trade for a room of people at a booth,
+ * not an oversight — the same trade the edit topic makes, where anyone can
+ * remove anyone's blocks. What the shared constant buys is narrower and worth
+ * saying plainly: every hit costs the same, so the health bar means one thing on
+ * every screen.
  *
  * Sized against the bot presets in laserTagStore: seven hits to put someone
  * down, so a duel is a duel and not a coin flip on who clicks first.
@@ -207,7 +216,14 @@ export function decodeShot(raw: unknown): ShotOp | null {
   return { targetId: candidate.targetId, from, to };
 }
 
-/** The victim's acknowledgement that a shot landed on them. */
+/**
+ * The victim's acknowledgement that a shot landed on them.
+ *
+ * Only ever sent for the hit that finished them — see PeerCombat. `down` is
+ * therefore always true on the wire today; it stays in the shape because it is
+ * what the message MEANS, and a bare `{ shooterId }` would read as "somebody hit
+ * you" to the next person who adds a consumer.
+ */
 export type TagOp = {
   shooterId: string;
   down: boolean;

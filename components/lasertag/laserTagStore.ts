@@ -151,8 +151,14 @@ type LaserTagStore = {
    * a single-player hunt and the HUD says nothing about PvP.
    */
   armedPeers: number;
-  /** Avatar colour of the player who last hit you, so the HUD can say who it
-   *  was in the only terms this game has: nobody is named. */
+  /**
+   * Avatar colour of the player who last hit you, so the HUD can say who it was
+   * in the only terms this game has: nobody is named.
+   *
+   * Goes back to null UNDER_FIRE_MS after the last hit. The HUD renders it in
+   * the present tense — "taking fire" — so a value that survived to the end of
+   * the round would be a lie for most of it.
+   */
   lastHitByColor: string | null;
   /** True when it was a player, not a bot, who took you to zero. Changes what
    *  the end card says, and it is the one detail people ask about. */
@@ -207,9 +213,9 @@ export const useLaserTagStore = create<LaserTagStore>((set, get) => ({
       lastHitByColor: null,
       downedByPeer: false,
       // `armedPeers` is deliberately NOT reset: it describes the room, not the
-      // round, and <PeerCombat/> only refreshes it a couple of times a second.
-      // Zeroing it here would blank the PvP line for the first moments of every
-      // round even though the other players are still standing right there.
+      // round, and <ArmedPeerWatch/> only refreshes it a couple of times a
+      // second. Zeroing it here would blank the PvP line for the first moments
+      // of every round even though the other players are still standing there.
       roundToken: s.roundToken + 1,
     }));
   },
@@ -275,6 +281,11 @@ export const laserTagState = {
   /** Confirmed player takedowns — see the store field of the same name. */
   peerTags: 0,
   lastHitByColor: null as string | null,
+  /**
+   * When the last hit from another player landed, on `performance.now()`'s
+   * clock. Paired with `lastHitByColor` to expire it — see UNDER_FIRE_MS.
+   */
+  lastHitAt: 0,
   downedByPeer: false,
 };
 
@@ -321,6 +332,7 @@ export function damageFromPeer(amount: number, color: string | null): boolean {
   // decided must not rewrite who ended it.
   if (laserTagState.finished && !down) return false;
   laserTagState.lastHitByColor = color;
+  laserTagState.lastHitAt = performance.now();
   if (down) laserTagState.downedByPeer = true;
   return down;
 }
@@ -333,6 +345,22 @@ export function landPeerHit(): void {
 /** Another player confirmed you put them down. */
 export function creditPeerTag(): void {
   laserTagState.peerTags += 1;
+}
+
+/**
+ * How long after a hit the HUD still says another player is shooting at you.
+ *
+ * The banner is written in the present tense, so it has to lapse: without this
+ * one hit early on left it lit for the rest of the round. Long enough to bridge
+ * the gap between shots in a real exchange of fire — PvP is ~5 shots a second
+ * and a rival has to reacquire you — short enough that breaking away clears it.
+ */
+export const UNDER_FIRE_MS = 2000;
+
+/** Whether a player's shot landed on you recently enough to still be news. */
+function underFire(): boolean {
+  if (!laserTagState.lastHitByColor) return false;
+  return performance.now() - laserTagState.lastHitAt < UNDER_FIRE_MS;
 }
 
 function hintText() {
@@ -348,6 +376,11 @@ export function publishLaserTag() {
 
   const hint = hintText();
   const bossHits = laserTagState.hits.get(BOSS_ID) ?? 0;
+  // Expired here rather than on a timer because this already runs once a frame
+  // from <Bots/>, and a timer would be a second clock to keep in step with the
+  // round's own reset. The value only reaches React when it flips, like
+  // everything else below.
+  const lastHitByColor = underFire() ? laserTagState.lastHitByColor : null;
   let phase = store.phase;
   if (!laserTagState.finished) {
     if (laserTagState.health <= 0) {
@@ -371,7 +404,7 @@ export function publishLaserTag() {
     store.hurtToken !== laserTagState.hurtCount ||
     store.peerHits !== laserTagState.peerHits ||
     store.peerTags !== laserTagState.peerTags ||
-    store.lastHitByColor !== laserTagState.lastHitByColor ||
+    store.lastHitByColor !== lastHitByColor ||
     store.downedByPeer !== laserTagState.downedByPeer;
   if (!changed) return;
 
@@ -387,7 +420,7 @@ export function publishLaserTag() {
     hurtToken: laserTagState.hurtCount,
     peerHits: laserTagState.peerHits,
     peerTags: laserTagState.peerTags,
-    lastHitByColor: laserTagState.lastHitByColor,
+    lastHitByColor,
     downedByPeer: laserTagState.downedByPeer,
   });
 }
@@ -408,5 +441,6 @@ export function resetLaserTag() {
   laserTagState.peerHits = 0;
   laserTagState.peerTags = 0;
   laserTagState.lastHitByColor = null;
+  laserTagState.lastHitAt = 0;
   laserTagState.downedByPeer = false;
 }

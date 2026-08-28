@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import { armedPeerCount, peerById } from "@/components/multiplayer/core/peers";
@@ -46,18 +46,6 @@ import {
  */
 const HEAR_RANGE = 28;
 
-/** How often the armed-peer count is refreshed. It only drives whether the HUD
- *  shows a PvP line, so twice a second is more than responsive enough, and it
- *  keeps a React state write off the frame path. */
-const PEER_POLL_SECONDS = 0.5;
-
-/**
- * Module-level rather than a ref: there is one Laser Tag mode, this component is
- * a singleton within it, and the timer is throwaway state that nothing else
- * reads. Same reasoning as the FX pools in laser-fx.
- */
-let pollTimer = PEER_POLL_SECONDS;
-
 const from = new THREE.Vector3();
 const to = new THREE.Vector3();
 const awayFromShooter = new THREE.Vector3();
@@ -95,9 +83,11 @@ export function PeerCombat() {
           spawnSparks(camera.position, awayFromShooter, shooter?.color ?? RIVAL_BOLT);
           const down = damageFromPeer(PVP_DAMAGE, shooter?.color ?? null);
           playHurtSound();
-          // Tell the shooter it landed. This is what turns their guess into a
-          // score, and the only place a takedown is ever confirmed.
-          publishTag({ shooterId: fromPeerId, down });
+          // Tell the shooter it landed — but only when it was the hit that
+          // finished you, because a takedown is the only thing the message can
+          // score. Every client in the room receives a `tag`, and one saying
+          // `down: false` is decoded by all of them and acted on by none.
+          if (down) publishTag({ shooterId: fromPeerId, down });
           publishLaserTag();
         },
 
@@ -114,12 +104,37 @@ export function PeerCombat() {
     [camera],
   );
 
-  // Reported as a count rather than a list because that is all the HUD needs,
-  // and a list would mean a new array in React state twice a second forever.
+  return null;
+}
+
+/** How often the armed-peer count is refreshed. It only drives whether the HUD
+ *  shows a PvP line, so twice a second is more than responsive enough, and it
+ *  keeps a React state write off the frame path. */
+const PEER_POLL_SECONDS = 0.5;
+
+/**
+ * How many other players are in a live round, kept fresh for as long as Laser
+ * Tag is open.
+ *
+ * SEPARATE FROM <PeerCombat/> because it has a different lifetime. Combat only
+ * exists once a round is running, but the setup card asks the same question
+ * before one starts — "is anyone else in here?" — and with the poll mounted
+ * alongside the shot listener that count was frozen at whatever the last round
+ * left behind, or at zero on first entry.
+ *
+ * Reported as a count rather than a list because that is all the HUD needs, and
+ * a list would mean a new array in React state twice a second forever.
+ */
+export function ArmedPeerWatch() {
+  // A ref, not a module global: this remounts with the mode, and a timer that
+  // survived would make the first count of a new session wait out whatever was
+  // left on the clock. Seeded past the interval so the first frame polls.
+  const pollTimer = useRef(PEER_POLL_SECONDS);
+
   useFrame((_, delta) => {
-    pollTimer += delta;
-    if (pollTimer < PEER_POLL_SECONDS) return;
-    pollTimer = 0;
+    pollTimer.current += delta;
+    if (pollTimer.current < PEER_POLL_SECONDS) return;
+    pollTimer.current = 0;
     useLaserTagStore.getState().setArmedPeers(armedPeerCount());
   });
 

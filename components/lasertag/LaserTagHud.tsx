@@ -257,9 +257,10 @@ export function LaserTagHud() {
             <b>{health}</b>
           </div>
         ) : null}
-        {/* Who hit you last, in the only terms this game has: nobody has a name,
-            so the avatar's colour IS their identity — the same colour their bolt
-            was drawn in. */}
+        {/* Who is shooting at you, in the only terms this game has: nobody has
+            a name, so the avatar's colour IS their identity — the same colour
+            their bolt was drawn in. The store lapses this a couple of seconds
+            after the last hit, which is what keeps the present tense honest. */}
         {phase === "hunting" && lastHitByColor ? (
           <p className="laser-pvp rival">
             <i style={{ background: lastHitByColor }} aria-hidden />

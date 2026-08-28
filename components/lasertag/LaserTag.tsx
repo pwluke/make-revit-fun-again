@@ -12,7 +12,7 @@ import { ALERT_RADIUS, Bots, spookBots } from "./Bots";
 import { useBotArena } from "./botArena";
 import { Inspector } from "./Inspector";
 import { DebugArena } from "./DebugArena";
-import { PeerCombat } from "./PeerCombat";
+import { ArmedPeerWatch, PeerCombat } from "./PeerCombat";
 import { LASER_TINT, LaserGun, MUZZLE_OFFSET } from "./LaserGun";
 import {
   LaserFx,
@@ -37,6 +37,10 @@ const GUN_DISTANCE = 1;
  * Anything closer than this is the gun in your own hand. Same value and same
  * reason as GestureBuilder's MIN_REACH — a held model floats ~1m out, and a
  * pick that starts at zero hits it every time.
+ *
+ * SCENERY ONLY. Applying it to the peer test as well made anyone who closed
+ * inside 1.6m unshootable, which is the opposite of what it is for; `pickPeerHit`
+ * takes no minimum, and its docblock explains why it never should.
  */
 const MIN_REACH = 1.6;
 const MAX_RANGE = 45;
@@ -132,7 +136,6 @@ function LaserRig() {
       const peerHit = pickPeerHit(
         camera.position,
         forward,
-        MIN_REACH,
         hit ? hit.distance : MAX_RANGE,
         peerList(),
       );
@@ -179,6 +182,11 @@ function LaserRig() {
       // Counted here rather than on the victim's acknowledgement, so the hit
       // counter answers the trigger immediately. The takedown itself is only
       // ever scored from that acknowledgement — see PeerCombat.
+      //
+      // The cost of that immediacy: this counts shots the victim goes on to
+      // reject — they had already left the round, or their position here was
+      // stale — so the two clients' "Hits" numbers can differ by a shot or two.
+      // Tags, the number anyone actually reads, always agree.
       if (hitPeer) landPeerHit();
 
       // Tell the room. Misses go out too: a bolt everyone can see is what makes
@@ -348,6 +356,10 @@ export function LaserTag() {
           <PeerCombat />
         </>
       ) : null}
+      {/* Outside the `playing` gate on purpose: the setup card's PvP line has to
+          know who else is armed BEFORE the round starts, and <PeerCombat/> only
+          exists once it has. */}
+      <ArmedPeerWatch />
       <LaserFx />
       <DebugArena cells={cells} />
     </>
