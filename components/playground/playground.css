@@ -714,7 +714,44 @@
 .playground .laser-hint {
   color: var(--violet);
 }
-/* Health bar, only shown when the bots are armed. */
+/* Player-versus-player line. Teal, so it reads apart from the violet bot stats
+   at a glance — the two counts are not comparable and shouldn't look it. */
+.playground .laser-pvp {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+  color: #2f9e93;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+/* "Taking fire" swatch: the rival's avatar colour, which is the only name
+   anybody has here. */
+.playground .laser-pvp.rival {
+  color: #d4381f;
+}
+.playground .laser-pvp i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.playground .laser-win-pvp {
+  margin-top: 2px;
+  color: #2f9e93;
+  font-size: 11px;
+  font-weight: 700;
+}
+.playground .setup-pvp {
+  margin-top: 4px;
+  color: #2f9e93;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* Health bar, shown when anything can shoot back — armed bots, or company. */
 .playground .laser-health {
   position: relative;
   height: 12px;

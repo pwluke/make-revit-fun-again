@@ -2,11 +2,17 @@ import { describe, expect, it } from "vitest";
 import {
   AVATAR_COLORS,
   MAX_EDIT_POSITIONS,
+  MAX_PEER_ID_LENGTH,
   decodeEdit,
   decodePresence,
+  decodeShot,
+  decodeTag,
   encodeEdit,
+  encodeShot,
+  encodeTag,
   randomAvatarColor,
   type EditOp,
+  type ShotOp,
 } from "./protocol";
 
 const breakOp: EditOp = {
@@ -77,8 +83,20 @@ describe("decodeEdit rejects untrusted payloads", () => {
 
 describe("decodePresence", () => {
   it("reads a full slice", () => {
-    const slice = { color: "#5f63df", x: 1, y: 2, z: 3, yaw: 0.5 };
+    const slice = { color: "#5f63df", x: 1, y: 2, z: 3, yaw: 0.5, armed: true };
     expect(decodePresence(slice)).toEqual(slice);
+  });
+
+  it("treats a missing armed flag as unarmed", () => {
+    // A peer on an older build, or one whose first slice has not filled in, is
+    // scenery rather than a target. Defaulting the other way would let a player
+    // be shot while reading the setup card.
+    expect(decodePresence({ color: "#5f63df", x: 1, y: 2, z: 3, yaw: 0 })?.armed)
+      .toBe(false);
+    expect(
+      decodePresence({ color: "#5f63df", x: 1, y: 2, z: 3, yaw: 0, armed: "yes" })
+        ?.armed,
+    ).toBe(false);
   });
 
   it("returns null for a peer that has not reported a position yet", () => {
@@ -105,5 +123,65 @@ describe("randomAvatarColor", () => {
     for (const random of [() => 0, () => 0.5, () => 0.999999]) {
       expect(AVATAR_COLORS).toContain(randomAvatarColor(random));
     }
+  });
+});
+
+const shotOp: ShotOp = {
+  targetId: "peer-7",
+  from: [1, 2.5, -3],
+  to: [10, 2, -30],
+};
+
+describe("encodeShot / decodeShot", () => {
+  it("round-trips a shot", () => {
+    expect(decodeShot(encodeShot(shotOp))).toEqual(shotOp);
+  });
+
+  it("accepts an empty target — that is how a miss is spelled", () => {
+    // Misses are broadcast so bystanders see the bolt, so "" is a valid payload
+    // rather than something to reject.
+    const miss: ShotOp = { ...shotOp, targetId: "" };
+    expect(decodeShot(encodeShot(miss))).toEqual(miss);
+  });
+
+  it("rejects non-finite endpoints", () => {
+    // These go into a bolt's instance matrix; one NaN collapses the bolt mesh's
+    // bounding sphere and takes every other bolt on screen with it.
+    expect(decodeShot({ targetId: "", from: "[null,0,0]", to: "[0,0,0]" })).toBeNull();
+    expect(decodeShot({ targetId: "", from: "[0,0,0]", to: "[1e999,0,0]" })).toBeNull();
+  });
+
+  it("rejects endpoints that are not triples", () => {
+    expect(decodeShot({ targetId: "", from: "[0,0]", to: "[0,0,0]" })).toBeNull();
+    expect(decodeShot({ targetId: "", from: "nope", to: "[0,0,0]" })).toBeNull();
+  });
+
+  it("rejects an absurd target id", () => {
+    const long = "x".repeat(MAX_PEER_ID_LENGTH + 1);
+    expect(decodeShot({ ...encodeShot(shotOp), targetId: long })).toBeNull();
+  });
+
+  it("rejects a non-object", () => {
+    expect(decodeShot(null)).toBeNull();
+    expect(decodeShot("shot")).toBeNull();
+  });
+});
+
+describe("encodeTag / decodeTag", () => {
+  it("round-trips an acknowledgement", () => {
+    expect(decodeTag(encodeTag({ shooterId: "peer-1", down: true }))).toEqual({
+      shooterId: "peer-1",
+      down: true,
+    });
+  });
+
+  it("requires a shooter to credit", () => {
+    expect(decodeTag({ shooterId: "", down: true })).toBeNull();
+    expect(decodeTag({ down: true })).toBeNull();
+  });
+
+  it("requires down to be a boolean", () => {
+    // A truthy string would score a takedown that never happened.
+    expect(decodeTag({ shooterId: "peer-1", down: "yes" })).toBeNull();
   });
 });

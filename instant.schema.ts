@@ -130,6 +130,18 @@ const _schema = i.schema({
         z: i.number(),
         /** Camera yaw in radians, so the avatar faces where the player looks. */
         yaw: i.number(),
+        /**
+         * True while this player is in a live Laser Tag round — i.e. holding a
+         * gun and able to take a hit. It gates PvP in both directions: nobody
+         * can be shot while they are reading the setup card or building in
+         * another mode, and nobody can shoot from there either.
+         *
+         * On presence rather than in the shot message because the SHOOTER needs
+         * it before firing, to decide whether a player-shaped thing in front of
+         * them is a target or scenery. Absent on a peer mid-connection, which
+         * `decodePresence` reads as "not armed" — the safe default.
+         */
+        armed: i.boolean().optional(),
       }),
       topics: {
         /**
@@ -147,6 +159,41 @@ const _schema = i.schema({
            * has no native representation here.
            */
           positions: i.string(),
+        }),
+        /**
+         * One laser bolt, broadcast to everyone so a shot is visible to
+         * bystanders and not just to the two players involved.
+         *
+         * DELIBERATELY CARRIES NO DAMAGE NUMBER. The victim applies the shared
+         * `PVP_DAMAGE` constant, so every hit costs the same on every screen.
+         * What a shooter asserts here is only where it aimed and who it believes
+         * it hit — and nothing checks either claim. See core/protocol.ts for
+         * what that does and does not buy.
+         */
+        shot: i.entity({
+          /** Peer id of the player hit, or "" for a shot that hit scenery. */
+          targetId: i.string(),
+          /** JSON `[x,y,z]` — the muzzle, so the bolt starts at their gun. */
+          from: i.string(),
+          /** JSON `[x,y,z]` — where the bolt stopped. */
+          to: i.string(),
+        }),
+        /**
+         * The victim confirming a hit landed on them. Sent by the player who
+         * took the damage, never by the shooter, because health is simulated
+         * only on its owner's client — the same rule that keeps positions
+         * authoritative locally. It is what turns "I think I hit them" into a
+         * scored tag.
+         */
+        tag: i.entity({
+          /** Peer id of the shooter being credited. */
+          shooterId: i.string(),
+          /**
+           * True when that hit was the one that took them to zero health, which
+           * is the only case a message is sent for at all — a non-fatal hit is
+           * already on the shooter's own hit counter and has nothing to add.
+           */
+          down: i.boolean(),
         }),
       },
     },

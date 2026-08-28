@@ -137,6 +137,32 @@ type LaserTagStore = {
   /** Bumped by a new round. Bots re-derive their spawn seed from it, so a
    *  replay re-scatters instead of repeating the same spots. */
   roundToken: number;
+  /** Shots this player has landed on other PLAYERS, bots excluded. */
+  peerHits: number;
+  /**
+   * Other players this player has put down. Counted from their own
+   * acknowledgement rather than from our hit detection, so this is the number
+   * that is actually true on both machines — see the `tag` topic.
+   */
+  peerTags: number;
+  /**
+   * Other players currently in a live round. From presence, so it is peers who
+   * can shoot back — not everyone in the world. Zero means this is effectively
+   * a single-player hunt and the HUD says nothing about PvP.
+   */
+  armedPeers: number;
+  /**
+   * Avatar colour of the player who last hit you, so the HUD can say who it was
+   * in the only terms this game has: nobody is named.
+   *
+   * Goes back to null UNDER_FIRE_MS after the last hit. The HUD renders it in
+   * the present tense — "taking fire" — so a value that survived to the end of
+   * the round would be a lie for most of it.
+   */
+  lastHitByColor: string | null;
+  /** True when it was a player, not a bot, who took you to zero. Changes what
+   *  the end card says, and it is the one detail people ask about. */
+  downedByPeer: boolean;
   startRound: (config: RoundConfig) => void;
   /** Same settings, fresh bots. */
   playAgain: () => void;
@@ -144,6 +170,7 @@ type LaserTagStore = {
   backToSetup: () => void;
   setTotal: (total: number) => void;
   setBossPresent: (present: boolean) => void;
+  setArmedPeers: (count: number) => void;
 };
 
 export const useLaserTagStore = create<LaserTagStore>((set, get) => ({
@@ -160,6 +187,11 @@ export const useLaserTagStore = create<LaserTagStore>((set, get) => ({
   bossPresent: false,
   hurtToken: 0,
   roundToken: 0,
+  peerHits: 0,
+  peerTags: 0,
+  armedPeers: 0,
+  lastHitByColor: null,
+  downedByPeer: false,
   startRound: (config) => {
     resetLaserTag();
     set((s) => ({
@@ -176,6 +208,14 @@ export const useLaserTagStore = create<LaserTagStore>((set, get) => ({
       // Reset with the rest: a stale token would replay the damage flash on the
       // first frame of a fresh round.
       hurtToken: 0,
+      peerHits: 0,
+      peerTags: 0,
+      lastHitByColor: null,
+      downedByPeer: false,
+      // `armedPeers` is deliberately NOT reset: it describes the room, not the
+      // round, and <ArmedPeerWatch/> only refreshes it a couple of times a
+      // second. Zeroing it here would blank the PvP line for the first moments
+      // of every round even though the other players are still standing there.
       roundToken: s.roundToken + 1,
     }));
   },
@@ -190,6 +230,10 @@ export const useLaserTagStore = create<LaserTagStore>((set, get) => ({
       health: MAX_HEALTH,
       bossHits: 0,
       hurtToken: 0,
+      peerHits: 0,
+      peerTags: 0,
+      lastHitByColor: null,
+      downedByPeer: false,
     });
   },
   setTotal: (total) => {
@@ -199,6 +243,10 @@ export const useLaserTagStore = create<LaserTagStore>((set, get) => ({
   setBossPresent: (present) => {
     if (get().bossPresent === present) return;
     set({ bossPresent: present });
+  },
+  setArmedPeers: (count) => {
+    if (get().armedPeers === count) return;
+    set({ armedPeers: count });
   },
 }));
 
@@ -227,6 +275,18 @@ export const laserTagState = {
   hurtCount: 0,
   /** Set once the round is decided, so the frame loop stops scoring. */
   finished: false,
+  /** Shots landed on other players. Separate from `hitCount` so the PvP line
+   *  and the bot stats line cannot be confused for each other. */
+  peerHits: 0,
+  /** Confirmed player takedowns — see the store field of the same name. */
+  peerTags: 0,
+  lastHitByColor: null as string | null,
+  /**
+   * When the last hit from another player landed, on `performance.now()`'s
+   * clock. Paired with `lastHitByColor` to expire it — see UNDER_FIRE_MS.
+   */
+  lastHitAt: 0,
+  downedByPeer: false,
 };
 
 export function registerShot() {
@@ -258,6 +318,51 @@ export function damagePlayer(amount: number): boolean {
   return laserTagState.health <= 0;
 }
 
+/**
+ * Take a hit from another player. Same damage path as a bot's, plus who it came
+ * from — a bot is a bot, but "the orange player got me" is the thing worth
+ * knowing.
+ *
+ * Returns true if it was the hit that put you down, which is what the caller
+ * sends back to the shooter as their confirmed tag.
+ */
+export function damageFromPeer(amount: number, color: string | null): boolean {
+  const down = damagePlayer(amount);
+  // Only on a hit that actually registered: a hit arriving after the round was
+  // decided must not rewrite who ended it.
+  if (laserTagState.finished && !down) return false;
+  laserTagState.lastHitByColor = color;
+  laserTagState.lastHitAt = performance.now();
+  if (down) laserTagState.downedByPeer = true;
+  return down;
+}
+
+/** One of your shots landed on another player. */
+export function landPeerHit(): void {
+  laserTagState.peerHits += 1;
+}
+
+/** Another player confirmed you put them down. */
+export function creditPeerTag(): void {
+  laserTagState.peerTags += 1;
+}
+
+/**
+ * How long after a hit the HUD still says another player is shooting at you.
+ *
+ * The banner is written in the present tense, so it has to lapse: without this
+ * one hit early on left it lit for the rest of the round. Long enough to bridge
+ * the gap between shots in a real exchange of fire — PvP is ~5 shots a second
+ * and a rival has to reacquire you — short enough that breaking away clears it.
+ */
+export const UNDER_FIRE_MS = 2000;
+
+/** Whether a player's shot landed on you recently enough to still be news. */
+function underFire(): boolean {
+  if (!laserTagState.lastHitByColor) return false;
+  return performance.now() - laserTagState.lastHitAt < UNDER_FIRE_MS;
+}
+
 function hintText() {
   if (!laserTagState.nearestBearing) return null;
   return `${laserTagState.nearestBearing}, ${Math.round(laserTagState.nearestDistance)} m`;
@@ -271,6 +376,11 @@ export function publishLaserTag() {
 
   const hint = hintText();
   const bossHits = laserTagState.hits.get(BOSS_ID) ?? 0;
+  // Expired here rather than on a timer because this already runs once a frame
+  // from <Bots/>, and a timer would be a second clock to keep in step with the
+  // round's own reset. The value only reaches React when it flips, like
+  // everything else below.
+  const lastHitByColor = underFire() ? laserTagState.lastHitByColor : null;
   let phase = store.phase;
   if (!laserTagState.finished) {
     if (laserTagState.health <= 0) {
@@ -291,7 +401,11 @@ export function publishLaserTag() {
     store.hint !== hint ||
     store.health !== laserTagState.health ||
     store.bossHits !== bossHits ||
-    store.hurtToken !== laserTagState.hurtCount;
+    store.hurtToken !== laserTagState.hurtCount ||
+    store.peerHits !== laserTagState.peerHits ||
+    store.peerTags !== laserTagState.peerTags ||
+    store.lastHitByColor !== lastHitByColor ||
+    store.downedByPeer !== laserTagState.downedByPeer;
   if (!changed) return;
 
   useLaserTagStore.setState({
@@ -304,6 +418,10 @@ export function publishLaserTag() {
     health: laserTagState.health,
     bossHits,
     hurtToken: laserTagState.hurtCount,
+    peerHits: laserTagState.peerHits,
+    peerTags: laserTagState.peerTags,
+    lastHitByColor,
+    downedByPeer: laserTagState.downedByPeer,
   });
 }
 
@@ -320,4 +438,9 @@ export function resetLaserTag() {
   laserTagState.health = MAX_HEALTH;
   laserTagState.hurtCount = 0;
   laserTagState.finished = false;
+  laserTagState.peerHits = 0;
+  laserTagState.peerTags = 0;
+  laserTagState.lastHitByColor = null;
+  laserTagState.lastHitAt = 0;
+  laserTagState.downedByPeer = false;
 }

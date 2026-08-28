@@ -4,11 +4,15 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useGestureStore } from "@/components/gesture/store";
+import { pickPeerHit } from "@/components/multiplayer/core/hitbox";
+import { peerById, peerList } from "@/components/multiplayer/core/peers";
+import { publishShot, setSelfArmed } from "@/components/multiplayer/net";
 import { floodState, useFloodStore } from "@/components/world/floodStore";
 import { ALERT_RADIUS, Bots, spookBots } from "./Bots";
 import { useBotArena } from "./botArena";
 import { Inspector } from "./Inspector";
 import { DebugArena } from "./DebugArena";
+import { ArmedPeerWatch, PeerCombat } from "./PeerCombat";
 import { LASER_TINT, LaserGun, MUZZLE_OFFSET } from "./LaserGun";
 import {
   LaserFx,
@@ -20,6 +24,7 @@ import {
 } from "./laser-fx";
 import {
   landHit,
+  landPeerHit,
   laserTagState,
   publishLaserTag,
   registerShot,
@@ -32,6 +37,10 @@ const GUN_DISTANCE = 1;
  * Anything closer than this is the gun in your own hand. Same value and same
  * reason as GestureBuilder's MIN_REACH — a held model floats ~1m out, and a
  * pick that starts at zero hits it every time.
+ *
+ * SCENERY ONLY. Applying it to the peer test as well made anyone who closed
+ * inside 1.6m unshootable, which is the opposite of what it is for; `pickPeerHit`
+ * takes no minimum, and its docblock explains why it never should.
  */
 const MIN_REACH = 1.6;
 const MAX_RANGE = 45;
@@ -48,6 +57,9 @@ const forward = new THREE.Vector3();
 const muzzle = new THREE.Vector3();
 const impact = new THREE.Vector3();
 const surfaceNormal = new THREE.Vector3();
+/** Reused per shot for the wire payload, so a held trigger allocates nothing. */
+const shotFrom: [number, number, number] = [0, 0, 0];
+const shotTo: [number, number, number] = [0, 0, 0];
 
 /** The gun, glued to the camera, plus the fire handler. */
 function LaserRig() {
@@ -117,7 +129,25 @@ function LaserRig() {
             (candidate.object as THREE.Mesh).isMesh,
         );
 
-      if (hit) {
+      // Other players are tested separately from the scene, because their
+      // avatars are instanced meshes a raycast cannot be trusted against — see
+      // the header of core/hitbox.ts. Bounded by the distance to whatever
+      // scenery the ray already found, so nobody is shot through a wall.
+      const peerHit = pickPeerHit(
+        camera.position,
+        forward,
+        hit ? hit.distance : MAX_RANGE,
+        peerList(),
+      );
+
+      // Whoever is nearer wins the shot, so a player stepping into your line of
+      // fire takes the hit meant for the bot behind them.
+      const hitPeer =
+        peerHit && (!hit || peerHit.distance < hit.distance) ? peerHit : null;
+
+      if (hitPeer) {
+        impact.copy(camera.position).addScaledVector(forward, hitPeer.distance);
+      } else if (hit) {
         impact.copy(hit.point);
       } else {
         impact.copy(camera.position).addScaledVector(forward, MAX_RANGE);
@@ -125,8 +155,16 @@ function LaserRig() {
       spawnBolt(muzzle, impact);
       playLaserSound();
 
-      const botId = hit?.object.userData.laserBotId as string | undefined;
-      if (hit) {
+      const botId = hitPeer
+        ? undefined
+        : (hit?.object.userData.laserBotId as string | undefined);
+
+      if (hitPeer) {
+        // No face to work from — the hitbox is a plain box test — so scatter the
+        // sparks back along the shot, which is where a body would throw them.
+        surfaceNormal.copy(forward).negate();
+        spawnSparks(impact, surfaceNormal, peerById(hitPeer.id)?.color ?? LASER_TINT);
+      } else if (hit) {
         if (hit.face) {
           // Face normals are in the hit object's local space, and a bot's group
           // is yawed — so take it to world space rather than using it raw. It
@@ -141,6 +179,27 @@ function LaserRig() {
       }
 
       if (botId && landHit(botId)) playTagSound();
+      // Counted here rather than on the victim's acknowledgement, so the hit
+      // counter answers the trigger immediately. The takedown itself is only
+      // ever scored from that acknowledgement — see PeerCombat.
+      //
+      // The cost of that immediacy: this counts shots the victim goes on to
+      // reject — they had already left the round, or their position here was
+      // stale — so the two clients' "Hits" numbers can differ by a shot or two.
+      // Tags, the number anyone actually reads, always agree.
+      if (hitPeer) landPeerHit();
+
+      // Tell the room. Misses go out too: a bolt everyone can see is what makes
+      // another player's fire something you can react to rather than a number
+      // that appears on your HUD.
+      shotFrom[0] = muzzle.x;
+      shotFrom[1] = muzzle.y;
+      shotFrom[2] = muzzle.z;
+      shotTo[0] = impact.x;
+      shotTo[1] = impact.y;
+      shotTo[2] = impact.z;
+      publishShot({ targetId: hitPeer?.id ?? "", from: shotFrom, to: shotTo });
+
       // A miss still spooks anything nearby — that is what makes bots flee
       // visibly even when one hit is enough to tag them.
       spookBots(impact, ALERT_RADIUS);
@@ -214,6 +273,13 @@ export function LaserTag() {
   const config = useLaserTagStore((s) => s.config);
   const { roam, cells, spots, roof } = useBotArena(roundToken, config.botCount);
   const playing = phase !== "setup";
+  /**
+   * A round in progress, as opposed to one that is over but still showing its
+   * end card. This — not `playing` — is when PvP applies: once you have won or
+   * been scanned, you can neither be shot nor score, so nobody spends the
+   * post-round card taking damage they cannot answer.
+   */
+  const live = phase === "hunting";
 
   // Claim the shared world for the duration. `active` gates the voxel-breaking
   // in Cube.tsx and the axe in Player.tsx; pausing the flood keeps the water
@@ -231,6 +297,17 @@ export function LaserTag() {
       clearLaserFx();
     };
   }, []);
+
+  /**
+   * Tell the room whether this player is a target. Presence-backed, so the
+   * SHOOTER's client can tell a player mid-round apart from one reading the
+   * setup card or building in another mode — see the `armed` field in
+   * instant.schema.ts.
+   */
+  useEffect(() => {
+    setSelfArmed(live);
+    return () => setSelfArmed(false);
+  }, [live]);
 
   // A new round starts from dry land, however long the previous one ran.
   useEffect(() => {
@@ -272,8 +349,17 @@ export function LaserTag() {
             />
           ) : null}
           <LaserRig />
+          {/* Incoming fire from other players, and the acknowledgement that
+              scores their tags. Mounted with the gun rather than with the scene
+              because its presence is what tells net.ts anybody here is playing:
+              with no round open, shot messages are dropped undecoded. */}
+          <PeerCombat />
         </>
       ) : null}
+      {/* Outside the `playing` gate on purpose: the setup card's PvP line has to
+          know who else is armed BEFORE the round starts, and <PeerCombat/> only
+          exists once it has. */}
+      <ArmedPeerWatch />
       <LaserFx />
       <DebugArena cells={cells} />
     </>

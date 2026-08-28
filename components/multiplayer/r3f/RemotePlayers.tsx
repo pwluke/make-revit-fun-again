@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { applyRemoteEdit } from "@/components/minecraft/Cube";
+import { FEET, HEAD, HIP, LEG, SHOULDER, TORSO } from "../core/hitbox";
 import { peerList } from "../core/peers";
 import { connectWorldRoom } from "../net";
 
@@ -33,19 +34,15 @@ const MAX_PEERS = 16;
 
 /**
  * The figure is built to the LOCAL player's real dimensions so an avatar is
- * exactly the size of the thing you are. From Player.tsx: EYE_HEIGHT is 1.25,
- * and CAPSULE_NORMAL puts the body centre 0.38 + ~0.183 = ~0.563 above the
- * feet. So relative to the position on the wire — which is the body centre —
- * the feet sit at -0.563 and the top of the head at +0.687, giving a 1.25 tall
- * figure whose eyes land at the other player's actual camera height.
+ * exactly the size of the thing you are: relative to the position on the wire —
+ * the body centre — the feet sit at -0.563 and the top of the head at +0.687,
+ * giving a 1.25 tall figure whose eyes land at the other player's actual camera
+ * height.
+ *
+ * The numbers themselves live in core/hitbox.ts, which derives the PvP hitbox
+ * from them. Two copies would drift, and a drifted hitbox means shots visibly
+ * passing through a player.
  */
-const FEET = -0.563;
-const LEG = 0.45;
-const TORSO = 0.48;
-const HEAD = 0.32;
-
-const HIP = FEET + LEG; // -0.113
-const SHOULDER = HIP + TORSO; // 0.367
 
 /** How far limbs swing at full walking speed, in radians. */
 const MAX_SWING = 0.7;
@@ -243,6 +240,19 @@ export function RemotePlayers() {
             // instance is still at the origin, so culling would make avatars
             // vanish the moment they moved.
             frustumCulled={false}
+            // Avatars are never raycast, and shooting one is exactly why. An
+            // InstancedMesh tests against a bounding sphere three.js computes
+            // ONCE and caches — at a moment when every instance is still at the
+            // origin — so a ray would register against these meshes only
+            // erratically, and a shot could resolve as scenery rather than as
+            // the player standing in front of you. Whether you hit somebody is
+            // decided by core/hitbox.ts instead, against one box per player.
+            //
+            // It also keeps everything else that raycasts the scene behaving as
+            // it did before there were other players in it: the bots' line of
+            // sight, the voxel picker, the sketch plane. Same trick, and the
+            // same reason, as every mesh in LaserGun.tsx.
+            raycast={() => {}}
             castShadow
           >
             <boxGeometry args={part.size} />

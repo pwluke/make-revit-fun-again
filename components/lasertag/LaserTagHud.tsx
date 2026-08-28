@@ -48,6 +48,7 @@ function BossPip({ filled }: { filled: boolean }) {
 function SetupCard() {
   const stored = useLaserTagStore((s) => s.config);
   const startRound = useLaserTagStore((s) => s.startRound);
+  const armedPeers = useLaserTagStore((s) => s.armedPeers);
   const [draft, setDraft] = useState<RoundConfig>(stored);
 
   return (
@@ -124,6 +125,14 @@ function SetupCard() {
           ? "You have 100 health. Use the walls."
           : "The bots are unarmed — take your time."}
       </p>
+      {/* Not an option either: anyone else in the world is in it whatever you
+          choose here, so this states the fact rather than offering a toggle. */}
+      {armedPeers > 0 ? (
+        <p className="setup-pvp">
+          {armedPeers} other player{armedPeers === 1 ? " is" : "s are"} hunting
+          in here — and you can tag each other.
+        </p>
+      ) : null}
       {/* Not an option, so it sits below the button as a warning rather than
           above it as a choice. */}
       <p className="setup-boss">
@@ -150,6 +159,11 @@ export function LaserTagHud() {
   const bossHits = useLaserTagStore((s) => s.bossHits);
   const bossPresent = useLaserTagStore((s) => s.bossPresent);
   const hurtToken = useLaserTagStore((s) => s.hurtToken);
+  const armedPeers = useLaserTagStore((s) => s.armedPeers);
+  const peerHits = useLaserTagStore((s) => s.peerHits);
+  const peerTags = useLaserTagStore((s) => s.peerTags);
+  const lastHitByColor = useLaserTagStore((s) => s.lastHitByColor);
+  const downedByPeer = useLaserTagStore((s) => s.downedByPeer);
   const playAgain = useLaserTagStore((s) => s.playAgain);
   const backToSetup = useLaserTagStore((s) => s.backToSetup);
 
@@ -180,6 +194,18 @@ export function LaserTagHud() {
   const botPips = (total || config.botCount) - (bossPresent ? 1 : 0);
   const botsTagged = tagged.filter((id) => id !== BOSS_ID).length;
   const bossLeft = Math.max(0, BOSS_HITS - bossHits);
+  /**
+   * Whether this round is a PvP one. Either somebody else is out there right
+   * now, or somebody was and the score proves it — a player who leaves must not
+   * take your tally of them off the HUD with them.
+   */
+  const pvp = armedPeers > 0 || peerHits > 0 || peerTags > 0;
+  /**
+   * The health bar is normally the answer to "can the bots shoot back". Another
+   * player can shoot back regardless of that setting, so an unarmed-bot round
+   * with company in it still needs to show what you have left.
+   */
+  const showHealth = config.returnFire || pvp;
 
   return (
     <div className="laser-hud">
@@ -205,6 +231,14 @@ export function LaserTagHud() {
         <p className="laser-stats">
           Shots {shots} · Hits {hits}
         </p>
+        {/* Players, kept on its own line rather than folded into the bot stats:
+            they are a different kind of opponent and the counts are not
+            comparable — a bot is tagged in one hit, a player takes seven. */}
+        {pvp ? (
+          <p className="laser-pvp">
+            Players {armedPeers} · Tagged {peerTags} · Hits {peerHits}
+          </p>
+        ) : null}
         {/* The boss track. Only while he is up — once he is down the pip says
             so, and a full-width empty bar would just be noise. */}
         {bossPresent && !bossDown ? (
@@ -217,11 +251,21 @@ export function LaserTagHud() {
             <b>{BOSS_NAME.toUpperCase()}</b>
           </div>
         ) : null}
-        {config.returnFire ? (
+        {showHealth ? (
           <div className="laser-health" role="img" aria-label={`Health ${health}`}>
             <span style={{ width: `${(health / MAX_HEALTH) * 100}%` }} />
             <b>{health}</b>
           </div>
+        ) : null}
+        {/* Who is shooting at you, in the only terms this game has: nobody has
+            a name, so the avatar's colour IS their identity — the same colour
+            their bolt was drawn in. The store lapses this a couple of seconds
+            after the last hit, which is what keeps the present tense honest. */}
+        {phase === "hunting" && lastHitByColor ? (
+          <p className="laser-pvp rival">
+            <i style={{ background: lastHitByColor }} aria-hidden />
+            Taking fire from another player
+          </p>
         ) : null}
         {phase === "hunting" && hint ? (
           <p className="laser-hint">Nearest: {hint}</p>
@@ -242,10 +286,19 @@ export function LaserTagHud() {
           <p>
             {phase === "won"
               ? `${shots} shot${shots === 1 ? "" : "s"} to clear the school.`
-              : bossDown || !bossPresent
-                ? `${tagged.length} of ${total} tagged before you went down.`
-                : `${BOSS_NAME} was still standing when you went down.`}
+              : // Who got you is the first thing anyone asks, and "a bot did"
+                // and "another player did" are very different answers.
+                downedByPeer
+                ? "Another player tagged you out."
+                : bossDown || !bossPresent
+                  ? `${tagged.length} of ${total} tagged before you went down.`
+                  : `${BOSS_NAME} was still standing when you went down.`}
           </p>
+          {peerTags > 0 ? (
+            <p className="laser-win-pvp">
+              {peerTags} player{peerTags === 1 ? "" : "s"} tagged along the way.
+            </p>
+          ) : null}
           <div className="laser-win-actions">
             <button type="button" onClick={playAgain}>
               Play again
