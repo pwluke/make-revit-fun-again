@@ -48,3 +48,9 @@ trellis-comparison.html
 trellis-speed-sweep.html
 fast3d-reveal.html
 bridge-prompt-sweep.html
+
+# .NET build output (revit-add-in). Tracked once by accident; the generated
+# AssemblyInfo embeds the commit hash, so every local rebuild showed up as a
+# diff in whatever branch happened to be checked out.
+[Bb]in/
+[Oo]bj/
