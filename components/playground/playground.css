@@ -676,6 +676,7 @@
   left: 50%;
   width: 400px;
   padding: 10px;
+  overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: 18px;
   /* Translucent, not opaque: the point is to see where you are on the model
@@ -714,6 +715,11 @@
 .playground .mini-map-body canvas {
   display: block;
   flex: 1 1 auto;
+  /* A <canvas width="300"> has an intrinsic content size, and a flex item's
+     default min-width is that size — without this, "flex: 1 1 auto" refuses
+     to shrink it below 300px and it overflows the panel instead of scaling
+     down to fit beside the legend. */
+  min-width: 0;
   width: 100%;
   height: auto;
   border-radius: 12px;
