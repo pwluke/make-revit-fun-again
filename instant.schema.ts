@@ -123,7 +123,7 @@ const _schema = i.schema({
        * exactly the lifetime an avatar wants — no explicit "player left" event.
        */
       presence: i.entity({
-        /** Avatar tint. Random per tab: there are no accounts and no names. */
+        /** Avatar tint. Random per tab. */
         color: i.string(),
         x: i.number(),
         y: i.number(),
@@ -142,6 +142,13 @@ const _schema = i.schema({
          * `decodePresence` reads as "not armed" — the safe default.
          */
         armed: i.boolean().optional(),
+        /**
+         * Display name chosen in the join modal (lib/player-identity.ts).
+         * Optional on the wire: absent for a peer whose first slice has not
+         * landed yet, which `decodePresence` reads as "" — draw the avatar,
+         * skip the name tag.
+         */
+        name: i.string().optional(),
       }),
       topics: {
         /**

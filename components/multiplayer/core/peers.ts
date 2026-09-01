@@ -63,6 +63,7 @@ export function syncPeers(next: Map<string, PeerState>): void {
       existing.z = state.z;
       existing.yaw = state.yaw;
       existing.armed = state.armed;
+      existing.name = state.name;
     } else {
       peers.set(id, {
         id,

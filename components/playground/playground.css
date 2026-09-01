@@ -1596,6 +1596,131 @@
 .playground .next-adventure:hover {
   background: #2c3061;
 }
+.playground .player-roster {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+}
+.playground .player-roster > .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.playground .player-roster > .eyebrow b {
+  display: grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--mode-tint);
+  color: var(--mode-color);
+  font-size: 9px;
+}
+.playground .player-roster ul {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.playground .player-roster li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.playground .player-roster strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 600 12px var(--display);
+  color: #363a5c;
+}
+.playground .player-roster small {
+  margin-left: auto;
+  flex: 0 0 auto;
+  color: #9a9cb0;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.playground .player-dot {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #c3c5d6;
+}
+.playground .player-dot.self {
+  background: var(--mode-color);
+}
+.playground .join-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(20, 22, 46, 0.55);
+  backdrop-filter: blur(2px);
+}
+.playground .join-modal {
+  width: 100%;
+  max-width: 320px;
+  padding: 28px 24px 24px;
+  border-radius: 22px;
+  background: white;
+  box-shadow: 0 24px 60px rgba(15, 17, 40, 0.35);
+  text-align: center;
+}
+.playground .join-modal-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 10px;
+  border-radius: 50%;
+  background: var(--mode-tint, #eef0ff);
+  font-size: 26px;
+}
+.playground .join-modal h2 {
+  font: 700 17px var(--display);
+  color: var(--ink);
+}
+.playground .join-modal p {
+  margin-top: 6px;
+  color: #8b8d9e;
+  font-size: 12px;
+}
+.playground .join-modal input {
+  width: 100%;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  font: 600 14px var(--display);
+  color: var(--ink);
+  text-align: center;
+}
+.playground .join-modal input:focus {
+  outline: 2px solid var(--brand, #5f63df);
+  outline-offset: 1px;
+}
+.playground .join-modal-submit {
+  width: 100%;
+  margin-top: 14px;
+  padding: 13px;
+  border: 0;
+  border-radius: 13px;
+  background: var(--ink);
+  color: white;
+  font: 700 13px var(--display);
+}
+.playground .join-modal-submit:hover {
+  background: #2c3061;
+}
 .playground .toast {
   min-width: 230px;
   position: fixed;

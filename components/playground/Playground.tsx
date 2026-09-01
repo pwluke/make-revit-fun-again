@@ -1,6 +1,7 @@
 "use client";
 
 import { ActivityRail } from "./ActivityRail";
+import { JoinModal } from "./JoinModal";
 import { MissionPanel } from "./MissionPanel";
 import { ModelStage } from "./ModelStage";
 import { PlayToast } from "./PlayToast";
@@ -20,6 +21,7 @@ function PlaygroundShell() {
         <MissionPanel />
       </div>
       <PlayToast />
+      <JoinModal />
     </div>
   );
 }

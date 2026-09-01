@@ -16,6 +16,7 @@ const at = (x: number, yaw = 0): PeerState => ({
   z: 3,
   yaw,
   armed: false,
+  name: "",
 });
 
 const listed = () => [...peerList()];
