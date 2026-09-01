@@ -74,8 +74,9 @@ function makeFragmentSprite(
   return texture;
 }
 
-/** One fragment per part, spread over the storeys the model actually has. */
-function useFragmentSpots() {
+/** One fragment per part, spread over the storeys the model actually has.
+ *  Exported for the mini-map, which needs the same spots to plot markers. */
+export function useFragmentSpots() {
   const { data, blockSize } = useGridPoints();
   return useMemo(() => {
     const dino = DINOS[ACTIVE_DINO];

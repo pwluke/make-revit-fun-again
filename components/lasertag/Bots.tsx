@@ -122,6 +122,15 @@ export function botPosition(id: string): THREE.Vector3 | null {
   return bot && bot.scale > 0 ? bot.pos : null;
 }
 
+/** Every bot still in play, for the mini-map. Bots wander every frame, so —
+ *  unlike the round's fixed spawn spots — this has to be read fresh each
+ *  frame rather than baked into a memoized list. */
+export function liveBots(): { id: string; x: number; z: number }[] {
+  return bots
+    .filter((bot) => bot.scale > 0)
+    .map((bot) => ({ id: bot.id, x: bot.pos.x, z: bot.pos.z }));
+}
+
 /**
  * Pick the next cell to walk to. Prefers carrying straight on; when fleeing,
  * prefers whichever neighbour opens up the most distance from the player.

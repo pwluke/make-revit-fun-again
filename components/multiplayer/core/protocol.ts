@@ -19,6 +19,7 @@
 // so an aliased import here would make this whole module untestable. Every other
 // tested `core/` module imports relatively for the same reason.
 import { UI } from "../../../lib/palette";
+import { sanitizePlayerName } from "../../../lib/player-identity";
 
 export type Vec3 = [x: number, y: number, z: number];
 
@@ -112,6 +113,13 @@ export type PeerState = {
    * to decide what a missing flag means.
    */
   armed: boolean;
+  /**
+   * Display name chosen at join. Not optional even though the wire field is:
+   * "" means a peer whose name has not landed here yet (or an old build with
+   * no join modal), and callers treat that as "do not draw a tag" rather than
+   * having to check for undefined.
+   */
+  name: string;
 };
 
 /**
@@ -142,6 +150,7 @@ export function decodePresence(raw: unknown): PeerState | null {
     // one whose first presence slice has not filled in yet, is scenery rather
     // than a target — the direction that fails safe.
     armed: candidate.armed === true,
+    name: typeof candidate.name === "string" ? sanitizePlayerName(candidate.name) : "",
   };
 }
 

@@ -1,9 +1,11 @@
 "use client";
 
 import { useLaserTagStore } from "@/components/lasertag/laserTagStore";
+import { usePeerRoster } from "@/components/multiplayer/core/roster";
 import { useHeroStore } from "@/components/world/store";
 import { ACTIVE_DINO, DINOS, useDinoStore } from "@/components/world/dinoStore";
 import { useFloodStore } from "@/components/world/floodStore";
+import { usePlayerIdentity } from "@/lib/player-identity";
 import { getMission, MODES } from "./modes";
 import { usePlayground } from "./playground-context";
 import { useCursorLook } from "./use-cursor-look";
@@ -18,6 +20,8 @@ export function MissionPanel() {
   const fossilsFound = useDinoStore((s) => s.found.length);
   const fossilsTotal = DINOS[ACTIVE_DINO].parts.length;
   const waterLevel = useFloodStore((s) => s.level);
+  const selfName = usePlayerIdentity((s) => s.name);
+  const peers = usePeerRoster((s) => s.entries);
   const {
     mode,
     setMode,
@@ -113,6 +117,27 @@ export function MissionPanel() {
         <small>{config.next}</small>
         <b>↗</b>
       </button>
+
+      <section className="player-roster" aria-label="Players in this game">
+        <span className="eyebrow">
+          Playing now <b>{peers.length + (selfName ? 1 : 0)}</b>
+        </span>
+        <ul>
+          {selfName ? (
+            <li>
+              <i className="player-dot self" aria-hidden="true" />
+              <strong>{selfName}</strong>
+              <small>You</small>
+            </li>
+          ) : null}
+          {peers.map((peer) => (
+            <li key={peer.id}>
+              <i className="player-dot" style={{ background: peer.color }} aria-hidden="true" />
+              <strong>{peer.name || "Joining\u2026"}</strong>
+            </li>
+          ))}
+        </ul>
+      </section>
     </aside>
   );
 }

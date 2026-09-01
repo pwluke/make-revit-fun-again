@@ -83,8 +83,27 @@ describe("decodeEdit rejects untrusted payloads", () => {
 
 describe("decodePresence", () => {
   it("reads a full slice", () => {
-    const slice = { color: "#5f63df", x: 1, y: 2, z: 3, yaw: 0.5, armed: true };
+    const slice = { color: "#5f63df", x: 1, y: 2, z: 3, yaw: 0.5, armed: true, name: "Ann" };
     expect(decodePresence(slice)).toEqual(slice);
+  });
+
+  it("treats a missing name as unnamed", () => {
+    // A peer whose join modal has not landed yet, or one on an old build with
+    // no name at all. Callers read "" as "do not draw a tag for this peer".
+    expect(decodePresence({ color: "#5f63df", x: 1, y: 2, z: 3, yaw: 0 })?.name).toBe("");
+  });
+
+  it("truncates and trims a name the same way the join form does", () => {
+    expect(
+      decodePresence({
+        color: "#5f63df",
+        x: 1,
+        y: 2,
+        z: 3,
+        yaw: 0,
+        name: "   Way Too Long A Name For An Avatar   ",
+      })?.name,
+    ).toBe("Way Too Long A Nam");
   });
 
   it("treats a missing armed flag as unarmed", () => {

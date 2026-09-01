@@ -19,8 +19,10 @@
  */
 
 import { db } from "@/lib/db";
+import { usePlayerIdentity } from "@/lib/player-identity";
 import { setEditListener } from "./core/editBus";
 import { clearPeers, syncPeers } from "./core/peers";
+import { clearRoster, syncRoster } from "./core/roster";
 import {
   decodeEdit,
   decodePresence,
@@ -132,7 +134,12 @@ export function connectWorldRoom(
     // flag and its unmount clears it, so a value surviving a reconnect is a
     // player who is genuinely still in a round. Clearing it here would also
     // race the mode's own mount effect and could strand a live round unarmed.
-    initialPresence: { color: selfColor, armed: selfArmed },
+    //
+    // `name` reads whatever this tab already has — "" until the join modal
+    // resolves, since JoinModal hydrates before this ever runs. `publishSelf`
+    // below re-sends it on every tick, so a name chosen a moment after this
+    // fires reaches everyone within one presence interval regardless.
+    initialPresence: { color: selfColor, armed: selfArmed, name: usePlayerIdentity.getState().name },
   });
   room = joined;
   lastPublishAt = 0;
@@ -153,6 +160,7 @@ export function connectWorldRoom(
       if (state) next.set(peerId, state);
     }
     syncPeers(next);
+    syncRoster(next);
   });
 
   const unsubscribeEdits = joined.subscribeTopic("edit", (event) => {
@@ -194,6 +202,7 @@ export function connectWorldRoom(
     unsubscribePresence();
     joined.leaveRoom();
     clearPeers();
+    clearRoster();
     selfId = "";
     room = null;
   };
@@ -253,5 +262,16 @@ export function publishSelf(
   if (!room) return;
   if (now - lastPublishAt < PRESENCE_INTERVAL_MS) return;
   lastPublishAt = now;
-  room.publishPresence({ color: selfColor, x, y, z, yaw, armed: selfArmed });
+  room.publishPresence({
+    color: selfColor,
+    x,
+    y,
+    z,
+    yaw,
+    armed: selfArmed,
+    // Read fresh every tick rather than cached at connect time, so choosing a
+    // name after the world has already connected reaches other players on the
+    // very next tick instead of waiting for a reconnect.
+    name: usePlayerIdentity.getState().name,
+  });
 }

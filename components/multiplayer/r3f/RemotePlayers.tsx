@@ -2,10 +2,12 @@
 
 import { useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
+import { Billboard, Text } from "@react-three/drei";
 import * as THREE from "three";
 import { applyRemoteEdit } from "@/components/minecraft/Cube";
-import { FEET, HEAD, HIP, LEG, SHOULDER, TORSO } from "../core/hitbox";
-import { peerList } from "../core/peers";
+import { FEET, HEAD, HIP, LEG, PEER_TOP, SHOULDER, TORSO } from "../core/hitbox";
+import { peerById, peerList } from "../core/peers";
+import { usePeerRoster } from "../core/roster";
 import { connectWorldRoom } from "../net";
 
 /**
@@ -136,6 +138,66 @@ const partColor = new THREE.Color();
 /** Shortest signed angular distance, so a peer turning past ±π eases the short way round. */
 function shortestAngleTo(from: number, to: number): number {
   return ((to - from + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+}
+
+/** Clearance above the top of the head, so the tag doesn't touch the model. */
+const NAME_TAG_Y = PEER_TOP + 0.14;
+
+/**
+ * One player's floating name, kept above their head every frame.
+ *
+ * Follows `drawn`, the same eased position RemotePlayers itself draws from,
+ * so the tag never leads or lags the body it belongs to. Position is set on
+ * the group directly inside useFrame rather than through React state — the
+ * same reason every other per-frame value in this file bypasses render.
+ */
+function NameTag({ id, color }: { id: string; color: string }) {
+  const group = useRef<THREE.Group>(null);
+
+  useFrame(() => {
+    const peer = peerById(id);
+    if (!peer || !group.current) return;
+    group.current.position.set(peer.drawn.x, peer.drawn.y + NAME_TAG_Y, peer.drawn.z);
+  });
+
+  const roster = usePeerRoster((state) => state.entries.find((entry) => entry.id === id));
+  // A peer whose join modal has not resolved yet has no name to show; the
+  // avatar still renders, it just goes without a tag until one arrives.
+  if (!roster?.name) return null;
+
+  return (
+    <group ref={group}>
+      <Billboard>
+        <Text
+          fontSize={0.16}
+          color="#ffffff"
+          outlineWidth={0.012}
+          outlineColor={color}
+          anchorX="center"
+          anchorY="bottom"
+        >
+          {roster.name}
+        </Text>
+      </Billboard>
+    </group>
+  );
+}
+
+/**
+ * One tag per peer currently in the roster. A sibling of RemotePlayers rather
+ * than folded into its return: the roster store only changes on join, leave,
+ * or rename — far rarer than the 10Hz position feed — so this is the one part
+ * of the remote-player tree allowed to re-render on its own.
+ */
+export function PeerNameTags() {
+  const entries = usePeerRoster((state) => state.entries);
+  return (
+    <>
+      {entries.map((entry) => (
+        <NameTag key={entry.id} id={entry.id} color={entry.color} />
+      ))}
+    </>
+  );
 }
 
 export function RemotePlayers() {

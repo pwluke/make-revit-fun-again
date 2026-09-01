@@ -15,6 +15,7 @@ import { LaserTag } from "@/components/lasertag/LaserTag";
 import { LaserTagHud } from "@/components/lasertag/LaserTagHud";
 import FloodHud from "@/components/world/FloodHud";
 import { MinecraftViewport } from "./MinecraftViewport";
+import { MiniMap } from "./MiniMap";
 import { MODES } from "./modes";
 import { usePlayground } from "./playground-context";
 import { SketchOverlay } from "./SketchOverlay";
@@ -208,6 +209,7 @@ export function ModelStage() {
             −
           </button>
         </div>
+        <MiniMap />
       </div>
 
       <StageToolbar />

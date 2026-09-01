@@ -662,6 +662,97 @@
 .playground .zoom-controls button + button {
   border-top: 1px solid var(--line);
 }
+.playground .map-toggle {
+  position: absolute;
+  z-index: 10;
+  right: 18px;
+  bottom: 88px;
+  background: white;
+}
+.playground .mini-map {
+  position: absolute;
+  z-index: 30;
+  top: 50%;
+  left: 50%;
+  width: 400px;
+  padding: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 18px;
+  /* Translucent, not opaque: the point is to see where you are on the model
+     without losing sight of the model itself. */
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 18px 40px rgba(15, 17, 40, 0.22);
+  backdrop-filter: blur(6px);
+  transform: translate(-50%, -50%);
+}
+.playground .mini-map-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font: 700 12px var(--display);
+  color: var(--ink);
+}
+.playground .mini-map-close {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(32, 35, 71, 0.08);
+  font-size: 11px;
+  color: var(--ink);
+}
+.playground .mini-map-close:hover {
+  background: rgba(32, 35, 71, 0.16);
+}
+.playground .mini-map-body {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.playground .mini-map-body canvas {
+  display: block;
+  flex: 1 1 auto;
+  /* A <canvas width="300"> has an intrinsic content size, and a flex item's
+     default min-width is that size — without this, "flex: 1 1 auto" refuses
+     to shrink it below 300px and it overflows the panel instead of scaling
+     down to fit beside the legend. */
+  min-width: 0;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.5);
+}
+.playground .mini-map-legend {
+  display: flex;
+  flex: 0 0 108px;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 260px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.playground .mini-map-legend li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font: 600 9px var(--body);
+  color: #4c4f6b;
+}
+.playground .mini-map-legend i {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+.playground .mini-map-legend-ring {
+  background: transparent;
+  border: 2px solid #9a9cb0;
+}
 
 /* Laser Tag scoreboard */
 .playground .laser-hud {
@@ -1594,6 +1685,131 @@
   font-size: 17px;
 }
 .playground .next-adventure:hover {
+  background: #2c3061;
+}
+.playground .player-roster {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+}
+.playground .player-roster > .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.playground .player-roster > .eyebrow b {
+  display: grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--mode-tint);
+  color: var(--mode-color);
+  font-size: 9px;
+}
+.playground .player-roster ul {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.playground .player-roster li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.playground .player-roster strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 600 12px var(--display);
+  color: #363a5c;
+}
+.playground .player-roster small {
+  margin-left: auto;
+  flex: 0 0 auto;
+  color: #9a9cb0;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.playground .player-dot {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #c3c5d6;
+}
+.playground .player-dot.self {
+  background: var(--mode-color);
+}
+.playground .join-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(20, 22, 46, 0.55);
+  backdrop-filter: blur(2px);
+}
+.playground .join-modal {
+  width: 100%;
+  max-width: 320px;
+  padding: 28px 24px 24px;
+  border-radius: 22px;
+  background: white;
+  box-shadow: 0 24px 60px rgba(15, 17, 40, 0.35);
+  text-align: center;
+}
+.playground .join-modal-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 10px;
+  border-radius: 50%;
+  background: var(--mode-tint, #eef0ff);
+  font-size: 26px;
+}
+.playground .join-modal h2 {
+  font: 700 17px var(--display);
+  color: var(--ink);
+}
+.playground .join-modal p {
+  margin-top: 6px;
+  color: #8b8d9e;
+  font-size: 12px;
+}
+.playground .join-modal input {
+  width: 100%;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  font: 600 14px var(--display);
+  color: var(--ink);
+  text-align: center;
+}
+.playground .join-modal input:focus {
+  outline: 2px solid var(--brand, #5f63df);
+  outline-offset: 1px;
+}
+.playground .join-modal-submit {
+  width: 100%;
+  margin-top: 14px;
+  padding: 13px;
+  border: 0;
+  border-radius: 13px;
+  background: var(--ink);
+  color: white;
+  font: 700 13px var(--display);
+}
+.playground .join-modal-submit:hover {
   background: #2c3061;
 }
 .playground .toast {
