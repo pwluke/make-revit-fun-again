@@ -23,7 +23,7 @@ const MAP_PADDING = 16;
  *  time a different building loads. */
 const BUCKETS = 96;
 
-type Item = { x: number; z: number; color: string; glyph: string };
+type Item = { x: number; z: number; color: string; glyph: string; label: string };
 
 /** One pass over the building's occupied cells: its footprint, and a coarse
  *  colour-by-bucket floor plan pre-rendered to an offscreen canvas so the
@@ -114,22 +114,40 @@ function useItems(): Item[] {
     if (mode === "treasure") {
       for (const spot of emblemSpots) {
         if (heroFound.includes(spot.id)) continue;
-        items.push({ x: spot.pos[0], z: spot.pos[2], color: ABILITY_COLORS[spot.id], glyph: ABILITIES[spot.id].emoji });
+        items.push({
+          x: spot.pos[0],
+          z: spot.pos[2],
+          color: ABILITY_COLORS[spot.id],
+          glyph: ABILITIES[spot.id].emoji,
+          label: `${ABILITIES[spot.id].name} power`,
+        });
       }
       for (const spot of fragmentSpots) {
         if (dinoFound.includes(spot.id)) continue;
-        items.push({ x: spot.pos[0], z: spot.pos[2], color: DINOS[ACTIVE_DINO].color, glyph: "🦴" });
+        items.push({
+          x: spot.pos[0],
+          z: spot.pos[2],
+          color: DINOS[ACTIVE_DINO].color,
+          glyph: "🦴",
+          label: "Dino bone",
+        });
       }
       return items;
     }
 
     for (const spot of starSpots) {
       if (starsFound.includes(spot.id)) continue;
-      items.push({ x: spot.pos[0], z: spot.pos[2], color: "#f3b939", glyph: "★" });
+      items.push({ x: spot.pos[0], z: spot.pos[2], color: "#f3b939", glyph: "★", label: "Star" });
     }
     if (mode === "race") {
       for (const spot of POWERUP_SPOTS) {
-        items.push({ x: spot.pos[0], z: spot.pos[2], color: POWERUPS[spot.kind].color, glyph: POWERUPS[spot.kind].icon });
+        items.push({
+          x: spot.pos[0],
+          z: spot.pos[2],
+          color: POWERUPS[spot.kind].color,
+          glyph: POWERUPS[spot.kind].icon,
+          label: POWERUPS[spot.kind].label,
+        });
       }
     }
     return items;
@@ -147,6 +165,16 @@ export function MiniMap() {
   const plan = useFloorPlan();
   const items = useItems();
   const selfName = usePlayerIdentity((s) => s.name);
+
+  // Built from the same list the canvas draws from, so the legend can never
+  // drift out of sync with what is actually plotted this mode.
+  const legend = useMemo(() => {
+    const byKey = new Map<string, Item>();
+    for (const item of items) {
+      byKey.set(`${item.glyph}|${item.color}`, item);
+    }
+    return [...byKey.values()];
+  }, [items]);
 
   useEffect(() => {
     if (!open) return;
@@ -229,6 +257,22 @@ export function MiniMap() {
             </button>
           </div>
           <canvas ref={canvasRef} width={MAP_SIZE} height={MAP_SIZE} />
+          <ul className="mini-map-legend">
+            <li>
+              <i style={{ background: "#5f63df" }} />
+              You
+            </li>
+            <li>
+              <i className="mini-map-legend-ring" />
+              Other players
+            </li>
+            {legend.map((item) => (
+              <li key={`${item.glyph}-${item.color}`}>
+                <i style={{ background: item.color }} />
+                {item.label}
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
     </>

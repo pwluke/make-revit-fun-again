@@ -713,6 +713,31 @@
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.5);
 }
+.playground .mini-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 10px 0 2px;
+  padding: 0;
+  list-style: none;
+}
+.playground .mini-map-legend li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font: 600 9px var(--body);
+  color: #4c4f6b;
+}
+.playground .mini-map-legend i {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+.playground .mini-map-legend-ring {
+  background: transparent;
+  border: 2px solid #9a9cb0;
+}
 
 /* Laser Tag scoreboard */
 .playground .laser-hud {
