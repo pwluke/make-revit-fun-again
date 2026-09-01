@@ -270,29 +270,31 @@ export function MiniMap() {
               ✕
             </button>
           </div>
-          <canvas ref={canvasRef} width={MAP_SIZE} height={MAP_SIZE} />
-          <ul className="mini-map-legend">
-            <li>
-              <i style={{ background: "#5f63df" }} />
-              You
-            </li>
-            <li>
-              <i className="mini-map-legend-ring" />
-              Other players
-            </li>
-            {mode === "lasertag" ? (
+          <div className="mini-map-body">
+            <ul className="mini-map-legend">
               <li>
-                <i style={{ background: "#ef4444" }} />
-                Bot to tag
+                <i style={{ background: "#5f63df" }} />
+                You
               </li>
-            ) : null}
-            {legend.map((item) => (
-              <li key={`${item.glyph}-${item.color}`}>
-                <i style={{ background: item.color }} />
-                {item.label}
+              <li>
+                <i className="mini-map-legend-ring" />
+                Other players
               </li>
-            ))}
-          </ul>
+              {mode === "lasertag" ? (
+                <li>
+                  <i style={{ background: "#ef4444" }} />
+                  Bot to tag
+                </li>
+              ) : null}
+              {legend.map((item) => (
+                <li key={`${item.glyph}-${item.color}`}>
+                  <i style={{ background: item.color }} />
+                  {item.label}
+                </li>
+              ))}
+            </ul>
+            <canvas ref={canvasRef} width={MAP_SIZE} height={MAP_SIZE} />
+          </div>
         </div>
       ) : null}
     </>

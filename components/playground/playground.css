@@ -674,7 +674,7 @@
   z-index: 30;
   top: 50%;
   left: 50%;
-  width: 300px;
+  width: 400px;
   padding: 10px;
   border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: 18px;
@@ -706,8 +706,14 @@
 .playground .mini-map-close:hover {
   background: rgba(32, 35, 71, 0.16);
 }
-.playground .mini-map canvas {
+.playground .mini-map-body {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.playground .mini-map-body canvas {
   display: block;
+  flex: 1 1 auto;
   width: 100%;
   height: auto;
   border-radius: 12px;
@@ -715,10 +721,13 @@
 }
 .playground .mini-map-legend {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-  margin: 10px 0 2px;
+  flex: 0 0 108px;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 260px;
+  margin: 0;
   padding: 0;
+  overflow-y: auto;
   list-style: none;
 }
 .playground .mini-map-legend li {
