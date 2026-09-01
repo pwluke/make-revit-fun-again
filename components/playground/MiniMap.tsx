@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { playerOrigin } from "@/components/minecraft/player-origin";
+import { liveBots } from "@/components/lasertag/Bots";
 import { peerList } from "@/components/multiplayer/core/peers";
 import { occupiedPointCoords, useGridPoints } from "@/lib/use-grid-points";
 import { usePlayerIdentity } from "@/lib/player-identity";
@@ -165,6 +166,7 @@ export function MiniMap() {
   const plan = useFloorPlan();
   const items = useItems();
   const selfName = usePlayerIdentity((s) => s.name);
+  const { mode } = usePlayground();
 
   // Built from the same list the canvas draws from, so the legend can never
   // drift out of sync with what is actually plotted this mode.
@@ -220,6 +222,18 @@ export function MiniMap() {
         drawPlayerDot(ctx, p.x, p.y, peer.color, peer.name);
       }
 
+      // Bots wander every frame just like players, so — unlike the stationary
+      // items above — they are read fresh here rather than through `items`.
+      if (mode === "lasertag") {
+        for (const bot of liveBots()) {
+          const p = toCanvas(bot.x, bot.z);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+          ctx.fillStyle = "#ef4444";
+          ctx.fill();
+        }
+      }
+
       const self = toCanvas(playerOrigin.x, playerOrigin.z);
       drawPlayerDot(ctx, self.x, self.y, "#5f63df", selfName || "You", true);
 
@@ -228,7 +242,7 @@ export function MiniMap() {
     frame = requestAnimationFrame(draw);
 
     return () => cancelAnimationFrame(frame);
-  }, [open, plan, items, selfName]);
+  }, [open, plan, items, selfName, mode]);
 
   return (
     <>
@@ -266,6 +280,12 @@ export function MiniMap() {
               <i className="mini-map-legend-ring" />
               Other players
             </li>
+            {mode === "lasertag" ? (
+              <li>
+                <i style={{ background: "#ef4444" }} />
+                Bot to tag
+              </li>
+            ) : null}
             {legend.map((item) => (
               <li key={`${item.glyph}-${item.color}`}>
                 <i style={{ background: item.color }} />
